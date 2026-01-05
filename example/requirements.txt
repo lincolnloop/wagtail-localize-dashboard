@@ -1,0 +1,14 @@
+# Core dependencies
+Django>=4.2,<5.1
+Wagtail>=5.2,<7.0
+wagtail-localize>=1.8
+django-debug-toolbar==6.1.0
+
+# The library we're demonstrating
+# In production, you would install from PyPI:
+# wagtail-localize-dashboard>=0.1.0
+# For this example, we install from parent directory:
+-e ..
+
+# Optional but recommended
+pillow>=10.0.0

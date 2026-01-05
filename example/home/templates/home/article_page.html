@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+
+{% block content %}
+<article class="article-page">
+    <header>
+        <h1>{{ page.title }}</h1>
+        <div class="meta">
+            <time datetime="{{ page.date|date:'Y-m-d' }}">{{ page.date }}</time>
+            {% if page.author %}
+                <span class="author">by {{ page.author }}</span>
+            {% endif %}
+        </div>
+    </header>
+
+    {% if page.intro %}
+    <div class="intro">
+        {{ page.intro }}
+    </div>
+    {% endif %}
+
+    {% if page.body %}
+    <div class="body">
+        {{ page.body|richtext }}
+    </div>
+    {% endif %}
+</article>
+{% endblock %}

@@ -1,0 +1,107 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wagtail-localize-dashboard"
+version = "0.1.0"
+description = "Translation dashboard for wagtail-localize with caching"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Lincoln Loop", email = "hello@lincolnloop.com"}
+]
+keywords = ["wagtail", "localize", "translation", "i18n", "l10n", "dashboard"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Framework :: Wagtail",
+    "Framework :: Wagtail :: 5",
+    "Framework :: Wagtail :: 6",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Software Development :: Internationalization",
+    "Topic :: Software Development :: Localization",
+]
+dependencies = [
+    "Django>=4.2",
+    "Wagtail>=5.2",
+    "wagtail-localize>=1.8",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-django>=4.5",
+    "pytest-cov>=4.0",
+]
+accessibility = [
+    "selenium>=4.0",
+    "selenium-axe-python>=2.1",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-django>=4.5",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "flake8>=6.0",
+    "isort>=5.12",
+    "mypy>=1.0",
+    "selenium>=4.0",
+    "selenium-axe-python>=2.1",
+]
+docs = [
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/lincolnloop/wagtail-localize-dashboard"
+Documentation = "https://wagtail-localize-dashboard.readthedocs.io"
+Repository = "https://github.com/lincolnloop/wagtail-localize-dashboard"
+"Bug Tracker" = "https://github.com/lincolnloop/wagtail-localize-dashboard/issues"
+
+[tool.setuptools.packages.find]
+include = ["wagtail_localize_dashboard*"]
+exclude = ["tests*", "docs*", "example*"]
+
+[tool.setuptools.package-data]
+wagtail_localize_dashboard = [
+    "static/**/*",
+    "templates/**/*",
+    "migrations/*.py",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312", "py313", "py314"]
+include = "\\.pyi?$"
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "test_settings"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "accessibility: marks tests as accessibility tests (deselect with '-m \"not accessibility\"')",
+    "selenium: marks tests that require Selenium WebDriver",
+]

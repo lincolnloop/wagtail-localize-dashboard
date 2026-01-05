@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+
+{% block content %}
+<div class="home-page">
+    <h1>{{ page.title }}</h1>
+
+    {% if page.tagline %}
+    <p class="tagline">{{ page.tagline }}</p>
+    {% endif %}
+
+    {% if page.intro %}
+    <div class="intro">
+        {{ page.intro|richtext }}
+    </div>
+    {% endif %}
+
+    {% if page.body %}
+    <div class="body">
+        {% for block in page.body %}
+            {% if block.block_type == "heading" %}
+                <h2>{{ block.value }}</h2>
+            {% elif block.block_type == "paragraph" %}
+                <div class="paragraph">
+                    {{ block.value|richtext }}
+                </div>
+            {% elif block.block_type == "image" %}
+                <figure>
+                    <img src="{{ block.value.image }}" alt="{{ block.value.caption }}">
+                    {% if block.value.caption %}
+                        <figcaption>{{ block.value.caption }}</figcaption>
+                    {% endif %}
+                </figure>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

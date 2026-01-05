@@ -1,0 +1,9 @@
+include LICENSE
+include README.md
+include CONTRIBUTING.md
+include CHANGELOG.md
+recursive-include wagtail_localize_dashboard/static *
+recursive-include wagtail_localize_dashboard/templates *
+recursive-include wagtail_localize_dashboard/migrations *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
