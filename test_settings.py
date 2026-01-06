@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     "wagtail_localize.locales",
     # Our library
     "wagtail_localize_dashboard",
+    # Test models
+    "tests",
 ]
 
 MIDDLEWARE = [

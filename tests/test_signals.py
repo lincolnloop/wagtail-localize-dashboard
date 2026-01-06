@@ -2,15 +2,19 @@
 
 from unittest.mock import patch
 
+import polib
+import pytest
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import transaction
 from django.test import override_settings
 from django.urls import reverse
-
-import pytest
+from django.utils import timezone
 from wagtail.models import Locale, Page
 from wagtail_localize.models import StringTranslation, Translation, TranslationSource
+
+from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import TranslationProgress
 
 pytestmark = [
@@ -494,3 +498,241 @@ def test_page_saved_signal_skips_raw_save(
     # Saving the reloaded_page should create the TranslationProgress object again.
     reloaded_page.save()
     assert TranslationProgress.objects.filter(source_page_id=reloaded_page.id).exists()
+
+
+@patch.object(transaction, "on_commit", side_effect=lambda func: func())
+def test_uploading_po_file_updates_page_translation_data(
+    _mock_on_commit, client, page_with_translation, locale_fr
+):
+    """Uploading a .po file for a translation should update TranslationProgress data."""
+    # Get the English page from the fixture
+    en_page = page_with_translation["en_page"]
+
+    # Create a translation
+    translation_source, _ = TranslationSource.get_or_create_from_instance(en_page)
+    translation = Translation.objects.create(
+        source=translation_source,
+        target_locale=locale_fr,
+        enabled=True,
+    )
+    translation.save_target(user=None, publish=True)
+
+    # Verify TranslationProgress was created with initial progress
+    assert TranslationProgress.objects.count() == 1
+    translation_data = TranslationProgress.objects.get(source_page=en_page)
+    assert translation_data.percent_translated < 100
+
+    # Create a superuser and login
+    User = get_user_model()
+    user = User.objects.create_superuser(
+        username="admin", email="admin@test.com", password="password"
+    )
+    client.force_login(user)
+
+    # Create a PO file with translations for the page
+    po = polib.POFile(wrapwidth=200)
+    po.metadata = {
+        "POT-Creation-Date": str(timezone.now()),
+        "MIME-Version": "1.0",
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-WagtailLocalize-TranslationID": str(translation.uuid),
+    }
+
+    # Get translatable string segments from the translation
+    string_segments = translation_source.stringsegment_set.all()
+    assert string_segments.count() > 0, "No string segments found for translation"
+
+    # Add translations for all string segments to the PO file
+    for segment in string_segments:
+        po.append(
+            polib.POEntry(
+                msgid=segment.string.data,
+                msgctxt=segment.context.path,
+                msgstr=f"Traduction française: {segment.string.data}",
+            )
+        )
+
+    # Make sure (just before uploading the .po file) that the percent translated is less than 100%.
+    translation_data.refresh_from_db()
+    assert translation_data.percent_translated < 100
+
+    # Upload the PO file via the wagtail-localize upload_pofile view
+    upload_url = reverse("wagtail_localize:upload_pofile", args=[translation.id])
+    fr_page = translation.get_target_instance()
+    response = client.post(
+        upload_url,
+        {
+            "file": SimpleUploadedFile(
+                "translations.po",
+                str(po).encode("utf-8"),
+                content_type="text/x-gettext-translation",
+            ),
+            "next": reverse("wagtailadmin_pages:edit", args=[fr_page.id]),
+        },
+    )
+
+    # The request should succeed (redirect after upload)
+    assert response.status_code == 302, (
+        f"Unexpected status code: {response.status_code}"
+    )
+
+    # The signal should have updated TranslationProgress: all fields should now be translated.
+    translation_data.refresh_from_db()
+    assert translation_data.percent_translated == 100
+
+
+@patch.object(transaction, "on_commit", side_effect=lambda func: func())
+@patch("wagtail_localize_dashboard.utils.create_translation_progress")
+def test_snippet_translation_does_not_call_create_translation_progress(
+    _mock_create_translation_progress, _mock_on_commit, locale_en, locale_fr
+):
+    """Test that creating a translation for a snippet does NOT call create_page_translation_data."""
+    # Create a snippet (non-page object)
+    snippet = SampleSnippet.objects.create(
+        locale=locale_en,
+        heading="Test Heading",
+        desc="Test Description",
+    )
+
+    # Create a TranslationSource for the snippet
+    translation_source, _ = TranslationSource.get_or_create_from_instance(snippet)
+
+    # Create a Translation for the snippet
+    translation = Translation.objects.create(
+        source=translation_source,
+        target_locale=locale_fr,
+        enabled=True,
+    )
+    translation.save_target(user=None, publish=True)
+
+    # Verify that create_translation_progress was NOT called
+    _mock_create_translation_progress.assert_not_called()
+
+
+@patch.object(transaction, "on_commit", side_effect=lambda func: func())
+@patch("wagtail_localize_dashboard.utils.create_translation_progress")
+def test_snippet_string_translation_does_not_call_create_translation_progress(
+    _mock_create_translation_progress, _mock_on_commit, locale_en, locale_fr
+):
+    """Test that creating a StringTranslation for a snippet does NOT call create_page_translation_data."""
+    # Create a snippet (non-page object)
+    snippet = SampleSnippet.objects.create(
+        locale=locale_en,
+        heading="Test Heading",
+        desc="Test Description",
+    )
+
+    # Create a TranslationSource for the snippet
+    translation_source, _ = TranslationSource.get_or_create_from_instance(snippet)
+
+    # Create a Translation for the snippet
+    translation = Translation.objects.create(
+        source=translation_source,
+        target_locale=locale_fr,
+        enabled=True,
+    )
+    translation.save_target(user=None, publish=True)
+
+    # Get a string segment from the translation source
+    string_segment = translation_source.stringsegment_set.first()
+    assert string_segment is not None, (
+        "No string segments found for snippet translation"
+    )
+
+    # Reset the mock to clear any calls from the translation creation
+    _mock_create_translation_progress.reset_mock()
+
+    # Create a StringTranslation for the snippet
+    StringTranslation.objects.create(
+        translation_of=string_segment.string,
+        locale=locale_fr,
+        context=string_segment.context,
+        data="Titre français",
+    )
+
+    # Verify that create_translation_progress was NOT called
+    _mock_create_translation_progress.assert_not_called()
+
+
+@patch.object(transaction, "on_commit", side_effect=lambda func: func())
+@patch("wagtail_localize_dashboard.utils.create_translation_progress")
+def test_snippet_string_translation_deletion_does_not_call_create_translation_progress(
+    _mock_create_translation_progress, _mock_on_commit, locale_en, locale_fr
+):
+    """Test that deleting a StringTranslation for a snippet does NOT call create_page_translation_data."""
+    # Create a snippet (non-page object)
+    snippet = SampleSnippet.objects.create(
+        locale=locale_en,
+        heading="Test Heading",
+        desc="Test Description",
+    )
+
+    # Create a TranslationSource for the snippet
+    translation_source, _ = TranslationSource.get_or_create_from_instance(snippet)
+
+    # Create a Translation for the snippet
+    translation = Translation.objects.create(
+        source=translation_source,
+        target_locale=locale_fr,
+        enabled=True,
+    )
+    translation.save_target(user=None, publish=True)
+
+    # Get a string segment from the translation source
+    string_segment = translation_source.stringsegment_set.first()
+    assert string_segment is not None, (
+        "No string segments found for snippet translation"
+    )
+
+    # Create a StringTranslation for the snippet
+    string_translation = StringTranslation.objects.create(
+        translation_of=string_segment.string,
+        locale=locale_fr,
+        context=string_segment.context,
+        data="Titre français",
+    )
+
+    # Reset the mock to clear any calls from the translation creation
+    _mock_create_translation_progress.reset_mock()
+
+    # Delete the StringTranslation
+    string_translation.delete()
+
+    # Verify that create_translation_progress was NOT called
+    _mock_create_translation_progress.assert_not_called()
+
+
+@patch.object(transaction, "on_commit", side_effect=lambda func: func())
+@patch("wagtail_localize_dashboard.utils.create_translation_progress")
+def test_snippet_translation_source_save_does_not_call_create_translation_progress(
+    _mock_create_translation_progress, _mock_on_commit, locale_en
+):
+    """Test that saving a TranslationSource for a snippet does NOT call create_page_translation_data."""
+    # Create a snippet (non-page object)
+    snippet = SampleSnippet.objects.create(
+        locale=locale_en,
+        heading="Test Heading",
+        desc="Test Description",
+    )
+
+    # Reset the mock before creating translation source
+    _mock_create_translation_progress.reset_mock()
+
+    # Create a TranslationSource for the snippet
+    translation_source, _ = TranslationSource.get_or_create_from_instance(snippet)
+
+    # Verify that create_translation_progress was NOT called
+    _mock_create_translation_progress.assert_not_called()
+
+    # Now update the snippet and update the translation source
+    snippet.heading = "Updated Heading"
+    snippet.save()
+
+    # Reset the mock again
+    _mock_create_translation_progress.reset_mock()
+
+    # Update the translation source
+    translation_source.update_from_db()
+
+    # Verify that create_translation_progress was NOT called
+    _mock_create_translation_progress.assert_not_called()
