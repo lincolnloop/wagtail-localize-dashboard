@@ -4,12 +4,11 @@ A translation dashboard for Wagtail sites using [wagtail-localize](https://githu
 
 <img width="1914" height="470" alt="translation-dashboard" src="https://github.com/user-attachments/assets/c536fc1e-9a9e-4137-aa9b-9faa2baf74c1" />
 
-
 ## Features
 
 - **Translation Dashboard**: Visual overview of translation progress for all pages
-- **Performance**: Cached translation percentages for fast loading
-- **Auto-Updates**: Signals automatically update cache when translations change
+- **Auto-Updates**: Signals automatically update percentages when translations change
+- **Performance**: Translation percentages are stored in the database, for fast loading
 - **Filtering**: Search by title, filter by language, translation key
 - **Color-Coded Status**: Green (100%), Yellow (80-99%), Red (<80%)
 - **Admin Integration**: Adds menu item to Wagtail admin
@@ -56,7 +55,7 @@ urlpatterns = [
 python manage.py migrate wagtail_localize_dashboard
 ```
 
-### 4. Build Initial Cache
+### 4. Calculate Percentages
 
 ```bash
 python manage.py rebuild_translation_progress
@@ -76,7 +75,7 @@ Customize behavior in your Django settings:
 # Enable/disable the entire feature (default: True)
 WAGTAIL_LOCALIZE_DASHBOARD_ENABLED = True
 
-# Enable automatic cache updates via signals (default: True)
+# Enable automatic TranslationProgress updates via signals (default: True)
 WAGTAIL_LOCALIZE_DASHBOARD_AUTO_UPDATE = True
 
 # Track translation progress for Pages (default: True)
@@ -107,7 +106,7 @@ The dashboard shows:
 ### Management Commands
 
 ```bash
-# Rebuild entire cache
+# Recalculate translation percentages for all pages
 python manage.py rebuild_translation_progress
 
 # Clean orphaned records and rebuild
@@ -139,10 +138,10 @@ print(f"Processed {stats['pages']} pages")
 
 ## How It Works
 
-1. **Cache Table**: `TranslationProgress` model stores pre-calculated percentages
-2. **Signals**: Listen for translation changes and update cache automatically
-3. **Dashboard**: Queries cache table for fast rendering
-4. **Management Command**: Rebuilds cache when needed
+1. **Database Table**: The `TranslationProgress` model stores pre-calculated percentages
+2. **Signals**: Listen for translation changes and update `TranslationProgress` table automatically
+3. **Dashboard**: Displays `TranslationProgress` data for each page
+4. **Management Command**: Rebuilds `TranslationProgress` objects when needed
 
 ## Requirements
 
