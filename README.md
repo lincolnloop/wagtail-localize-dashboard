@@ -206,6 +206,10 @@ Format with ruff:
 ruff format .
 ```
 
+## Release
+
+In order to make a release, we add a git tag and push it to GitHub. We have a GitHub Action that releases the code to PyPI when we add a new tag.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
