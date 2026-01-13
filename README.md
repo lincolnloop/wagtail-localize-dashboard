@@ -2,7 +2,7 @@
 
 A translation dashboard for Wagtail sites using [wagtail-localize](https://github.com/wagtail/wagtail-localize).
 
-![translation-dashboard](docs/images/translation-dashboard.png)
+![translation-dashboard](https://raw.githubusercontent.com/lincolnloop/wagtail-localize-dashboard/main/docs/images/translation-dashboard.png)
 
 ## Features
 
