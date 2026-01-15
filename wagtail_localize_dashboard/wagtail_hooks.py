@@ -38,7 +38,7 @@ def add_translations_button(buttons, page, user, context=None):
         translations_button = Button(
             label="See Translations",
             url=f"{reverse('wagtail_localize_dashboard:dashboard')}?translation_key={page.translation_key}",
-            classname="button",
+            classname="button button-small button-secondary",
             attrs={"target": "_blank"},
             priority=100,
         )
