@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, transaction
+from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
@@ -13,6 +14,11 @@ import pytest
 from wagtail.models import Page
 from wagtail_localize.models import Translation, TranslationSource
 from wagtail_localize_dashboard.models import TranslationProgress
+
+COLUMN_FILTER_OPTIONS = [
+    ("group_a", "Group A", ["de", "fr"]),
+    ("group_b", "Group B", ["es"]),
+]
 
 
 @pytest.mark.django_db
@@ -264,6 +270,143 @@ class TestDashboardView:
         # Should have edit link
         edit_url = reverse("wagtailadmin_pages:edit", args=[test_page.id])
         assert edit_url.encode() in response.content
+
+    @override_settings(WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=[])
+    def test_column_filter_absent_when_setting_empty(self, admin_client, test_page):
+        """Column filter field is absent when COLUMN_FILTER_OPTIONS is empty."""
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        response = admin_client.get(url)
+        assert "column_filter" not in response.context["filter_form"].fields
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=COLUMN_FILTER_OPTIONS
+    )
+    def test_column_filter_present_when_setting_configured(
+        self, admin_client, test_page
+    ):
+        """Column filter field is present with correct choices when configured."""
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        response = admin_client.get(url)
+        form = response.context["filter_form"]
+        assert "column_filter" in form.fields
+        choices = form.fields["column_filter"].choices
+        assert choices == [
+            ("", "All languages"),
+            ("group_a", "Group A"),
+            ("group_b", "Group B"),
+        ]
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=COLUMN_FILTER_OPTIONS
+    )
+    def test_column_filter_no_selection_shows_all(
+        self, admin_client, test_page_with_translations, locale_de
+    ):
+        """With no column filter selected, all translations are shown."""
+        TranslationProgress.objects.create(
+            source_page=test_page_with_translations,
+            translated_page=test_page_with_translations.get_translation(locale_de),
+            percent_translated=50,
+        )
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        response = admin_client.get(url, {"column_filter": ""})
+        assert (
+            len(response.context["pages_with_progress"]) == 1
+        )  # Only 1 page in results
+        translations = response.context["pages_with_progress"][0]["translations"]
+        assert len(translations) == 1
+        assert translations[0]["locale"] == "de"
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=COLUMN_FILTER_OPTIONS
+    )
+    def test_column_filter_shows_only_matching_locales(
+        self, admin_client, test_page, locale_de, locale_es, locale_fr
+    ):
+        """Selecting a column filter shows only matching locale buttons."""
+        with patch.object(transaction, "on_commit", side_effect=lambda func: func()):
+            translation_source, _ = TranslationSource.get_or_create_from_instance(
+                test_page
+            )
+            for locale in [locale_de, locale_es, locale_fr]:
+                t, _ = Translation.objects.get_or_create(
+                    source=translation_source, target_locale=locale
+                )
+                t.save_target(publish=True)
+
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        # group_a includes de and fr
+        response = admin_client.get(url, {"column_filter": "group_a"})
+        assert (
+            len(response.context["pages_with_progress"]) == 1
+        )  # Only 1 page in results
+        translations = response.context["pages_with_progress"][0]["translations"]
+        locales = {t["locale"] for t in translations}
+        assert locales == {"de", "fr"}
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=COLUMN_FILTER_OPTIONS
+    )
+    def test_column_filter_rows_with_no_matches_still_appear(
+        self, admin_client, test_page_with_translations, locale_de
+    ):
+        """Rows with no matching translations still appear (not hidden)."""
+        # test_page_with_translations has de and es translations
+        # Create progress only for de
+        TranslationProgress.objects.create(
+            source_page=test_page_with_translations,
+            translated_page=test_page_with_translations.get_translation(locale_de),
+            percent_translated=100,
+        )
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        # group_b only includes es, and there's no progress record for es
+        response = admin_client.get(url, {"column_filter": "group_b"})
+        pages = response.context["pages_with_progress"]
+        assert len(pages) == 1
+        assert pages[0]["page"] == test_page_with_translations
+        assert pages[0]["translations"] == []
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=COLUMN_FILTER_OPTIONS
+    )
+    def test_column_filter_shows_active_message(self, admin_client, test_page):
+        """Active column filter displays a message with the chosen group label."""
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        response = admin_client.get(url, {"column_filter": "group_a"})
+        assert response.context["column_filter_label"] == "Group A"
+        content = response.content.decode()
+        assert "Only showing" in content
+        assert "Group A" in content
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=COLUMN_FILTER_OPTIONS
+    )
+    def test_column_filter_no_message_when_unset(self, admin_client, test_page):
+        """No active filter message when column filter is not selected."""
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        response = admin_client.get(url)
+        assert response.context["column_filter_label"] == ""
+        assert b"Only showing" not in response.content
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=COLUMN_FILTER_OPTIONS
+    )
+    def test_column_filter_preserves_row_filters(
+        self, admin_client, test_page_with_translations
+    ):
+        """Row filter params work alongside column filter."""
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        response = admin_client.get(
+            url,
+            {
+                "search": test_page_with_translations.title,
+                "column_filter": "group_a",
+            },
+        )
+        assert response.status_code == 200
+        pages = response.context["pages_with_progress"]
+        assert len(pages) == 1
+        assert pages[0]["page"] == test_page_with_translations
 
     def test_dashboard_sorting(self, admin_client, home_page, locale_en):
         """Test sorting on dashboard."""

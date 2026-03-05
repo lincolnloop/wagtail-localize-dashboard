@@ -37,6 +37,12 @@ class ProgressDashboardView(ListView, BaseListingView):
     context_object_name = "pages"
     paginate_by = get_setting("ITEMS_PER_PAGE", 50)
 
+    def get_filter_form(self):
+        """Lazily create and cache the filter form instance."""
+        if not hasattr(self, "_filter_form"):
+            self._filter_form = ProgressFilterForm(self.request.GET)
+        return self._filter_form
+
     def get_queryset(self) -> QuerySet[Page]:
         """
         Get original pages only, excluding root pages and translations.
@@ -62,7 +68,7 @@ class ProgressDashboardView(ListView, BaseListingView):
         )
 
         # Apply filters
-        form = ProgressFilterForm(self.request.GET)
+        form = self.get_filter_form()
         if not form.is_valid():
             pages_qs = pages_qs.none()
         else:
@@ -197,7 +203,35 @@ class ProgressDashboardView(ListView, BaseListingView):
                 }
             )
 
+        # Apply column filter: only affects which translation buttons are
+        # visible, not which rows appear. Rows with no matching translations
+        # will show "No translations" via existing template logic.
+        filter_form = self.get_filter_form()
+        column_filter_label = ""
+        if filter_form.is_valid():
+            selected_filter = filter_form.cleaned_data.get("column_filter", "")
+            if selected_filter:
+                column_filter_options = get_setting("COLUMN_FILTER_OPTIONS")
+                match = next(
+                    (
+                        (label, locales)
+                        for fid, label, locales in column_filter_options
+                        if fid == selected_filter
+                    ),
+                    None,
+                )
+                if match:
+                    column_filter_label = match[0]
+                    filter_locales_set = set(match[1])
+                    for page_data in pages_with_progress:
+                        page_data["translations"] = [
+                            t
+                            for t in page_data["translations"]
+                            if t["locale"] in filter_locales_set
+                        ]
+
         context["pages_with_progress"] = pages_with_progress
-        context["filter_form"] = ProgressFilterForm(self.request.GET)
+        context["filter_form"] = filter_form
+        context["column_filter_label"] = column_filter_label
 
         return context

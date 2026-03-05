@@ -5,6 +5,8 @@ from typing import Any
 from django import forms
 from django.conf import settings
 
+from .settings import get_setting
+
 
 class ProgressFilterForm(forms.Form):
     """Filter form for the translation progress dashboard."""
@@ -73,3 +75,16 @@ class ProgressFilterForm(forms.Form):
         exists_in_choices.extend(list(settings.WAGTAIL_CONTENT_LANGUAGES))
 
         self.fields["exists_in_language"].choices = exists_in_choices
+
+        # Add column_filter field if options are configured
+        column_filter_options = get_setting("COLUMN_FILTER_OPTIONS")
+        if column_filter_options:
+            column_filter_choices = [("", "All languages")]
+            for option_id, option_label, _option_locales in column_filter_options:
+                column_filter_choices.append((option_id, option_label))
+            self.fields["column_filter"] = forms.ChoiceField(
+                choices=column_filter_choices,
+                required=False,
+                label="Show languages",
+                widget=forms.Select(attrs={"class": "w-field__input"}),
+            )

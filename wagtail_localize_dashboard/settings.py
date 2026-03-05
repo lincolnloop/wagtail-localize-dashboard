@@ -24,6 +24,8 @@ DEFAULTS = {
     "MENU_ORDER": 100,
     # Items per page in dashboard
     "ITEMS_PER_PAGE": 50,
+    # Column filter options: list of (id, label, locale_codes) tuples
+    "COLUMN_FILTER_OPTIONS": [],
 }
 
 
