@@ -1,0 +1,202 @@
+# Russian translations for wagtail-localize-dashboard.
+# Copyright (C) 2026 Lincoln Loop
+# This file is distributed under the same license as the wagtail-localize-dashboard package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: wagtail-localize-dashboard 0.2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-05 17:14+0000\n"
+"PO-Revision-Date: 2026-03-05 17:14+0000\n"
+"Last-Translator: \n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: apps.py:12
+msgid "Wagtail Localize Dashboard"
+msgstr "Панель локализации Wagtail"
+
+#: forms.py:20
+msgid "Search"
+msgstr "Поиск"
+
+#: forms.py:24
+msgid "Search by title or slug..."
+msgstr "Поиск по заголовку или слагу..."
+
+#: forms.py:31
+msgid "Translation Key"
+msgstr "Ключ перевода"
+
+#: forms.py:35
+msgid "Filter by translation key..."
+msgstr "Фильтр по ключу перевода..."
+
+#: forms.py:41 forms.py:59 forms.py:65
+msgid "Any language"
+msgstr "Любой язык"
+
+#: forms.py:43
+msgid "Original Language"
+msgstr "Исходный язык"
+
+#: forms.py:50
+msgid "Exists In"
+msgstr "Существует на"
+
+#: forms.py:66 forms.py:83
+msgid "All languages"
+msgstr "Все языки"
+
+#: forms.py:74
+msgid "Core languages"
+msgstr "Основные языки"
+
+#: forms.py:89
+msgid "Show languages"
+msgstr "Показать языки"
+
+#: management/commands/rebuild_translation_progress.py:19
+msgid "Rebuild translation progress cache for all translatable objects"
+msgstr "Перестроить кеш прогресса перевода для всех переводимых объектов"
+
+#: management/commands/rebuild_translation_progress.py:26
+msgid "Clean up orphaned progress records first"
+msgstr "Сначала удалить осиротевшие записи прогресса"
+
+#: models.py:26
+msgid "The original source page"
+msgstr "Исходная страница"
+
+#: models.py:35
+msgid "The translated page"
+msgstr "Переведённая страница"
+
+#: models.py:40
+msgid "Percentage of segments translated (0-100)"
+msgstr "Процент переведённых сегментов (0–100)"
+
+#: models.py:48 models.py:49
+msgid "Translation Progress"
+msgstr "Прогресс перевода"
+
+#: settings.py:23 templates/wagtail_localize_dashboard/dashboard.html:92
+msgid "Translations"
+msgstr "Переводы"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:4
+#: templates/wagtail_localize_dashboard/dashboard.html:16
+msgid "Translation Progress Dashboard"
+msgstr "Панель прогресса перевода"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:21
+msgid "Filter translations"
+msgstr "Фильтр переводов"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:42
+msgid "Filter"
+msgstr "Фильтр"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:44
+msgid "Clear"
+msgstr "Сбросить"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:52
+msgid "Filter translation columns"
+msgstr "Фильтр столбцов перевода"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:54
+msgid "Translation column filter"
+msgstr "Фильтр столбцов перевода"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:72
+msgid "Apply"
+msgstr "Применить"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:82
+#, python-format
+msgid "Only showing '%(label)s' languages."
+msgstr "Показаны только языки «%(label)s»."
+
+#: templates/wagtail_localize_dashboard/dashboard.html:87
+msgid "Pages with their translation progress"
+msgstr "Страницы с прогрессом перевода"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:90
+msgid "Page Title"
+msgstr "Заголовок страницы"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:91
+msgid "Status"
+msgstr "Статус"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:93
+msgid "Actions"
+msgstr "Действия"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:107
+msgid "Publication status: Published"
+msgstr "Статус публикации: Опубликовано"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:107
+msgid "Published"
+msgstr "Опубликовано"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:109
+msgid "Publication status: Draft"
+msgstr "Статус публикации: Черновик"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:109
+msgid "Draft"
+msgstr "Черновик"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:118
+#, python-format
+msgid "Edit %(locale)s version - %(percent)s%% complete"
+msgstr "Редактировать версию %(locale)s — %(percent)s%% завершено"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:121
+msgid "Complete:"
+msgstr "Завершено:"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:124
+msgid "In progress:"
+msgstr "В процессе:"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:131
+msgid "No translations"
+msgstr "Нет переводов"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:136
+#, python-format
+msgid "Edit %(title)s"
+msgstr "Редактировать %(title)s"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:136
+msgid "Edit"
+msgstr "Редактировать"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:138
+#, python-format
+msgid "View %(title)s (opens in new window)"
+msgstr "Просмотреть %(title)s (откроется в новом окне)"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:139
+msgid "View"
+msgstr "Просмотреть"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:139
+msgid "(opens in new window)"
+msgstr "(откроется в новом окне)"
+
+#: templates/wagtail_localize_dashboard/dashboard.html:155
+msgid "No pages found."
+msgstr "Страницы не найдены."
+
+#: wagtail_hooks.py:40
+msgid "See Translations"
+msgstr "Смотреть переводы"
