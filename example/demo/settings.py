@@ -207,7 +207,9 @@ WAGTAIL_LOCALIZE_DASHBOARD_MENU_LABEL = _("Translations")
 WAGTAIL_LOCALIZE_DASHBOARD_MENU_ICON = "wagtail-localize-language"
 WAGTAIL_LOCALIZE_DASHBOARD_MENU_ORDER = 800
 WAGTAIL_LOCALIZE_DASHBOARD_ITEMS_PER_PAGE = 50
-
+WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS = [
+    ("spanish", "Spanish languages", ["es"])
+]
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
