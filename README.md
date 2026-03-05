@@ -9,7 +9,7 @@ A translation dashboard for Wagtail sites using [wagtail-localize](https://githu
 - **Translation Dashboard**: Visual overview of translation progress for all pages
 - **Auto-Updates**: Signals automatically update percentages when translations change
 - **Performance**: Translation percentages are stored in the database, for fast loading
-- **Filtering**: Search by title, filter by language, translation key
+- **Filtering**: Search by title, filter by language, translation key, or language group
 - **Color-Coded Status**: Green (100%), Yellow (80-99%), Red (<80%)
 - **Admin Integration**: Adds menu item to Wagtail admin
 - **Configurable**: Enable/disable features via Django settings
@@ -91,7 +91,17 @@ WAGTAIL_LOCALIZE_DASHBOARD_MENU_ORDER = 800
 
 # Items per page in dashboard (default: 50)
 WAGTAIL_LOCALIZE_DASHBOARD_ITEMS_PER_PAGE = 50
+
+# Column filter: group locales into named sets so users can filter
+# which language columns are visible on the dashboard (default: [])
+# Each tuple is (id, label, list_of_locale_codes).
+WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS = [
+    ("spanish", "Spanish", ["es-es", "es-ar", "es-mx", "es-cl"]),
+    ("french", "French", ["fr-fr", "fr-ca", "fr-be"]),
+]
 ```
+
+When `WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS` is configured, a "Show languages" dropdown appears on the dashboard. Selecting a group limits the displayed language columns to the locales in that group. Rows are not hidden — pages with no translations in the selected group will still appear.
 
 ## Usage
 
