@@ -4,6 +4,7 @@ from typing import Any, Dict
 
 from django.db import models
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from wagtail.models import Page
 
@@ -22,7 +23,7 @@ class TranslationProgress(models.Model):
         on_delete=models.CASCADE,
         related_name="translation_progress_source",
         db_index=True,
-        help_text="The original source page",
+        help_text=_("The original source page"),
     )
 
     # Translated page (in a specific locale)
@@ -31,12 +32,12 @@ class TranslationProgress(models.Model):
         on_delete=models.CASCADE,
         related_name="translation_progress_translated",
         db_index=True,
-        help_text="The translated page",
+        help_text=_("The translated page"),
     )
 
     # Translation progress (0-100)
     percent_translated = models.IntegerField(
-        default=0, help_text="Percentage of segments translated (0-100)"
+        default=0, help_text=_("Percentage of segments translated (0-100)")
     )
 
     # Metadata
@@ -44,8 +45,8 @@ class TranslationProgress(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Translation Progress"
-        verbose_name_plural = "Translation Progress"
+        verbose_name = _("Translation Progress")
+        verbose_name_plural = _("Translation Progress")
 
         # Ensure one progress record per source-target pair
         unique_together = [["source_page", "translated_page"]]

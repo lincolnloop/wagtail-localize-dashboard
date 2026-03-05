@@ -2,6 +2,7 @@
 
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from wagtail_localize_dashboard.utils import rebuild_all_progress
 
@@ -15,14 +16,14 @@ class Command(BaseCommand):
         python manage.py rebuild_translation_progress --clean-orphans
     """
 
-    help = "Rebuild translation progress cache for all translatable objects"
+    help = _("Rebuild translation progress cache for all translatable objects")
 
     def add_arguments(self, parser: CommandParser) -> None:
         """Add command arguments."""
         parser.add_argument(
             "--clean-orphans",
             action="store_true",
-            help="Clean up orphaned progress records first",
+            help=_("Clean up orphaned progress records first"),
         )
 
     def handle(self, *args: any, **options: any) -> None:

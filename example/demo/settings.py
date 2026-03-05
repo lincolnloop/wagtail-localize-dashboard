@@ -4,6 +4,7 @@ Django settings for wagtail-localize-dashboard example project.
 
 import os
 from typing import List
+from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -202,7 +203,7 @@ WAGTAIL_LOCALIZE_DASHBOARD_ENABLED = True
 WAGTAIL_LOCALIZE_DASHBOARD_AUTO_UPDATE = True
 WAGTAIL_LOCALIZE_DASHBOARD_TRACK_PAGES = True
 WAGTAIL_LOCALIZE_DASHBOARD_SHOW_IN_MENU = True
-WAGTAIL_LOCALIZE_DASHBOARD_MENU_LABEL = "Translations"
+WAGTAIL_LOCALIZE_DASHBOARD_MENU_LABEL = _("Translations")
 WAGTAIL_LOCALIZE_DASHBOARD_MENU_ICON = "wagtail-localize-language"
 WAGTAIL_LOCALIZE_DASHBOARD_MENU_ORDER = 800
 WAGTAIL_LOCALIZE_DASHBOARD_ITEMS_PER_PAGE = 50

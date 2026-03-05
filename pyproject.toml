@@ -85,6 +85,7 @@ wagtail_localize_dashboard = [
     "static/**/*",
     "templates/**/*",
     "migrations/*.py",
+    "locale/**/*",
 ]
 
 [tool.black]

@@ -7,6 +7,7 @@ All settings are prefixed with WAGTAIL_LOCALIZE_DASHBOARD_
 from typing import Any
 
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 # Default settings
 DEFAULTS = {
@@ -19,7 +20,7 @@ DEFAULTS = {
     # Show dashboard in Wagtail admin menu
     "SHOW_IN_MENU": True,
     # Menu item configuration
-    "MENU_LABEL": "Translations",
+    "MENU_LABEL": _("Translations"),
     "MENU_ICON": "wagtail-localize-language",
     "MENU_ORDER": 100,
     # Items per page in dashboard

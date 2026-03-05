@@ -4,6 +4,7 @@ from typing import Any
 
 from django import forms
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 from .settings import get_setting
 
@@ -16,37 +17,37 @@ class ProgressFilterForm(forms.Form):
 
     search = forms.CharField(
         required=False,
-        label="Search",
+        label=_("Search"),
         widget=forms.TextInput(
             attrs={
                 "class": "w-field__input",
-                "placeholder": "Search by title or slug...",
+                "placeholder": _("Search by title or slug..."),
             }
         ),
     )
 
     translation_key = forms.UUIDField(
         required=False,
-        label="Translation Key",
+        label=_("Translation Key"),
         widget=forms.TextInput(
             attrs={
                 "class": "w-field__input",
-                "placeholder": "Filter by translation key...",
+                "placeholder": _("Filter by translation key..."),
             }
         ),
     )
 
     original_language = forms.ChoiceField(
-        choices=[("", "Any language")] + list(settings.WAGTAIL_CONTENT_LANGUAGES),
+        choices=[("", _("Any language"))] + list(settings.WAGTAIL_CONTENT_LANGUAGES),
         required=False,
-        label="Original Language",
+        label=_("Original Language"),
         widget=forms.Select(attrs={"class": "w-field__input"}),
     )
 
     exists_in_language = forms.ChoiceField(
         choices=[],  # Will be populated in __init__
         required=False,
-        label="Exists In",
+        label=_("Exists In"),
         widget=forms.Select(attrs={"class": "w-field__input"}),
     )
 
@@ -55,14 +56,14 @@ class ProgressFilterForm(forms.Form):
         super().__init__(*args, **kwargs)
 
         # Ensure original_language choices are always up to date
-        self.fields["original_language"].choices = [("", "Any language")] + list(
+        self.fields["original_language"].choices = [("", _("Any language"))] + list(
             settings.WAGTAIL_CONTENT_LANGUAGES
         )
 
         # Build exists_in_language choices dynamically
         exists_in_choices = [
-            ("", "Any language"),
-            (self.ALL_LANGUAGES, "All languages"),
+            ("", _("Any language")),
+            (self.ALL_LANGUAGES, _("All languages")),
         ]
 
         # Only add "Core languages" option if WAGTAIL_CORE_LANGUAGES is defined
@@ -70,7 +71,7 @@ class ProgressFilterForm(forms.Form):
             hasattr(settings, "WAGTAIL_CORE_LANGUAGES")
             and settings.WAGTAIL_CORE_LANGUAGES
         ):
-            exists_in_choices.append((self.CORE_LANGUAGES, "Core languages"))
+            exists_in_choices.append((self.CORE_LANGUAGES, _("Core languages")))
 
         exists_in_choices.extend(list(settings.WAGTAIL_CONTENT_LANGUAGES))
 
@@ -79,12 +80,12 @@ class ProgressFilterForm(forms.Form):
         # Add column_filter field if options are configured
         column_filter_options = get_setting("COLUMN_FILTER_OPTIONS")
         if column_filter_options:
-            column_filter_choices = [("", "All languages")]
+            column_filter_choices = [("", _("All languages"))]
             for option_id, option_label, _option_locales in column_filter_options:
                 column_filter_choices.append((option_id, option_label))
             self.fields["column_filter"] = forms.ChoiceField(
                 choices=column_filter_choices,
                 required=False,
-                label="Show languages",
+                label=_("Show languages"),
                 widget=forms.Select(attrs={"class": "w-field__input"}),
             )

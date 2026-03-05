@@ -3,6 +3,7 @@
 from typing import Optional
 
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from wagtail import hooks
 from wagtail.admin.menu import MenuItem
@@ -36,7 +37,7 @@ def add_translations_button(buttons, page, user, context=None):
     """
     if page.depth > 2:  # Only show the button for descendants of home pages
         translations_button = Button(
-            label="See Translations",
+            label=_("See Translations"),
             url=f"{reverse('wagtail_localize_dashboard:dashboard')}?translation_key={page.translation_key}",
             classname="button",
             attrs={"target": "_blank"},
