@@ -71,6 +71,7 @@ Customize behavior in your Django settings:
 
 ```python
 # settings.py
+from django.utils.translation import gettext_lazy as _
 
 # Enable/disable the entire feature (default: True)
 WAGTAIL_LOCALIZE_DASHBOARD_ENABLED = True
@@ -84,8 +85,9 @@ WAGTAIL_LOCALIZE_DASHBOARD_TRACK_PAGES = True
 # Show dashboard in Wagtail admin menu (default: True)
 WAGTAIL_LOCALIZE_DASHBOARD_SHOW_IN_MENU = True
 
-# Menu item configuration
-WAGTAIL_LOCALIZE_DASHBOARD_MENU_LABEL = "Translations"
+# Menu item configuration (default label is translated via i18n;
+# use gettext_lazy to keep it translatable when overriding)
+WAGTAIL_LOCALIZE_DASHBOARD_MENU_LABEL = _("Translations")
 WAGTAIL_LOCALIZE_DASHBOARD_MENU_ICON = "wagtail-localize-language"
 WAGTAIL_LOCALIZE_DASHBOARD_MENU_ORDER = 800
 
@@ -144,6 +146,39 @@ create_translation_progress(page)
 # Rebuild all progress
 stats = rebuild_all_progress()
 print(f"Processed {stats['pages']} pages")
+```
+
+## Internationalization (i18n)
+
+All user-facing strings in the dashboard are translatable using Django's standard i18n framework. The package ships with English, Spanish, and Russian translations.
+
+### Adding a new translation
+
+1. Generate the `.po` file for your locale (e.g. `fr` for French):
+
+```bash
+cd wagtail_localize_dashboard
+django-admin makemessages -l fr --no-wrap
+```
+
+2. Edit `locale/fr/LC_MESSAGES/django.po` and fill in the `msgstr` values.
+
+3. Compile the translations:
+
+```bash
+django-admin compilemessages -l fr
+```
+
+4. Restart the dev server to pick up the new translations.
+
+### Updating translations after code changes
+
+If you add or change translatable strings, re-run `makemessages` for each locale:
+
+```bash
+cd wagtail_localize_dashboard
+django-admin makemessages --all --no-wrap
+django-admin compilemessages
 ```
 
 ## How It Works
