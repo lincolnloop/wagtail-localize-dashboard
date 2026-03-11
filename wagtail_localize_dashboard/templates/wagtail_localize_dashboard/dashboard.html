@@ -103,11 +103,7 @@
                   </div>
                 </td>
                 <td>
-                  {% if page_data.page.live %}
-                    <span class="status-tag primary status-published" role="status" aria-label="{% trans "Publication status: Published" %}">{% trans "Published" %}</span>
-                  {% else %}
-                    <span class="status-tag status-draft" role="status" aria-label="{% trans "Publication status: Draft" %}">{% trans "Draft" %}</span>
-                  {% endif %}
+                  <span class="w-status {% if page_data.page.live %}w-status--primary{% endif %}" role="status" aria-label="{% blocktrans with status=page_data.page.status_string %}Publication status: {{ status }}{% endblocktrans %}">{{ page_data.page.status_string }}</span>
                 </td>
                 <td>
                   {% if page_data.translations %}
@@ -115,7 +111,7 @@
                       {% for translation in page_data.translations %}
                         <a href="{{ translation.edit_url }}"
                            class="button button-small button-secondary {% if translation.percent_translated == 100 %}btn-success{% elif translation.percent_translated >= 80 %}btn-warning{% else %}btn-danger{% endif %}"
-                           title="{% blocktrans with locale=translation.locale percent=translation.percent_translated %}Edit {{ locale }} version - {{ percent }}% complete{% endblocktrans %}">
+                           title="{% blocktrans with locale=translation.locale percent=translation.percent_translated %}Edit {{ locale }} version - {{ percent }}% complete{% endblocktrans %}{% if not translation.live %} ({% trans "draft" %}){% elif translation.has_unpublished_changes %} ({% trans "live + draft" %}){% endif %}">
                           {% if translation.percent_translated == 100 %}
                             {% icon name="circle-check" %}
                             <span class="w-sr-only">{% trans "Complete:" %}</span>
@@ -123,7 +119,13 @@
                             {% icon name="warning" %}
                             <span class="w-sr-only">{% trans "In progress:" %}</span>
                           {% endif %}
-                          {{ translation.locale|upper }} {% if translation.percent_translated != 100 %}{{ translation.percent_translated }}%{% endif %}
+                          {{ translation.locale|upper }} {% if translation.percent_translated != 100 %}{{ translation.percent_translated }}%{% endif %}{% if not translation.live %}
+                            <span class="status-icon status-icon--draft">{% icon name="draft" %}</span>
+                            <span class="w-sr-only">{% trans "(draft)" %}</span>
+                          {% elif translation.has_unpublished_changes %}
+                            <span class="status-icon status-icon--live-draft">{% icon name="draft" %}</span>
+                            <span class="w-sr-only">{% trans "(live + draft)" %}</span>
+                          {% endif %}
                         </a>
                       {% endfor %}
                     </div>

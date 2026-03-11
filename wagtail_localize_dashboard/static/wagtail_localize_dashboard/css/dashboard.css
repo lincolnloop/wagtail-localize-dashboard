@@ -81,10 +81,48 @@
     }
 }
 
+.listing .actions a {
+    margin-bottom: 0.5rem;
+}
+
 .align-items-end {
     align-items: flex-end;
 }
 
 .text-center {
     text-align: center;
+}
+
+/* Ensure translation buttons with status icons align vertically */
+.actions-inline-start .button {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Status icon indicators on translation buttons */
+.status-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.5rem;
+    margin-right: -1rem;
+}
+
+/* Draft: full white icon, turns gray on hover */
+.status-icon--draft .icon {
+    color: white;
+}
+
+.button:hover .status-icon--draft .icon {
+    color: #999;
+}
+
+/* Live + Draft: half-opacity white icon, turns half-opacity gray on hover */
+.status-icon--live-draft .icon {
+    color: white;
+    opacity: 0.5;
+}
+
+.button:hover .status-icon--live-draft .icon {
+    color: #999;
+    opacity: 0.5;
 }

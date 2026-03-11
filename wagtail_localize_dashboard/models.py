@@ -92,6 +92,8 @@ class TranslationProgress(models.Model):
             "edit_url": edit_url,
             "view_url": self.get_view_url,
             "last_updated": self.last_updated,
+            "live": self.translated_page.live,
+            "has_unpublished_changes": self.translated_page.has_unpublished_changes,
         }
 
     def get_edit_url(self) -> str:
