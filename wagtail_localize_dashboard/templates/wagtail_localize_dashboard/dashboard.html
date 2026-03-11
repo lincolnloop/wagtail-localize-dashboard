@@ -103,7 +103,14 @@
                   </div>
                 </td>
                 <td>
-                  <span class="w-status {% if page_data.page.live %}w-status--primary{% endif %}" role="status" aria-label="{% blocktrans with status=page_data.page.status_string %}Publication status: {{ status }}{% endblocktrans %}">{{ page_data.page.status_string }}</span>
+                  {% if page_data.page.live and page_data.page.has_unpublished_changes %}
+                    {% trans "live + draft" as page_status %}
+                  {% elif page_data.page.live %}
+                    {% trans "live" as page_status %}
+                  {% else %}
+                    {% trans "draft" as page_status %}
+                  {% endif %}
+                  <span class="w-status {% if page_data.page.live %}w-status--primary{% endif %}" role="status">{{ page_status }}</span>
                 </td>
                 <td>
                   {% if page_data.translations %}
