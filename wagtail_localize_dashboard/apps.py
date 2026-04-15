@@ -30,5 +30,16 @@ class DashboardConfig(AppConfig):
         # Import signal handlers (registers them)
         from . import signals  # noqa
 
+        # Connect snippet handlers to each tracked model individually so they
+        # only fire for configured models, not as global post_save catch-alls.
+        from django.db.models.signals import post_save, pre_delete
+
+        from .settings import get_tracked_snippet_models
+        from .signals import snippet_deleted_handler, snippet_saved_handler
+
+        for model in get_tracked_snippet_models():
+            post_save.connect(snippet_saved_handler, sender=model)
+            pre_delete.connect(snippet_deleted_handler, sender=model)
+
         # Import wagtail hooks (registers menu items)
         from . import wagtail_hooks  # noqa

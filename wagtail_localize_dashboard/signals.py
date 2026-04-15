@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
@@ -15,8 +16,9 @@ from wagtail_localize.models import (
     TranslationSource,
 )
 
-from .settings import get_setting
-from .utils import create_translation_progress
+from .models import SnippetTranslationProgress
+from .settings import get_setting, get_tracked_snippet_models
+from .utils import create_snippet_translation_progress, create_translation_progress
 
 logger = logging.getLogger(__name__)
 
@@ -38,22 +40,30 @@ def translation_saved_handler(
         try:
             source_instance = instance.source.get_source_instance()
 
-            # Only track Pages
-            if not isinstance(source_instance, Page):
-                return
+            if isinstance(source_instance, Page):
+                if not get_setting("TRACK_PAGES"):
+                    return
+                if hasattr(source_instance, "translation_key"):
+                    original_page = (
+                        Page.objects.filter(
+                            translation_key=source_instance.translation_key
+                        )
+                        .order_by("id")
+                        .first()
+                    )
+                    if original_page:
+                        create_translation_progress(original_page)
 
-            if not get_setting("TRACK_PAGES"):
-                return
-
-            # Get the original page (min ID per translation_key)
-            if hasattr(source_instance, "translation_key"):
-                original_page = (
-                    Page.objects.filter(translation_key=source_instance.translation_key)
+            elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
+                original = (
+                    type(source_instance)
+                    .objects.filter(translation_key=source_instance.translation_key)
                     .order_by("id")
                     .first()
                 )
-                if original_page:
-                    create_translation_progress(original_page)
+                if original:
+                    create_snippet_translation_progress(original)
+
         except Exception as e:
             logger.exception(f"Error in translation_saved_handler: {e}")
 
@@ -70,29 +80,36 @@ def string_translation_saved_handler(
 
     def update_after_commit() -> None:
         try:
-            # Get the page through the segments
-            # StringTranslation -> StringSegment -> TranslationSource -> Page
+            # StringTranslation -> StringSegment -> TranslationSource -> instance
             segment = StringSegment.objects.get(
                 context=instance.context, string=instance.translation_of
             )
             source_instance = segment.source.get_source_instance()
 
-            # Only track Pages
-            if not isinstance(source_instance, Page):
-                return
+            if isinstance(source_instance, Page):
+                if not get_setting("TRACK_PAGES"):
+                    return
+                if hasattr(source_instance, "translation_key"):
+                    original_page = (
+                        Page.objects.filter(
+                            translation_key=source_instance.translation_key
+                        )
+                        .order_by("id")
+                        .first()
+                    )
+                    if original_page:
+                        create_translation_progress(original_page)
 
-            if not get_setting("TRACK_PAGES"):
-                return
-
-            # Get the original page
-            if hasattr(source_instance, "translation_key"):
-                original_page = (
-                    Page.objects.filter(translation_key=source_instance.translation_key)
+            elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
+                original = (
+                    type(source_instance)
+                    .objects.filter(translation_key=source_instance.translation_key)
                     .order_by("id")
                     .first()
                 )
-                if original_page:
-                    create_translation_progress(original_page)
+                if original:
+                    create_snippet_translation_progress(original)
+
         except Exception as e:
             logger.exception(f"Error in string_translation_saved_handler: {e}")
 
@@ -108,35 +125,47 @@ def string_translation_deleted_handler(
         return
 
     try:
-        # Get the page before deletion
         segment = StringSegment.objects.get(
             context=instance.context, string=instance.translation_of
         )
         source_instance = segment.source.get_source_instance()
 
-        # Only track Pages
-        if not isinstance(source_instance, Page):
-            return
+        if isinstance(source_instance, Page):
+            if not get_setting("TRACK_PAGES"):
+                return
+            if hasattr(source_instance, "translation_key"):
+                original_page = (
+                    Page.objects.filter(translation_key=source_instance.translation_key)
+                    .order_by("id")
+                    .first()
+                )
 
-        if not get_setting("TRACK_PAGES"):
-            return
+                def update_after_commit() -> None:
+                    try:
+                        if original_page:
+                            create_translation_progress(original_page)
+                    except Exception as e:
+                        logger.exception(f"Error in update_after_commit: {e}")
 
-        # Get the original page
-        if hasattr(source_instance, "translation_key"):
-            original_page = (
-                Page.objects.filter(translation_key=source_instance.translation_key)
+                transaction.on_commit(update_after_commit)
+
+        elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
+            original = (
+                type(source_instance)
+                .objects.filter(translation_key=source_instance.translation_key)
                 .order_by("id")
                 .first()
             )
 
-            def update_after_commit() -> None:
+            def update_snippet_after_commit() -> None:
                 try:
-                    if original_page:
-                        create_translation_progress(original_page)
+                    if original:
+                        create_snippet_translation_progress(original)
                 except Exception as e:
-                    logger.exception(f"Error in update_after_commit: {e}")
+                    logger.exception(f"Error in update_snippet_after_commit: {e}")
 
-            transaction.on_commit(update_after_commit)
+            transaction.on_commit(update_snippet_after_commit)
+
     except Exception as e:
         logger.exception(f"Error in string_translation_deleted_handler: {e}")
 
@@ -153,22 +182,30 @@ def translation_source_saved_handler(
         try:
             source_instance = instance.get_source_instance()
 
-            # Only track Pages
-            if not isinstance(source_instance, Page):
-                return
+            if isinstance(source_instance, Page):
+                if not get_setting("TRACK_PAGES"):
+                    return
+                if hasattr(source_instance, "translation_key"):
+                    original_page = (
+                        Page.objects.filter(
+                            translation_key=source_instance.translation_key
+                        )
+                        .order_by("id")
+                        .first()
+                    )
+                    if original_page:
+                        create_translation_progress(original_page)
 
-            if not get_setting("TRACK_PAGES"):
-                return
-
-            # Get the original page
-            if hasattr(source_instance, "translation_key"):
-                original_page = (
-                    Page.objects.filter(translation_key=source_instance.translation_key)
+            elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
+                original = (
+                    type(source_instance)
+                    .objects.filter(translation_key=source_instance.translation_key)
                     .order_by("id")
                     .first()
                 )
-                if original_page:
-                    create_translation_progress(original_page)
+                if original:
+                    create_snippet_translation_progress(original)
+
         except Exception as e:
             logger.exception(f"Error in translation_source_saved_handler: {e}")
 
@@ -208,3 +245,55 @@ def page_saved_handler(
             logger.exception(f"Error in page_saved_handler: {e}")
 
     transaction.on_commit(update_after_commit)
+
+
+def snippet_saved_handler(
+    sender: type, instance: Any, created: bool, **kwargs: Any
+) -> None:
+    """
+    Update snippet translation progress when a tracked snippet is saved.
+
+    Connected to each tracked model individually in apps.py ready(), not as a
+    global post_save catch-all.
+    """
+    if not should_auto_update():
+        return
+
+    if kwargs.get("raw", False):
+        return
+
+    def update_after_commit() -> None:
+        try:
+            original = (
+                type(instance)
+                .objects.filter(translation_key=instance.translation_key)
+                .order_by("id")
+                .first()
+            )
+            if original:
+                create_snippet_translation_progress(original)
+        except Exception as e:
+            logger.exception(f"Error in snippet_saved_handler: {e}")
+
+    transaction.on_commit(update_after_commit)
+
+
+def snippet_deleted_handler(sender: type, instance: Any, **kwargs: Any) -> None:
+    """
+    Remove snippet translation progress records when a tracked snippet is deleted.
+
+    Handles the cascade that GenericForeignKey does not do automatically.
+    Connected to each tracked model individually in apps.py ready().
+    """
+    from django.db import models as django_models
+
+    try:
+        content_type = ContentType.objects.get_for_model(instance)
+        SnippetTranslationProgress.objects.filter(
+            content_type=content_type,
+        ).filter(
+            django_models.Q(source_object_id=instance.pk)
+            | django_models.Q(translated_object_id=instance.pk)
+        ).delete()
+    except Exception as e:
+        logger.exception(f"Error in snippet_deleted_handler: {e}")
