@@ -89,3 +89,16 @@ class ProgressFilterForm(forms.Form):
                 label=_("Show languages"),
                 widget=forms.Select(attrs={"class": "w-field__input"}),
             )
+
+
+class SnippetProgressFilterForm(ProgressFilterForm):
+    """
+    Filter form for the snippet translation progress dashboard.
+
+    Identical to ProgressFilterForm except there is no search field —
+    snippets do not share a common searchable column the way pages share title/slug.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields.pop("search", None)

@@ -1,0 +1,160 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n wagtailadmin_tags static %}
+
+{% block titletag %}{% trans "Snippet Translation Progress" %}{% endblock %}
+{% block bodyclass %}listing{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'wagtail_localize_dashboard/css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+  <div class="w-bg-surface-header w-border-b w-top-0 sm:w-sticky w-z-header">
+    <header class="w-sticky w-top-0 w-z-header pl-4em">
+      <div class="merged-header__icon icon icon-wagtail-localize-language" aria-hidden="true"></div>
+      <h1 class="w-pl-slim-header sm:w-pl-5 w-min-h-slim-header sm:w-pr-2 w-w-full w-flex-1 w-overflow-x-auto w-box-border w-mb-0">
+        {% trans "Snippet Translation Progress" %}
+      </h1>
+    </header>
+
+    <div class="pl-4em pb-4">
+      <form method="get" class="w-flex w-flex-wrap w-gap-4 w-items-end sm:w-pl-5" aria-label="{% trans "Filter translations" %}">
+        {% if filter_form.column_filter.value %}
+          <input type="hidden" name="column_filter" value="{{ filter_form.column_filter.value }}">
+        {% endif %}
+        <div class="w-flex w-flex-col">
+          {{ filter_form.original_language.label_tag }}
+          {{ filter_form.original_language }}
+        </div>
+        <div class="w-flex w-flex-col">
+          {{ filter_form.exists_in_language.label_tag }}
+          {{ filter_form.exists_in_language }}
+        </div>
+        <div class="w-flex w-flex-col">
+          {{ filter_form.translation_key.label_tag }}
+          {{ filter_form.translation_key }}
+        </div>
+        <div class="w-flex align-items-end">
+          <button type="submit" class="button">{% trans "Filter" %}</button>
+          {% if filter_form.original_language.value or filter_form.exists_in_language.value or filter_form.translation_key.value or filter_form.column_filter.value %}
+            <a href="?" class="button button-secondary">{% trans "Clear" %}</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+
+    {% if filter_form.column_filter %}
+    <div class="pl-4em w-pt-4 pb-4 w-border-t">
+      <form method="get" class="sm:w-pl-5" aria-label="{% trans "Filter translation columns" %}">
+        <fieldset class="w-flex w-flex-wrap w-gap-4 w-items-end" style="border: none; padding: 0; margin: 0;">
+          <legend class="w-sr-only">{% trans "Translation column filter" %}</legend>
+          {% if filter_form.original_language.value %}
+            <input type="hidden" name="original_language" value="{{ filter_form.original_language.value }}">
+          {% endif %}
+          {% if filter_form.exists_in_language.value %}
+            <input type="hidden" name="exists_in_language" value="{{ filter_form.exists_in_language.value }}">
+          {% endif %}
+          {% if filter_form.translation_key.value %}
+            <input type="hidden" name="translation_key" value="{{ filter_form.translation_key.value }}">
+          {% endif %}
+          <div class="w-flex w-flex-col">
+            {{ filter_form.column_filter.label_tag }}
+            {{ filter_form.column_filter }}
+          </div>
+          <div class="w-flex align-items-end">
+            <button type="submit" class="button">{% trans "Apply" %}</button>
+          </div>
+        </fieldset>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    {% if column_filter_label %}
+      <p class="w-pt-4 w-mb-0 text-center"><em>{% blocktrans with label=column_filter_label %}Only showing '{{ label }}' languages.{% endblocktrans %}</em></p>
+    {% endif %}
+    {% if snippets_with_progress %}
+      <div class="w-py-6">
+        <table class="listing full-width">
+          <caption class="w-sr-only">{% trans "Snippets with their translation progress" %}</caption>
+          <thead>
+            <tr class="table-headers">
+              <th class="title">{% trans "Name" %}</th>
+              <th>{% trans "Type" %}</th>
+              <th>{% trans "Status" %}</th>
+              <th>{% trans "Translations" %}</th>
+              <th>{% trans "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for snippet_data in snippets_with_progress %}
+              <tr>
+                <td class="title">
+                  <div class="title-wrapper">
+                    <strong><a href="{{ snippet_data.edit_url }}">{{ snippet_data.display_str }}</a></strong>
+                  </div>
+                </td>
+                <td>{{ snippet_data.type_label }}</td>
+                <td>
+                  {% if snippet_data.has_draft_state %}
+                    {% if snippet_data.snippet.live and snippet_data.snippet.has_unpublished_changes %}
+                      {% trans "live + draft" as snippet_status %}
+                    {% elif snippet_data.snippet.live %}
+                      {% trans "live" as snippet_status %}
+                    {% else %}
+                      {% trans "draft" as snippet_status %}
+                    {% endif %}
+                    <span class="w-status {% if snippet_data.snippet.live %}w-status--primary{% endif %}" role="status">{{ snippet_status }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if snippet_data.translations %}
+                    <div class="actions actions-inline-start">
+                      {% for translation in snippet_data.translations %}
+                        <a href="{{ translation.edit_url }}"
+                           class="button button-small button-secondary {% if translation.percent_translated == 100 %}btn-success{% elif translation.percent_translated >= 80 %}btn-warning{% else %}btn-danger{% endif %}"
+                           title="{% blocktrans with locale=translation.locale percent=translation.percent_translated %}Edit {{ locale }} version - {{ percent }}% complete{% endblocktrans %}{% if translation.live == False %} ({% trans "draft" %}){% elif translation.has_unpublished_changes %} ({% trans "live + draft" %}){% endif %}">
+                          {% if translation.percent_translated == 100 %}
+                            {% icon name="circle-check" %}
+                            <span class="w-sr-only">{% trans "Complete:" %}</span>
+                          {% else %}
+                            {% icon name="warning" %}
+                            <span class="w-sr-only">{% trans "In progress:" %}</span>
+                          {% endif %}
+                          {{ translation.locale|upper }} {% if translation.percent_translated != 100 %}{{ translation.percent_translated }}%{% endif %}{% if translation.live == False %}
+                            <span class="status-icon status-icon--draft">{% icon name="draft" %}</span>
+                            <span class="w-sr-only">{% trans "(draft)" %}</span>
+                          {% elif translation.has_unpublished_changes %}
+                            <span class="status-icon status-icon--live-draft">{% icon name="draft" %}</span>
+                            <span class="w-sr-only">{% trans "(live + draft)" %}</span>
+                          {% endif %}
+                        </a>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <span class="no-translations">{% trans "No translations" %}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div class="actions actions-inline-start">
+                    <a href="{{ snippet_data.edit_url }}" class="button button-small" aria-label="{% blocktrans with name=snippet_data.display_str %}Edit {{ name }}{% endblocktrans %}">{% trans "Edit" %}</a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% if is_paginated %}
+          {% include "wagtailadmin/shared/pagination_nav.html" with items=page_obj %}
+        {% endif %}
+
+        <p class="pl-4em w-pt-4"><span class="sm:w-pl-5"><em>{% trans "An empty value in the Status column means this snippet type does not support a draft/live workflow." %}</em></span></p>
+      </div>
+
+    {% else %}
+      <p class="pl-4em w-pt-4"><span class="sm:w-pl-5">{% trans "No snippets found." %}</span></p>
+    {% endif %}
+  </div>
+{% endblock %}
