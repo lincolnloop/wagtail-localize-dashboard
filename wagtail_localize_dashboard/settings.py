@@ -85,5 +85,6 @@ def get_tracked_snippet_models() -> List[Type[models.Model]]:
                 f"'{entry}', but {model.__name__} is not a subclass of "
                 f"TranslatableMixin. Only translatable models can be tracked."
             )
-        result.append(model)
+        if model not in result:
+            result.append(model)
     return result
