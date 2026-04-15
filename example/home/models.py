@@ -7,7 +7,10 @@ from django.db import models
 from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField, StreamField
-from wagtail.models import Page
+from wagtail.models import DraftStateMixin, Page, RevisionMixin
+from wagtail.snippets.models import register_snippet
+
+from wagtail_localize.models import TranslatableMixin
 
 
 class HomePage(Page):
@@ -134,3 +137,45 @@ class ProductPage(Page):
     class Meta:
         verbose_name = "Product Page"
         verbose_name_plural = "Product Pages"
+
+
+@register_snippet
+class NavigationMenu(TranslatableMixin, models.Model):
+    """
+    A simple navigation menu snippet without a draft/live workflow.
+
+    Demonstrates how non-DraftStateMixin snippets appear in the snippet
+    dashboard with an empty Status column.
+    """
+
+    title = models.CharField(max_length=255)
+
+    panels = [FieldPanel("title")]
+
+    class Meta(TranslatableMixin.Meta):
+        verbose_name = "Navigation Menu"
+        verbose_name_plural = "Navigation Menus"
+
+    def __str__(self) -> str:
+        return self.title
+
+
+@register_snippet
+class SiteAlert(DraftStateMixin, RevisionMixin, TranslatableMixin, models.Model):
+    """
+    A site-wide alert snippet with a draft/live workflow.
+
+    Demonstrates how DraftStateMixin snippets appear in the snippet dashboard
+    with a live/draft badge in the Status column.
+    """
+
+    message = models.TextField(help_text="The alert message to display site-wide.")
+
+    panels = [FieldPanel("message")]
+
+    class Meta(TranslatableMixin.Meta):
+        verbose_name = "Site Alert"
+        verbose_name_plural = "Site Alerts"
+
+    def __str__(self) -> str:
+        return self.message[:60]

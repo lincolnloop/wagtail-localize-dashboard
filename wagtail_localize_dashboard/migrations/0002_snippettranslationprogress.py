@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("contenttypes", "0002_remove_content_type_name"),
         ("wagtail_localize_dashboard", "0001_initial"),
-        ("wagtailcore", "0096_referenceindex_referenceindex_source_object_and_more"),
+        ("wagtailcore", "0094_alter_page_locale"),
     ]
 
     operations = [
