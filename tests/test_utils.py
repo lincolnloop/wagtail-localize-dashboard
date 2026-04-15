@@ -2,16 +2,26 @@
 
 from unittest.mock import Mock, patch
 
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 
 import pytest
 from wagtail.models import Locale, Page
 from wagtail_localize.models import Translation, TranslationSource
-from wagtail_localize_dashboard.models import TranslationProgress
+from tests.models import SampleSnippet
+from wagtail_localize_dashboard.models import (
+    SnippetTranslationProgress,
+    TranslationProgress,
+)
+from wagtail_localize_dashboard.settings import get_tracked_snippet_models
 from wagtail_localize_dashboard.utils import (
+    create_snippet_translation_progress,
     create_translation_progress,
     get_translation_percentages,
     rebuild_all_progress,
+    rebuild_all_progress_for_pages,
+    rebuild_all_snippet_progress,
 )
 
 pytestmark = [pytest.mark.django_db]
@@ -86,6 +96,68 @@ class TestGetTranslationPercentages:
             percent = get_translation_percentages(en_page, de_locale)
 
         assert percent == 70
+
+    def test_get_translation_percentages_with_snippet(self, locale_en, locale_de):
+        """Test getting translation percentages for a snippet."""
+        snippet = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+
+        # Create translation source and translation
+        translation_source, _ = TranslationSource.get_or_create_from_instance(snippet)
+        Translation.objects.create(
+            source=translation_source,
+            target_locale=locale_de,
+            enabled=True,
+        )
+
+        # Mock get_progress to return 3 out of 4 segments translated
+        with patch(
+            "wagtail_localize.models.Translation.get_progress", return_value=(4, 3)
+        ):
+            percent = get_translation_percentages(snippet, locale_de)
+
+        assert percent == 75
+
+    def test_get_translation_percentages_with_zero_segments_snippet(
+        self, locale_en, locale_de
+    ):
+        """Test that zero segments returns 100% for a snippet."""
+        snippet = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+
+        translation_source, _ = TranslationSource.get_or_create_from_instance(snippet)
+        Translation.objects.create(
+            source=translation_source,
+            target_locale=locale_de,
+            enabled=True,
+        )
+
+        with patch(
+            "wagtail_localize.models.Translation.get_progress", return_value=(0, 0)
+        ):
+            percent = get_translation_percentages(snippet, locale_de)
+
+        assert percent == 100
+
+    def test_get_translation_percentages_no_translation_source_snippet(
+        self, locale_en, locale_de
+    ):
+        """Test that missing TranslationSource returns None for a snippet."""
+        snippet = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+
+        percent = get_translation_percentages(snippet, locale_de)
+
+        assert percent is None
+
+    def test_get_translation_percentages_no_translation_snippet(
+        self, locale_en, locale_de
+    ):
+        """Test that missing Translation returns None for a snippet."""
+        snippet = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+
+        TranslationSource.get_or_create_from_instance(snippet)
+
+        percent = get_translation_percentages(snippet, locale_de)
+
+        assert percent is None
 
     def test_get_translation_percentages_with_zero_segments(
         self, page_with_translations
@@ -456,7 +528,296 @@ class TestRebuildAllProgress:
 
         # Should have processed the page
         assert stats["pages"] >= 1
+        assert stats["snippets"] == 0
         assert stats["errors"] == 0
 
         # Should have created progress
         assert TranslationProgress.objects.count() >= 1
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_rebuild_all_progress_with_snippets(self, locale_en, locale_de):
+        """Test rebuild_all_progress creates progress for all snippets."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = source.copy_for_translation(locale_de)
+        translated.save()
+
+        SnippetTranslationProgress.objects.all().delete()
+
+        stats = rebuild_all_progress()
+
+        assert stats["snippets"] >= 1
+        assert stats["errors"] == 0
+        assert SnippetTranslationProgress.objects.count() >= 1
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_rebuild_all_progress_with_pages_and_snippets(
+        self, page_with_translations, locale_en, locale_de
+    ):
+        """Test rebuild_all_progress creates progress for all pages and all snippets."""
+        en_page = page_with_translations["en_page"]
+        de_locale = page_with_translations["de_locale"]
+
+        # Create page translation
+        translation_source, _ = TranslationSource.get_or_create_from_instance(en_page)
+        Translation.objects.create(
+            source=translation_source,
+            target_locale=de_locale,
+            enabled=True,
+        )
+
+        # Create snippet and its translation
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = source.copy_for_translation(locale_de)
+        translated.save()
+
+        # Clear existing progress for pages and snippets
+        TranslationProgress.objects.all().delete()
+        SnippetTranslationProgress.objects.all().delete()
+
+        # Rebuild
+        stats = rebuild_all_progress()
+
+        # Should have processed both pages and snippets
+        assert stats["pages"] >= 1
+        assert stats["snippets"] == 1
+        assert stats["errors"] == 0
+
+        # Should have created progress records for both
+        assert TranslationProgress.objects.count() >= 1
+        assert SnippetTranslationProgress.objects.count() >= 1
+
+
+class TestRebuildAllPageProgress:
+    """Tests for rebuild_all_progress_for_pages function."""
+
+    def test_returns_zero_with_empty_database(self):
+        """Returns zero counts when there are no pages."""
+        TranslationProgress.objects.all().delete()
+
+        stats = rebuild_all_progress_for_pages()
+
+        assert stats["pages"] >= 0
+        assert stats["errors"] == 0
+
+    def test_processes_pages_with_translations(self, page_with_translations):
+        """Processes all original pages and creates TranslationProgress records."""
+        en_page = page_with_translations["en_page"]
+        de_locale = page_with_translations["de_locale"]
+
+        translation_source, _ = TranslationSource.get_or_create_from_instance(en_page)
+        Translation.objects.create(
+            source=translation_source,
+            target_locale=de_locale,
+            enabled=True,
+        )
+
+        TranslationProgress.objects.all().delete()
+
+        stats = rebuild_all_progress_for_pages()
+
+        assert stats["pages"] >= 1
+        assert stats["errors"] == 0
+        assert TranslationProgress.objects.count() >= 1
+
+    @override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACK_PAGES=False)
+    def test_respects_track_pages_false(self, page_with_translations):
+        """Returns zero pages when TRACK_PAGES=False."""
+        stats = rebuild_all_progress_for_pages()
+
+        assert stats["pages"] == 0
+        assert stats["errors"] == 0
+
+    def test_does_not_process_snippets(self, locale_en, locale_de):
+        """Does not touch SnippetTranslationProgress records."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = source.copy_for_translation(locale_de)
+        translated.save()
+
+        stats = rebuild_all_progress_for_pages()
+
+        assert "snippets" not in stats
+        assert SnippetTranslationProgress.objects.count() == 0
+
+
+class TestGetTrackedSnippetModels:
+    """Tests for get_tracked_snippet_models function."""
+
+    @override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=[])
+    def test_returns_empty_list_when_not_configured(self):
+        """Returns empty list when TRACKED_SNIPPETS is not set."""
+        result = get_tracked_snippet_models()
+        assert result == []
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_returns_model_classes(self):
+        """Returns resolved model classes for configured snippet models."""
+        result = get_tracked_snippet_models()
+        assert len(result) == 1
+        assert result[0] is SampleSnippet
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.NonExistentModel"]
+    )
+    def test_raises_for_unknown_model(self):
+        """Raises ImproperlyConfigured for an unrecognised model name."""
+        with pytest.raises(ImproperlyConfigured, match="NonExistentModel"):
+            get_tracked_snippet_models()
+
+    @override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["auth.User"])
+    def test_raises_for_non_translatable_model(self):
+        """Raises ImproperlyConfigured when model lacks TranslatableMixin."""
+        with pytest.raises(ImproperlyConfigured, match="TranslatableMixin"):
+            get_tracked_snippet_models()
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=[
+            "tests.SampleSnippet",
+            "tests.SampleSnippet",
+        ]
+    )
+    def test_duplicate_entries_are_deduplicated(self):
+        """Duplicate model strings return each class only once."""
+        result = get_tracked_snippet_models()
+        assert result.count(SampleSnippet) == 1
+        assert len(result) == 1
+
+
+class TestCreateSnippetTranslationProgress:
+    """Tests for create_snippet_translation_progress function."""
+
+    def test_creates_progress_for_translation(self, locale_en, locale_de):
+        """Creates a SnippetTranslationProgress record for each translated snippet."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = source.copy_for_translation(locale_de)
+        translated.save()
+
+        SnippetTranslationProgress.objects.all().delete()
+
+        create_snippet_translation_progress(source)
+
+        assert SnippetTranslationProgress.objects.count() == 1
+        progress = SnippetTranslationProgress.objects.first()
+        assert progress.source_object_id == source.pk
+        assert progress.translated_object_id == translated.pk
+
+    def test_skips_source_snippet_itself(self, locale_en):
+        """Does not create a progress record when there are no translations."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+
+        create_snippet_translation_progress(source)
+
+        assert SnippetTranslationProgress.objects.count() == 0
+
+    def test_updates_existing_progress(self, locale_en, locale_de):
+        """Uses update_or_create so re-running does not duplicate records."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = source.copy_for_translation(locale_de)
+        translated.save()
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+
+        original_progress = SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=source.pk,
+            translated_object_id=translated.pk,
+            translated_locale=locale_de,
+            percent_translated=99,
+        )
+
+        create_snippet_translation_progress(source)
+
+        assert SnippetTranslationProgress.objects.count() == 1
+        updated_progress = SnippetTranslationProgress.objects.first()
+        assert updated_progress.pk == original_progress.pk
+        assert (
+            updated_progress.percent_translated != original_progress.percent_translated
+        )
+
+    def test_creates_multiple_translation_records(
+        self, locale_en, locale_de, locale_fr
+    ):
+        """Creates one progress record per translated instance."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated_de = source.copy_for_translation(locale_de)
+        translated_de.save()
+        translated_fr = source.copy_for_translation(locale_fr)
+        translated_fr.save()
+
+        SnippetTranslationProgress.objects.all().delete()
+
+        create_snippet_translation_progress(source)
+
+        assert SnippetTranslationProgress.objects.count() == 2
+        assert (
+            SnippetTranslationProgress.objects.filter(
+                translated_locale=locale_de
+            ).count()
+            == 1
+        )
+        assert (
+            SnippetTranslationProgress.objects.filter(
+                translated_locale=locale_fr
+            ).count()
+            == 1
+        )
+
+
+class TestRebuildAllSnippetProgress:
+    """Tests for rebuild_all_snippet_progress function."""
+
+    @override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=[])
+    def test_returns_zero_when_no_tracked_snippets(self):
+        """Returns zero counts when TRACKED_SNIPPETS is empty."""
+        stats = rebuild_all_snippet_progress()
+        assert stats["snippets"] == 0
+        assert stats["errors"] == 0
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_processes_tracked_snippets(self, locale_en, locale_de):
+        """Processes all original snippets for tracked models."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = source.copy_for_translation(locale_de)
+        translated.save()
+
+        SnippetTranslationProgress.objects.all().delete()
+
+        stats = rebuild_all_snippet_progress()
+
+        assert stats["snippets"] >= 1
+        assert stats["errors"] == 0
+        assert SnippetTranslationProgress.objects.count() == 1
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_errors_counted_and_processing_continues(self, locale_en):
+        """An exception in create_snippet_translation_progress increments errors and does not abort."""
+        from unittest.mock import patch
+
+        SampleSnippet.objects.create(locale=locale_en, heading="First")
+        SampleSnippet.objects.create(locale=locale_en, heading="Second")
+
+        call_count = {"n": 0}
+        real_fn = create_snippet_translation_progress
+
+        def raises_on_first(snippet):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise RuntimeError("Simulated failure")
+            real_fn(snippet)
+
+        with patch(
+            "wagtail_localize_dashboard.utils.create_snippet_translation_progress",
+            side_effect=raises_on_first,
+        ):
+            stats = rebuild_all_snippet_progress()
+
+        assert stats["errors"] == 1
+        assert stats["snippets"] == 1  # second snippet still processed

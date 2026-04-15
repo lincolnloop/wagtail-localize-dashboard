@@ -265,3 +265,46 @@ class TestSnippetTranslationProgress:
                 translated_locale=locale_de,
                 percent_translated=50,
             )
+
+    def test_translated_locale_fk_cascade(self, locale_en, locale_de):
+        """Deleting a SampleSnippet and Locale cascades and removes SnippetTranslationProgress rows for that locale."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = SampleSnippet.objects.create(locale=locale_de, heading="Hallo")
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+
+        SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=source.pk,
+            translated_object_id=translated.pk,
+            translated_locale=locale_de,
+            percent_translated=50,
+        )
+        assert SnippetTranslationProgress.objects.count() == 1
+
+        # SampleSnippet.locale is a protected FK, so we must remove the snippet
+        # that references locale_de before we can delete the locale itself.
+        translated.delete()
+        locale_de.delete()
+
+        assert SnippetTranslationProgress.objects.count() == 0
+
+    def test_get_edit_url_contains_app_label_and_model_name(self, locale_en, locale_de):
+        """get_edit_url builds from content_type: the URL contains app_label, model, and pk."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = SampleSnippet.objects.create(locale=locale_de, heading="Hallo")
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+
+        progress = SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=source.pk,
+            translated_object_id=translated.pk,
+            translated_locale=locale_de,
+            percent_translated=0,
+        )
+
+        url = progress.get_edit_url()
+
+        assert isinstance(url, str)
+        assert ct.app_label in url
+        assert ct.model in url
+        assert str(translated.pk) in url
