@@ -1,9 +1,14 @@
 """Tests for models in wagtail-localize-dashboard."""
 
+from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 
 import pytest
-from wagtail_localize_dashboard.models import TranslationProgress
+from tests.models import DraftStateSnippet, SampleSnippet
+from wagtail_localize_dashboard.models import (
+    SnippetTranslationProgress,
+    TranslationProgress,
+)
 
 pytestmark = [pytest.mark.django_db]
 
@@ -135,3 +140,128 @@ class TestTranslationProgress:
         # Most recent should be first
         assert records[0].id == progress2.id
         assert records[1].id == progress1.id
+
+
+class TestSnippetTranslationProgress:
+    """Tests for the SnippetTranslationProgress model."""
+
+    def test_str_representation(self, locale_en, locale_de):
+        """__str__ includes source/translated IDs and percent."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = SampleSnippet.objects.create(locale=locale_de, heading="Hallo")
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+
+        progress = SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=source.pk,
+            translated_object_id=translated.pk,
+            translated_locale=locale_de,
+            percent_translated=42,
+        )
+
+        expected_str_repr = (
+            f"{progress.content_type} #{progress.source_object_id} -> "
+            f"#{progress.translated_object_id} ({progress.percent_translated}%)"
+        )
+        assert str(progress) == expected_str_repr
+
+    def test_get_edit_url(self, locale_en, locale_de):
+        """get_edit_url returns a URL string containing the translated pk."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = SampleSnippet.objects.create(locale=locale_de, heading="Hallo")
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+
+        progress = SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=source.pk,
+            translated_object_id=translated.pk,
+            translated_locale=locale_de,
+            percent_translated=0,
+        )
+
+        url = progress.get_edit_url()
+        assert isinstance(url, str)
+        assert str(translated.pk) in url
+
+    def test_to_dict_without_draft_state(self, locale_en, locale_de):
+        """For non-DraftStateMixin snippets, live and has_unpublished_changes are None."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = SampleSnippet.objects.create(locale=locale_de, heading="Hallo")
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+
+        SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=source.pk,
+            translated_object_id=translated.pk,
+            translated_locale=locale_de,
+            percent_translated=50,
+        )
+        progress = (
+            SnippetTranslationProgress.objects.select_related(
+                "translated_locale", "content_type"
+            )
+            .prefetch_related("translated")
+            .first()
+        )
+
+        result = progress.to_dict()
+
+        assert result["locale"] == "de"
+        assert result["percent_translated"] == 50
+        assert result["live"] is None
+        assert result["has_unpublished_changes"] is None
+
+    def test_to_dict_with_draft_state(self, locale_en, locale_de):
+        """For DraftStateMixin snippets, live and has_unpublished_changes are booleans."""
+        source = DraftStateSnippet.objects.create(locale=locale_en, title="Source")
+        translated = DraftStateSnippet.objects.create(
+            locale=locale_de, title="Translated"
+        )
+        translated.save_revision().publish()
+        translated.refresh_from_db()
+        ct = ContentType.objects.get_for_model(DraftStateSnippet)
+
+        SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=source.pk,
+            translated_object_id=translated.pk,
+            translated_locale=locale_de,
+            percent_translated=75,
+        )
+        progress = (
+            SnippetTranslationProgress.objects.select_related(
+                "translated_locale", "content_type"
+            )
+            .prefetch_related("translated")
+            .first()
+        )
+
+        result = progress.to_dict()
+
+        assert result["locale"] == "de"
+        assert result["percent_translated"] == 75
+        assert result["live"] is True
+        assert result["has_unpublished_changes"] is False
+
+    def test_unique_constraint(self, locale_en, locale_de):
+        """Creating a duplicate progress record raises an IntegrityError."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translated = SampleSnippet.objects.create(locale=locale_de, heading="Hallo")
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+
+        SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=source.pk,
+            translated_object_id=translated.pk,
+            translated_locale=locale_de,
+            percent_translated=0,
+        )
+
+        with pytest.raises(Exception):  # IntegrityError
+            SnippetTranslationProgress.objects.create(
+                content_type=ct,
+                source_object_id=source.pk,
+                translated_object_id=translated.pk,
+                translated_locale=locale_de,
+                percent_translated=50,
+            )
