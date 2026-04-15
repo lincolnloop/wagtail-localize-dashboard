@@ -6,7 +6,8 @@ A translation dashboard for Wagtail sites using [wagtail-localize](https://githu
 
 ## Features
 
-- **Translation Dashboard**: Visual overview of translation progress for all pages
+- **Page Dashboard**: Visual overview of translation progress for all pages
+- **Snippet Dashboard**: Opt-in dashboard for translatable snippet models
 - **Auto-Updates**: Signals automatically update percentages when translations change
 - **Performance**: Translation percentages are stored in the database, for fast loading
 - **Filtering**: Search by title, filter by language, translation key, or language group
@@ -128,13 +129,20 @@ The dashboard shows:
 
 ### Management Commands
 
+Three commands are available depending on what you need to rebuild:
+
 ```bash
-# Recalculate translation percentages for all pages
+# Rebuild progress for pages and all tracked snippets (recommended after bulk imports)
 python manage.py rebuild_translation_progress
 
-# Clean orphaned records and rebuild
-python manage.py rebuild_translation_progress --clean-orphans
+# Rebuild progress for pages only
+python manage.py rebuild_translation_progress_for_pages
+
+# Rebuild progress for tracked snippets only
+python manage.py rebuild_translation_progress_for_snippets
 ```
+
+Use the targeted commands when you know only one type of content has changed, to avoid unnecessary work.
 
 ### Programmatic API
 
@@ -142,22 +150,61 @@ python manage.py rebuild_translation_progress --clean-orphans
 from wagtail_localize_dashboard.utils import (
     get_translation_percentages,
     create_translation_progress,
+    create_snippet_translation_progress,
     rebuild_all_progress,
+    rebuild_all_progress_for_pages,
+    rebuild_all_snippet_progress,
 )
 
-# Get translation percentage for a specific locale
+# Get translation percentage for a specific locale (works for pages and snippets)
 from wagtail.models import Locale
-page = Page.objects.get(id=123)
 locale_de = Locale.objects.get(language_code="de")
-percent = get_translation_percentages(page, locale_de)
+percent = get_translation_percentages(source_object, locale_de)
 
-# Update progress for a page
-create_translation_progress(page)
+# Rebuild progress selectively
+page_stats = rebuild_all_progress_for_pages()
+snippet_stats = rebuild_all_snippet_progress()
 
-# Rebuild all progress
+# Or rebuild everything at once
 stats = rebuild_all_progress()
-print(f"Processed {stats['pages']} pages")
+print(f"Pages: {stats['pages']}, Snippets: {stats['snippets']}, Errors: {stats['errors']}")
 ```
+
+## Snippet Translation Dashboard
+
+Snippet tracking is **opt-in**. By default only pages are tracked, so existing sites are unaffected after upgrading.
+
+### Enabling snippet tracking
+
+Add the models you want to track to `WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS` in your Django settings:
+
+```python
+WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS = [
+    "myapp.NavigationMenu",
+    "myapp.SiteAlert",
+]
+```
+
+Each entry must be an `"app_label.ModelName"` string. The model must be a subclass of `TranslatableMixin`. If a string cannot be resolved, or the model is not translatable, Django raises `ImproperlyConfigured` at startup — so misconfiguration is caught immediately rather than silently at runtime.
+
+Once the setting is non-empty:
+
+- A **Snippets** dashboard is available at `/translations/snippets/`.
+- The admin menu item expands into a **Translations** submenu with separate **Pages** and **Snippets** entries. Sites that leave `TRACKED_SNIPPETS` empty see no change to the menu.
+
+### Building the initial cache
+
+After adding snippets to `TRACKED_SNIPPETS` for the first time, populate the progress cache:
+
+```bash
+python manage.py rebuild_translation_progress_for_snippets
+```
+
+This only needs to be run once. After that, progress is kept up to date automatically by signals whenever a translation or snippet is saved.
+
+### The Status column
+
+The snippet dashboard includes a **Status** column that shows whether a snippet is live, in draft, or both. This column is only populated for snippet models that use Wagtail's `DraftStateMixin`. For snippet types without a draft/live workflow the cell is empty — a note below the table explains this.
 
 ## Internationalization (i18n)
 
@@ -194,10 +241,10 @@ django-admin compilemessages
 
 ## How It Works
 
-1. **Database Table**: The `TranslationProgress` model stores pre-calculated percentages
-2. **Signals**: Listen for translation changes and update `TranslationProgress` table automatically
-3. **Dashboard**: Displays `TranslationProgress` data for each page
-4. **Management Command**: Rebuilds `TranslationProgress` objects when needed
+1. **Database Tables**: `TranslationProgress` stores pre-calculated percentages for pages; `SnippetTranslationProgress` does the same for tracked snippets.
+2. **Signals**: Listen for translation changes and update the relevant table automatically when a translation or tracked snippet is saved.
+3. **Dashboards**: Display cached progress data — one view for pages, one for snippets.
+4. **Management Commands**: Rebuild the cache on demand after bulk imports or initial setup.
 
 ## Requirements
 
