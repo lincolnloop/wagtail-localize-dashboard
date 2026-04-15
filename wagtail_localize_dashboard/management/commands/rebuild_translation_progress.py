@@ -1,6 +1,6 @@
-"""Management command to rebuild translation progress cache."""
+"""Management command to rebuild translation progress cache for pages and snippets."""
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -9,38 +9,25 @@ from wagtail_localize_dashboard.utils import rebuild_all_progress
 
 class Command(BaseCommand):
     """
-    Rebuild translation progress cache for all objects.
+    Rebuild translation progress cache for pages and all tracked snippets.
 
     Usage:
         python manage.py rebuild_translation_progress
-        python manage.py rebuild_translation_progress --clean-orphans
     """
 
-    help = _("Rebuild translation progress cache for all translatable objects")
-
-    def add_arguments(self, parser: CommandParser) -> None:
-        """Add command arguments."""
-        parser.add_argument(
-            "--clean-orphans",
-            action="store_true",
-            help=_("Clean up orphaned progress records first"),
-        )
+    help = _("Rebuild translation progress cache for pages and tracked snippets")
 
     def handle(self, *args: any, **options: any) -> None:
-        """Execute the command."""
         start_time = timezone.now()
 
-        self.stdout.write("Starting translation progress rebuild...")
-
-        # Rebuild progress
-        self.stdout.write("Rebuilding progress cache...")
+        self.stdout.write("Rebuilding translation progress for pages and snippets...")
         stats = rebuild_all_progress()
 
-        # Report results
         elapsed = (timezone.now() - start_time).total_seconds()
 
         self.stdout.write("\nResults:")
         self.stdout.write(f"  Pages processed: {stats['pages']}")
+        self.stdout.write(f"  Snippets processed: {stats['snippets']}")
         self.stdout.write(f"  Errors: {stats['errors']}")
         self.stdout.write(f"  Time elapsed: {elapsed:.2f}s")
 
