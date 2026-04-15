@@ -101,9 +101,20 @@ WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS = [
     ("spanish", "Spanish", ["es-es", "es-ar", "es-mx", "es-cl"]),
     ("french", "French", ["fr-fr", "fr-ca", "fr-be"]),
 ]
+
+# Snippet models to track (default: [], snippets are opt-in).
+# Each entry must be an "app_label.ModelName" string for a model that is a
+# subclass of TranslatableMixin. An ImproperlyConfigured error is raised at
+# startup if a string cannot be resolved or the model is not translatable.
+WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS = [
+    "myapp.NavigationMenu",
+    "myapp.SiteAlert",
+]
 ```
 
 When `WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS` is configured, a "Show languages" dropdown appears on the dashboard. Selecting a group limits the displayed language columns to the locales in that group. Rows are not hidden — pages with no translations in the selected group will still appear.
+
+When `WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS` is configured, a separate Snippet dashboard becomes available and the admin menu item expands into a submenu with "Pages" and "Snippets" entries. If the setting is empty (the default), the menu item links directly to the page dashboard as before.
 
 ## Usage
 
