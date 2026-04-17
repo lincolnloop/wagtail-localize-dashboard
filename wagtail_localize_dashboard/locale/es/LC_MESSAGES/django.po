@@ -4,199 +4,268 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: wagtail-localize-dashboard 0.2.0\n"
+"Project-Id-Version: wagtail-localize-dashboard 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-05 17:21+0000\n"
-"PO-Revision-Date: 2026-03-05 17:21+0000\n"
+"POT-Creation-Date: 2026-04-17 16:07-0400\n"
+"PO-Revision-Date: 2026-04-17 15:26+0000\n"
 "Last-Translator: \n"
 "Language-Team: Spanish\n"
 "Language: es\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? "
+"1 : 2;\n"
 
-#: apps.py:12
 msgid "Wagtail Localize Dashboard"
 msgstr "Panel de localización de Wagtail"
 
-#: forms.py:20
 msgid "Search"
 msgstr "Buscar"
 
-#: forms.py:24
 msgid "Search by title or slug..."
 msgstr "Buscar por título o slug..."
 
-#: forms.py:31
 msgid "Translation Key"
 msgstr "Clave de traducción"
 
-#: forms.py:35
 msgid "Filter by translation key..."
 msgstr "Filtrar por clave de traducción..."
 
-#: forms.py:41 forms.py:59 forms.py:65
-msgid "Any language"
-msgstr "Cualquier idioma"
-
-#: forms.py:43
 msgid "Original Language"
 msgstr "Idioma original"
 
-#: forms.py:50
 msgid "Exists In"
 msgstr "Existe en"
 
-#: forms.py:66 forms.py:83
+msgid "Any language"
+msgstr "Cualquier idioma"
+
 msgid "All languages"
 msgstr "Todos los idiomas"
 
-#: forms.py:74
 msgid "Core languages"
 msgstr "Idiomas principales"
 
-#: forms.py:89
 msgid "Show languages"
 msgstr "Mostrar idiomas"
 
-#: management/commands/rebuild_translation_progress.py:19
-msgid "Rebuild translation progress cache for all translatable objects"
-msgstr "Reconstruir la caché de progreso de traducción para todos los objetos traducibles"
+msgid "All"
+msgstr "Todos"
 
-#: management/commands/rebuild_translation_progress.py:26
+msgid "Snippet Type"
+msgstr "Tipo de fragmento"
+
+msgid "Rebuild translation progress cache for pages and tracked snippets"
+msgstr ""
+"Reconstruir la caché de progreso de traducción para páginas y fragmentos "
+"rastreados"
+
+msgid "Rebuilding translation progress for pages and snippets..."
+msgstr "Reconstruyendo el progreso de traducción para páginas y fragmentos..."
+
+msgid "Results:"
+msgstr "Resultados:"
+
+#, python-format
+msgid "  Pages: %(pages)d"
+msgstr "  Páginas: %(pages)d"
+
+#, python-format
+msgid "  Snippets: %(snippets)d"
+msgstr "  Fragmentos: %(snippets)d"
+
+#, python-format
+msgid "  Errors: %(errors)d"
+msgstr "  Errores: %(errors)d"
+
+#, python-format
+msgid "  Time: %(elapsed)s"
+msgstr "  Tiempo: %(elapsed)s"
+
+msgid "Completed"
+msgstr "Completado"
+
+#, python-format
+msgid "Errors: %(errors)d."
+msgstr "Errores: %(errors)d."
+
+msgid "Successfully rebuilt translation progress!"
+msgstr "¡Progreso de traducción reconstruido correctamente!"
+
+msgid "Rebuild translation progress cache for pages"
+msgstr "Reconstruir la caché de progreso de traducción para páginas"
+
 msgid "Clean up orphaned progress records first"
 msgstr "Eliminar primero los registros de progreso huérfanos"
 
-#: models.py:26
+msgid "Rebuilding translation progress for pages..."
+msgstr "Reconstruyendo el progreso de traducción para páginas..."
+
+msgid "Successfully rebuilt page translation progress!"
+msgstr "¡Progreso de traducción de páginas reconstruido correctamente!"
+
+msgid "Rebuild translation progress cache for tracked snippets"
+msgstr ""
+"Reconstruir la caché de progreso de traducción para fragmentos rastreados"
+
+msgid ""
+"WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS is empty. No snippet progress to "
+"rebuild. Add snippet models to that setting to enable snippet tracking."
+msgstr ""
+"WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS está vacío. No hay progreso de "
+"fragmentos para reconstruir. Agregue modelos de fragmentos a ese ajuste para "
+"habilitar el seguimiento de fragmentos."
+
+msgid "Rebuilding translation progress for snippets..."
+msgstr "Reconstruyendo el progreso de traducción para fragmentos..."
+
+msgid "Successfully rebuilt snippet translation progress!"
+msgstr "¡Progreso de traducción de fragmentos reconstruido correctamente!"
+
 msgid "The original source page"
 msgstr "La página de origen"
 
-#: models.py:35
 msgid "The translated page"
 msgstr "La página traducida"
 
-#: models.py:40
 msgid "Percentage of segments translated (0-100)"
 msgstr "Porcentaje de segmentos traducidos (0-100)"
 
-#: models.py:48 models.py:49
 msgid "Translation Progress"
 msgstr "Progreso de traducción"
 
-#: settings.py:23 templates/wagtail_localize_dashboard/dashboard.html:92
+msgid "The content type shared by source and translated snippet"
+msgstr "El tipo de contenido compartido por el fragmento fuente y el traducido"
+
+msgid "The primary key of the source snippet"
+msgstr "La clave primaria del fragmento fuente"
+
+msgid "The primary key of the translated snippet"
+msgstr "La clave primaria del fragmento traducido"
+
+msgid "The locale of the translated snippet"
+msgstr "El idioma del fragmento traducido"
+
+msgid "Snippet Translation Progress"
+msgstr "Progreso de traducción de fragmentos"
+
 msgid "Translations"
 msgstr "Traducciones"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:4
-#: templates/wagtail_localize_dashboard/dashboard.html:16
 msgid "Translation Progress Dashboard"
 msgstr "Panel de progreso de traducción"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:21
 msgid "Filter translations"
 msgstr "Filtrar traducciones"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:42
 msgid "Filter"
 msgstr "Filtrar"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:44
 msgid "Clear"
 msgstr "Limpiar"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:52
 msgid "Filter translation columns"
 msgstr "Filtrar columnas de traducción"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:54
 msgid "Translation column filter"
 msgstr "Filtro de columnas de traducción"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:72
 msgid "Apply"
 msgstr "Aplicar"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:82
 #, python-format
 msgid "Only showing '%(label)s' languages."
 msgstr "Mostrando solo los idiomas «%(label)s»."
 
-#: templates/wagtail_localize_dashboard/dashboard.html:87
 msgid "Pages with their translation progress"
 msgstr "Páginas con su progreso de traducción"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:90
 msgid "Page Title"
 msgstr "Título de la página"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:91
 msgid "Status"
 msgstr "Estado"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:93
 msgid "Actions"
 msgstr "Acciones"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:107
-msgid "Publication status: Published"
-msgstr "Estado de publicación: Publicado"
+msgid "live + draft"
+msgstr "publicado + borrador"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:107
-msgid "Published"
-msgstr "Publicado"
+msgid "live"
+msgstr "publicado"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:109
-msgid "Publication status: Draft"
-msgstr "Estado de publicación: Borrador"
+msgid "draft"
+msgstr "borrador"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:109
-msgid "Draft"
-msgstr "Borrador"
-
-#: templates/wagtail_localize_dashboard/dashboard.html:118
 #, python-format
 msgid "Edit %(locale)s version - %(percent)s%% complete"
 msgstr "Editar versión %(locale)s — %(percent)s%% completado"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:121
 msgid "Complete:"
 msgstr "Completo:"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:124
 msgid "In progress:"
 msgstr "En progreso:"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:131
+msgid "(draft)"
+msgstr "(borrador)"
+
+msgid "(live + draft)"
+msgstr "(publicado + borrador)"
+
 msgid "No translations"
 msgstr "Sin traducciones"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:136
 #, python-format
 msgid "Edit %(title)s"
 msgstr "Editar %(title)s"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:136
 msgid "Edit"
 msgstr "Editar"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:138
 #, python-format
 msgid "View %(title)s (opens in new window)"
 msgstr "Ver %(title)s (se abre en una nueva ventana)"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:139
 msgid "View"
 msgstr "Ver"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:139
 msgid "(opens in new window)"
 msgstr "(se abre en una nueva ventana)"
 
-#: templates/wagtail_localize_dashboard/dashboard.html:155
 msgid "No pages found."
 msgstr "No se encontraron páginas."
 
-#: wagtail_hooks.py:40
+msgid "Snippets with their translation progress"
+msgstr "Fragmentos con su progreso de traducción"
+
+msgid "Name"
+msgstr "Nombre"
+
+msgid "Type"
+msgstr "Tipo"
+
+msgid ""
+"An empty value means this snippet type does not support a draft/live "
+"workflow."
+msgstr ""
+"Un valor vacío significa que este tipo de fragmento no admite el flujo de "
+"trabajo borrador/publicado."
+
+#, python-format
+msgid "Edit %(name)s"
+msgstr "Editar %(name)s"
+
+msgid "No snippets found."
+msgstr "No se encontraron fragmentos."
+
+msgid "Pages"
+msgstr "Páginas"
+
+msgid "Snippets"
+msgstr "Fragmentos"
+
 msgid "See Translations"
 msgstr "Ver traducciones"

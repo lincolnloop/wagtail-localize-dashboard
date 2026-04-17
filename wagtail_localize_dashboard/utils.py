@@ -3,25 +3,28 @@
 import logging
 from typing import Dict, Optional
 
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Min, Model, QuerySet
 
 from wagtail.models import Locale, Page
 from wagtail_localize.models import TranslatableObject, Translation, TranslationSource
 
-from .models import TranslationProgress
-from .settings import get_setting
+from .models import SnippetTranslationProgress, TranslationProgress
+from .settings import get_setting, get_tracked_snippet_models
 
 logger = logging.getLogger(__name__)
 
 
 def get_translation_percentages(
-    source_page: Page, target_locale: Locale
+    source_object: Model, target_locale: Locale
 ) -> Optional[int]:
     """
-    Calculate translation percentage for a source page to target locale.
+    Calculate translation percentage for a source object to target locale.
+
+    Works for any TranslatableMixin model (pages and snippets alike).
 
     Args:
-        source_page: The source Page object
+        source_object: The source model instance (Page or any translatable snippet)
         target_locale: The target Locale instance
 
     Returns:
@@ -35,8 +38,8 @@ def get_translation_percentages(
         >>> print(f"{percent}% translated")
     """
     try:
-        # Find the translation source for the source page
-        translation_source = TranslationSource.objects.get_for_instance(source_page)
+        # Find the translation source for the source object
+        translation_source = TranslationSource.objects.get_for_instance(source_object)
 
         # Find the Translation record for this locale
         translation_record = Translation.objects.get(
@@ -61,7 +64,7 @@ def get_translation_percentages(
         return None
 
 
-def create_translation_progress(source_page: Page) -> None:
+def create_page_translation_progress(source_page: Page) -> None:
     """
     Calculate and store translation progress for a source page.
 
@@ -73,7 +76,7 @@ def create_translation_progress(source_page: Page) -> None:
 
     Example:
         >>> page = Page.objects.get(id=123)
-        >>> create_translation_progress(page)
+        >>> create_page_translation_progress(page)
     """
     # Check if tracking is enabled
     if not get_setting("TRACK_PAGES"):
@@ -126,7 +129,7 @@ def create_translation_progress(source_page: Page) -> None:
         )
 
 
-def rebuild_all_progress() -> Dict[str, int]:
+def rebuild_all_progress_for_pages() -> Dict[str, int]:
     """
     Rebuild translation progress for all pages.
 
@@ -139,7 +142,7 @@ def rebuild_all_progress() -> Dict[str, int]:
         dict with counts of processed pages and errors
 
     Example:
-        >>> stats = rebuild_all_progress()
+        >>> stats = rebuild_all_progress_for_pages()
         >>> print(f"Processed {stats['pages']} pages")
     """
     stats = {
@@ -147,19 +150,111 @@ def rebuild_all_progress() -> Dict[str, int]:
         "errors": 0,
     }
 
-    # Process pages
     if get_setting("TRACK_PAGES"):
         original_pages = get_original_objects(Page)
 
         for page in original_pages:
             try:
-                create_translation_progress(page)
+                create_page_translation_progress(page)
                 stats["pages"] += 1
             except Exception as e:
                 logger.exception(f"Error processing page {page.id}: {e}")
                 stats["errors"] += 1
 
     return stats
+
+
+def create_snippet_translation_progress(source_snippet: Model) -> None:
+    """
+    Calculate and store translation progress for a source snippet.
+
+    Creates or updates SnippetTranslationProgress records for all translations
+    of the given source snippet.
+
+    Args:
+        source_snippet: The source snippet instance (must be TranslatableMixin)
+    """
+    try:
+        content_type = ContentType.objects.get_for_model(source_snippet)
+        translations = source_snippet.get_translations()
+
+        for translated_snippet in translations:
+            if translated_snippet.pk == source_snippet.pk:
+                continue
+
+            percent_translated = get_translation_percentages(
+                source_snippet, translated_snippet.locale
+            )
+
+            if percent_translated is None:
+                for other_translation in translations:
+                    if other_translation.pk == translated_snippet.pk:
+                        continue
+                    percent_translated = get_translation_percentages(
+                        other_translation, translated_snippet.locale
+                    )
+                    if percent_translated is not None:
+                        break
+
+            SnippetTranslationProgress.objects.update_or_create(
+                content_type=content_type,
+                source_object_id=source_snippet.pk,
+                translated_object_id=translated_snippet.pk,
+                defaults={
+                    "translated_locale": translated_snippet.locale,
+                    "percent_translated": percent_translated or 0,
+                },
+            )
+
+    except (ValueError, AttributeError) as error:
+        logger.exception(
+            f"Error creating snippet translation progress for {source_snippet}: {error}",
+            stack_info=True,
+        )
+
+
+def rebuild_all_snippet_progress() -> Dict[str, int]:
+    """
+    Rebuild translation progress for all tracked snippets.
+
+    Returns:
+        dict with counts of processed snippets and errors
+    """
+    stats = {
+        "snippets": 0,
+        "errors": 0,
+    }
+
+    for model in get_tracked_snippet_models():
+        for snippet in get_original_objects(model):
+            try:
+                create_snippet_translation_progress(snippet)
+                stats["snippets"] += 1
+            except Exception as e:
+                logger.exception(f"Error processing snippet {snippet}: {e}")
+                stats["errors"] += 1
+
+    return stats
+
+
+def rebuild_all_progress() -> Dict[str, int]:
+    """
+    Rebuild translation progress for all pages and all tracked snippets.
+
+    Returns:
+        dict with combined counts of processed pages, snippets, and errors
+
+    Example:
+        >>> stats = rebuild_all_progress()
+        >>> print(f"Processed {stats['pages']} pages, {stats['snippets']} snippets")
+    """
+    page_stats = rebuild_all_progress_for_pages()
+    snippet_stats = rebuild_all_snippet_progress()
+    return {
+        "pages": page_stats["pages"],
+        "snippets": snippet_stats["snippets"],
+        "errors": page_stats["errors"] + snippet_stats["errors"],
+    }
 
 
 def get_original_objects(model: type[Model]) -> QuerySet:

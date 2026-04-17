@@ -11,10 +11,9 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
-from wagtail.models import Page
+from wagtail.models import Locale, Page
 from wagtail_localize.models import Translation, TranslationSource
 from wagtail_localize_dashboard.models import TranslationProgress
-from wagtail.models import Locale
 
 COLUMN_FILTER_OPTIONS = [
     ("group_a", "Group A", ["de", "fr"]),

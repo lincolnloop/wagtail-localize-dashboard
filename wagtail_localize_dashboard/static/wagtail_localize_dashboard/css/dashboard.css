@@ -49,7 +49,7 @@
 
 /* No translations message */
 .no-translations {
-    color: #999;
+    color: #595959;
     font-style: italic;
 }
 
@@ -97,6 +97,13 @@
 .actions-inline-start .button {
     display: inline-flex;
     align-items: center;
+}
+
+/* Tooltip info icon on column headers */
+.icon--column-tooltip {
+    width: 0.7rem;
+    height: 0.7rem;
+    vertical-align: middle;
 }
 
 /* Status icon indicators on translation buttons */

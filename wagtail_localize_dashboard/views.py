@@ -1,9 +1,10 @@
 """Views for the translation progress dashboard."""
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Min, Q, QuerySet
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -11,11 +12,12 @@ from django.views.decorators.cache import never_cache
 from django.views.generic import ListView
 
 from wagtail.admin.views.generic.base import BaseListingView
-from wagtail.models import Locale, Page
+from wagtail.models import DraftStateMixin, Locale, Page
 
-from .forms import ProgressFilterForm
-from .models import TranslationProgress
-from .settings import get_setting
+from .forms import ProgressFilterForm, SnippetProgressFilterForm
+from .models import SnippetTranslationProgress, TranslationProgress
+from .settings import get_setting, get_tracked_snippet_models
+from .utils import get_original_objects
 
 
 @method_decorator(staff_member_required, name="dispatch")
@@ -231,6 +233,201 @@ class ProgressDashboardView(ListView, BaseListingView):
                         ]
 
         context["pages_with_progress"] = pages_with_progress
+        context["filter_form"] = filter_form
+        context["column_filter_label"] = column_filter_label
+
+        return context
+
+
+@method_decorator(staff_member_required, name="dispatch")
+@method_decorator(never_cache, name="dispatch")
+class SnippetProgressDashboardView(ListView, BaseListingView):
+    """
+    Dashboard view showing translation progress for all tracked snippets.
+
+    Returns a sorted Python list rather than a QuerySet because results
+    span multiple models. Django's Paginator works with lists as well as
+    QuerySets, so ListView handles pagination normally.
+    """
+
+    template_name = "wagtail_localize_dashboard/snippet_dashboard.html"
+    context_object_name = "snippets"
+    paginate_by = get_setting("ITEMS_PER_PAGE", 50)
+
+    def get_filter_form(self) -> SnippetProgressFilterForm:
+        if not hasattr(self, "_filter_form"):
+            self._filter_form = SnippetProgressFilterForm(self.request.GET)
+        return self._filter_form
+
+    def get_queryset(self) -> List[Any]:
+        """
+        Build the combined, filtered, sorted list of original snippets across
+        all tracked models.
+
+        Filters are applied at the database level per model before combining,
+        so only the matching rows are loaded into memory.
+        """
+        form = self.get_filter_form()
+        tracked_models = get_tracked_snippet_models()
+
+        if not form.is_valid():
+            return []
+
+        original_language = form.cleaned_data.get("original_language")
+        translation_key = form.cleaned_data.get("translation_key")
+        exists_in_language = form.cleaned_data.get("exists_in_language")
+        snippet_type = form.cleaned_data.get("snippet_type")
+        num_languages = Locale.objects.count()
+
+        combined: List[Any] = []
+        for model in tracked_models:
+            if (
+                snippet_type
+                and f"{model._meta.app_label}.{model.__name__}" != snippet_type
+            ):
+                continue
+
+            qs = get_original_objects(model).select_related("locale")
+
+            if original_language:
+                qs = qs.filter(locale__language_code=original_language)
+
+            if translation_key:
+                qs = qs.filter(translation_key=translation_key)
+
+            if exists_in_language:
+                if exists_in_language == SnippetProgressFilterForm.ALL_LANGUAGES:
+                    translation_keys_in_all = (
+                        model.objects.values("translation_key")
+                        .annotate(locale_count=Count("locale", distinct=True))
+                        .filter(locale_count=num_languages)
+                        .values_list("translation_key", flat=True)
+                    )
+                    qs = qs.filter(translation_key__in=translation_keys_in_all)
+
+                elif exists_in_language == SnippetProgressFilterForm.CORE_LANGUAGES:
+                    if (
+                        hasattr(settings, "WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES")
+                        and settings.WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES
+                    ):
+                        core_codes = [
+                            code
+                            for code, _ in settings.WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES
+                        ]
+                        key_sets = [
+                            set(
+                                model.objects.filter(locale__language_code=code)
+                                .values_list("translation_key", flat=True)
+                                .distinct()
+                            )
+                            for code in core_codes
+                        ]
+                        if key_sets:
+                            qs = qs.filter(
+                                translation_key__in=set.intersection(*key_sets)
+                            )
+                        else:
+                            qs = qs.none()
+
+                else:
+                    translation_keys = (
+                        model.objects.filter(locale__language_code=exists_in_language)
+                        .values_list("translation_key", flat=True)
+                        .distinct()
+                    )
+                    qs = qs.filter(translation_key__in=translation_keys)
+
+            combined.extend(qs)
+
+        combined.sort(key=lambda s: (type(s)._meta.verbose_name, str(s)))
+        return combined
+
+    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+
+        page_snippets: List[Any] = context["snippets"]
+
+        # Group snippets on this page by content type so we can fetch all
+        # their progress records in as few queries as possible.
+        ct_to_pks: Dict[int, List[int]] = {}
+        ct_cache: Dict[type, ContentType] = {}
+        for snippet in page_snippets:
+            model_class = type(snippet)
+            if model_class not in ct_cache:
+                ct_cache[model_class] = ContentType.objects.get_for_model(model_class)
+            ct = ct_cache[model_class]
+            ct_to_pks.setdefault(ct.pk, []).append(snippet.pk)
+
+        # One DB query (plus one per content type for the GFK prefetch).
+        progress_by_key: Dict[tuple, List[SnippetTranslationProgress]] = {}
+        if ct_to_pks:
+            q = Q()
+            for ct_id, pks in ct_to_pks.items():
+                q |= Q(content_type_id=ct_id, source_object_id__in=pks)
+
+            records = (
+                SnippetTranslationProgress.objects.filter(q)
+                .select_related("translated_locale", "content_type")
+                .prefetch_related("translated")
+            )
+            for record in records:
+                key = (record.content_type_id, record.source_object_id)
+                progress_by_key.setdefault(key, []).append(record)
+
+        # Build the per-snippet dicts used by the template.
+        snippets_with_progress = []
+        for snippet in page_snippets:
+            model_class = type(snippet)
+            ct = ct_cache[model_class]
+            key = (ct.pk, snippet.pk)
+            progress_list = progress_by_key.get(key, [])
+
+            try:
+                edit_url = reverse(
+                    f"wagtailsnippets_{ct.app_label}_{ct.model}:edit",
+                    args=[snippet.pk],
+                )
+            except Exception:
+                edit_url = "#"
+
+            snippets_with_progress.append(
+                {
+                    "snippet": snippet,
+                    "display_str": str(snippet),
+                    "type_label": model_class._meta.verbose_name,
+                    "has_draft_state": issubclass(model_class, DraftStateMixin),
+                    "edit_url": edit_url,
+                    "translations": [p.to_dict() for p in progress_list],
+                }
+            )
+
+        # Column filter: limits which translation buttons are visible; rows
+        # with no matching translations still appear (same behaviour as pages).
+        filter_form = self.get_filter_form()
+        column_filter_label = ""
+        if filter_form.is_valid():
+            selected_filter = filter_form.cleaned_data.get("column_filter", "")
+            if selected_filter:
+                column_filter_options = get_setting("COLUMN_FILTER_OPTIONS")
+                match = next(
+                    (
+                        (label, locales)
+                        for fid, label, locales in column_filter_options
+                        if fid == selected_filter
+                    ),
+                    None,
+                )
+                if match:
+                    column_filter_label = match[0]
+                    filter_locales_set = set(match[1])
+                    for snippet_data in snippets_with_progress:
+                        snippet_data["translations"] = [
+                            t
+                            for t in snippet_data["translations"]
+                            if t["locale"] in filter_locales_set
+                        ]
+
+        context["snippets_with_progress"] = snippets_with_progress
         context["filter_form"] = filter_form
         context["column_filter_label"] = column_filter_label
 

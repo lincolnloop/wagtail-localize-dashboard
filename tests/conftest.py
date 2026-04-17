@@ -9,6 +9,8 @@ from django.contrib.contenttypes.models import ContentType
 
 import pytest
 from wagtail.models import Locale, Page, Site
+from tests.models import SampleSnippet
+from wagtail_localize_dashboard.models import SnippetTranslationProgress
 
 User = get_user_model()
 
@@ -172,3 +174,30 @@ def staff_client(client, staff_user):
     """Return a client logged in as staff user."""
     client.force_login(staff_user)
     return client
+
+
+@pytest.fixture
+def sample_snippet(locale_en):
+    """A single SampleSnippet in the English locale."""
+    return SampleSnippet.objects.create(locale=locale_en, heading="Sample Snippet")
+
+
+@pytest.fixture
+def sample_snippet_de(sample_snippet, locale_de):
+    """A German translation of sample_snippet."""
+    translated = sample_snippet.copy_for_translation(locale_de)
+    translated.save()
+    return translated
+
+
+@pytest.fixture
+def sample_snippet_de_progress(sample_snippet, sample_snippet_de, locale_de):
+    """A SnippetTranslationProgress record (50%) for sample_snippet → German."""
+    ct = ContentType.objects.get_for_model(SampleSnippet)
+    return SnippetTranslationProgress.objects.create(
+        content_type=ct,
+        source_object_id=sample_snippet.pk,
+        translated_object_id=sample_snippet_de.pk,
+        translated_locale=locale_de,
+        percent_translated=50,
+    )

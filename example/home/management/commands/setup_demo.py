@@ -11,7 +11,7 @@ from django.core.management.base import BaseCommand
 
 from wagtail.models import Locale, Page, Site
 
-from home.models import ArticlePage, HomePage, ProductPage
+from home.models import ArticlePage, HomePage, NavigationMenu, ProductPage, SiteAlert
 
 User = get_user_model()
 
@@ -227,12 +227,29 @@ class Command(BaseCommand):
         home_page.add_child(instance=product2)
         self.stdout.write(self.style.SUCCESS(f"Created product: {product2.title}"))
 
+        # Create navigation menu snippets
+        for title in ["Main Navigation", "Footer Links", "Mobile Navigation"]:
+            menu = NavigationMenu(title=title, locale=en_locale)
+            menu.save()
+            self.stdout.write(self.style.SUCCESS(f"Created navigation menu: {title}"))
+
+        # Create site alert snippets
+        for message in [
+            "Welcome to our multilingual demo site.",
+            "New translations are available — check the dashboard for progress.",
+        ]:
+            alert = SiteAlert(message=message, locale=en_locale)
+            alert.save()
+            alert.save_revision().publish()
+            self.stdout.write(self.style.SUCCESS(f"Created site alert: {message[:50]}"))
+
         self.stdout.write(
             self.style.SUCCESS(
                 "\nDemo setup complete! You can now:\n"
                 "1. Visit the admin at /admin/ (login: admin/admin)\n"
                 "2. View the translation dashboard at /admin/translations/\n"
-                "3. Create translations for the sample pages\n"
-                "4. Watch the dashboard update automatically"
+                "3. View the snippet dashboard at /admin/translations/snippets/\n"
+                "4. Create translations for the sample pages and snippets\n"
+                "5. Watch the dashboard update automatically"
             )
         )

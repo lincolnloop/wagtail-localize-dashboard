@@ -6,23 +6,57 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from wagtail import hooks
-from wagtail.admin.menu import MenuItem
+from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 from wagtail.admin.widgets import Button
 
-from .settings import get_setting
+from .settings import get_setting, get_tracked_snippet_models
 
 
 @hooks.register("register_admin_menu_item")
 def register_translation_dashboard_menu() -> Optional[MenuItem]:
-    """Add translation dashboard to Wagtail admin menu."""
+    """
+    Add translation dashboard to Wagtail admin menu.
+
+    When TRACKED_SNIPPETS is non-empty, renders as a submenu with separate
+    "Pages" and "Snippets" items. When empty (the default), renders as a
+    single menu item pointing directly to the page dashboard — no behaviour
+    change for users who have not configured snippet tracking.
+    """
     if not get_setting("SHOW_IN_MENU"):
         return None
 
+    icon_name = get_setting("MENU_ICON")
+    order = get_setting("MENU_ORDER")
+    label = get_setting("MENU_LABEL")
+
+    if get_tracked_snippet_models():
+        return SubmenuMenuItem(
+            label,
+            Menu(
+                items=[
+                    MenuItem(
+                        _("Pages"),
+                        reverse("wagtail_localize_dashboard:dashboard"),
+                        icon_name="doc-empty-inverse",
+                        order=100,
+                    ),
+                    MenuItem(
+                        _("Snippets"),
+                        reverse("wagtail_localize_dashboard:snippet_dashboard"),
+                        icon_name="snippet",
+                        order=200,
+                    ),
+                ]
+            ),
+            icon_name=icon_name,
+            order=order,
+        )
+
     return MenuItem(
-        get_setting("MENU_LABEL"),
+        label,
         reverse("wagtail_localize_dashboard:dashboard"),
-        icon_name=get_setting("MENU_ICON"),
-        order=get_setting("MENU_ORDER"),
+        icon_name=icon_name,
+        order=order,
     )
 
 
