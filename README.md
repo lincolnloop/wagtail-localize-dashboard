@@ -103,6 +103,15 @@ WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS = [
     ("french", "French", ["fr-fr", "fr-ca", "fr-be"]),
 ]
 
+# Core languages: languages that are considered mandatory/complete.
+# When set, a "Core languages" filter option appears on the dashboard,
+# letting users filter for pages that exist in all of these languages.
+# Each entry is a (language_code, language_name) tuple (default: not set).
+WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES = [
+    ("en", "English"),
+    ("de", "German"),
+]
+
 # Snippet models to track (default: [], snippets are opt-in).
 # Each entry must be an "app_label.ModelName" string for a model that is a
 # subclass of TranslatableMixin. An ImproperlyConfigured error is raised at

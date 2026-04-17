@@ -112,14 +112,14 @@ class ProgressDashboardView(ListView, BaseListingView):
 
                 elif exists_in_language == ProgressFilterForm.CORE_LANGUAGES:
                     # Special case: filter for pages in ALL core languages
-                    # Only process if WAGTAIL_CORE_LANGUAGES is defined
+                    # Only process if WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES is defined
                     if (
-                        hasattr(settings, "WAGTAIL_CORE_LANGUAGES")
-                        and settings.WAGTAIL_CORE_LANGUAGES
+                        hasattr(settings, "WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES")
+                        and settings.WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES
                     ):
                         core_language_codes = [
                             lang_code
-                            for lang_code, lang_name in settings.WAGTAIL_CORE_LANGUAGES
+                            for lang_code, lang_name in settings.WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES
                         ]
 
                         # Get translation keys that exist in all core languages

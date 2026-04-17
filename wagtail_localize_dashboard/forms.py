@@ -76,10 +76,10 @@ class ProgressFilterForm(forms.Form):
             (self.ALL_LANGUAGES, _("All languages")),
         ]
 
-        # Only add "Core languages" option if WAGTAIL_CORE_LANGUAGES is defined
+        # Only add "Core languages" option if WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES is defined
         if (
-            hasattr(settings, "WAGTAIL_CORE_LANGUAGES")
-            and settings.WAGTAIL_CORE_LANGUAGES
+            hasattr(settings, "WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES")
+            and settings.WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES
         ):
             exists_in_choices.append((self.CORE_LANGUAGES, _("Core languages")))
 
