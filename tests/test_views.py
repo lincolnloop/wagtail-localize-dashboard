@@ -14,6 +14,7 @@ import pytest
 from wagtail.models import Page
 from wagtail_localize.models import Translation, TranslationSource
 from wagtail_localize_dashboard.models import TranslationProgress
+from wagtail.models import Locale
 
 COLUMN_FILTER_OPTIONS = [
     ("group_a", "Group A", ["de", "fr"]),
@@ -407,6 +408,83 @@ class TestDashboardView:
         pages = response.context["pages_with_progress"]
         assert len(pages) == 1
         assert pages[0]["page"] == test_page_with_translations
+
+    def test_exists_in_all_languages_uses_active_locales(
+        self, admin_client, test_page, locale_en, locale_de, locale_es
+    ):
+        """'All languages' filter matches pages in all active Locale objects, not all configured languages."""
+        # en, de, es are the only active locales — it and fr exist in WAGTAIL_CONTENT_LANGUAGES
+        # but have no Locale objects. A page translated into en+de+es should match __all__.
+        with patch.object(transaction, "on_commit", side_effect=lambda func: func()):
+            source, _ = TranslationSource.get_or_create_from_instance(test_page)
+            for locale in [locale_de, locale_es]:
+                t, _ = Translation.objects.get_or_create(
+                    source=source, target_locale=locale
+                )
+                t.save_target(publish=True)
+
+        url = reverse("wagtail_localize_dashboard:dashboard")
+
+        response = admin_client.get(url, {"exists_in_language": "__all__"})
+        assert response.status_code == 200
+        pages = [p["page"] for p in response.context["pages_with_progress"]]
+        assert test_page in pages
+
+    def test_exists_in_all_languages_excludes_partial(
+        self, admin_client, test_page, locale_en, locale_de, locale_es
+    ):
+        """Pages missing any active locale are excluded by the 'All languages' filter."""
+        # Only create a de translation, leaving es missing
+        with patch.object(transaction, "on_commit", side_effect=lambda func: func()):
+            source, _ = TranslationSource.get_or_create_from_instance(test_page)
+            t, _ = Translation.objects.get_or_create(
+                source=source, target_locale=locale_de
+            )
+            t.save_target(publish=True)
+
+        url = reverse("wagtail_localize_dashboard:dashboard")
+
+        response = admin_client.get(url, {"exists_in_language": "__all__"})
+        assert response.status_code == 200
+        pages = [p["page"] for p in response.context["pages_with_progress"]]
+        assert test_page not in pages
+
+    def test_exists_in_all_languages_checks_all_locales(
+        self, admin_client, test_page, locale_en, locale_de, locale_es
+    ):
+        """
+        Make sure that the "All languages" filter really checks all languages.
+
+
+        If a page has a translation in all active locales except 1, but has a translation
+        in an inactive locales, it should not show up in the results.
+        """
+        # zh has a Locale object but is not in WAGTAIL_CONTENT_LANGUAGES
+        locale_zh, _ = Locale.objects.get_or_create(language_code="zh")
+        # Locale.objects.count() is now 4 (en, de, es, zh)
+
+        with patch.object(transaction, "on_commit", side_effect=lambda func: func()):
+            source, _ = TranslationSource.get_or_create_from_instance(test_page)
+            # de + zh gives 3 distinct locales (including the source en), but es is missing
+            for locale in [locale_de, locale_zh]:
+                t, _ = Translation.objects.get_or_create(
+                    source=source, target_locale=locale
+                )
+                t.save_target(publish=True)
+        # The test_page does not have a translation in "es".
+        assert not Page.objects.filter(
+            translation_key=test_page.translation_key,
+            locale__language_code="es",
+        ).exists()
+
+        url = reverse("wagtail_localize_dashboard:dashboard")
+
+        response = admin_client.get(url, {"exists_in_language": "__all__"})
+        assert response.status_code == 200
+        # Since the test_page does not have a translation in one of the active locales,
+        # it should not be in the results when filtering for 'exists in all languages'.
+        pages = [p["page"] for p in response.context["pages_with_progress"]]
+        assert test_page not in pages
 
     def test_dashboard_sorting(self, admin_client, home_page, locale_en):
         """Test sorting on dashboard."""
