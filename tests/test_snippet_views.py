@@ -7,6 +7,7 @@ from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from tests.models import DraftStateSnippet, SampleSnippet
+from wagtail.models import Locale
 from wagtail_localize_dashboard.forms import SnippetProgressFilterForm
 from wagtail_localize_dashboard.models import SnippetTranslationProgress
 
@@ -304,8 +305,8 @@ class TestSnippetProgressDashboardView:
 
         assert response.status_code == 200
         num_queries = len(queries)
-        # We should have <= 9 queries total
-        expected_max_num_queries = 9
+        # We should have <= 11 queries total
+        expected_max_num_queries = 11
         assert num_queries <= expected_max_num_queries, (
             f"Too many queries: {num_queries}. Expected <= {expected_max_num_queries}. Queries:\n"
             + "\n".join([q["sql"] for q in queries])
@@ -608,3 +609,89 @@ class TestSnippetProgressDashboardView:
 
         content = response.content.decode()
         assert "draft/live workflow" in content
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_exists_in_all_languages_uses_active_locales(
+        self, admin_client, locale_en, locale_de, locale_es
+    ):
+        """'All languages' filter matches snippets in all active Locale objects, not all configured languages."""
+        # en, de, es are the only active locales — fr exists in WAGTAIL_CONTENT_LANGUAGES
+        # but has no Locale object. A snippet with copies in en+de+es should match __all__.
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Source")
+        source.copy_for_translation(locale_de).save()
+        source.copy_for_translation(locale_es).save()
+        # The source has a translation in each Locale.
+        assert (
+            SampleSnippet.objects.filter(translation_key=source.translation_key).count()
+            == Locale.objects.count()
+        )
+
+        url = reverse(SNIPPET_DASHBOARD_URL_NAME)
+        response = admin_client.get(url, {"exists_in_language": "__all__"})
+
+        assert response.status_code == 200
+        snippets = [
+            row["snippet"] for row in response.context["snippets_with_progress"]
+        ]
+        assert source in snippets
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_exists_in_all_languages_excludes_partial(
+        self, admin_client, locale_en, locale_de, locale_es
+    ):
+        """Snippets missing any active locale are excluded by the 'All languages' filter."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Source")
+        source.copy_for_translation(locale_de).save()
+        # The source does not have a translation in "es".
+        assert not SampleSnippet.objects.filter(
+            translation_key=source.translation_key,
+            locale__language_code="es",
+        ).exists()
+
+        url = reverse(SNIPPET_DASHBOARD_URL_NAME)
+        response = admin_client.get(url, {"exists_in_language": "__all__"})
+
+        assert response.status_code == 200
+        snippets = [
+            row["snippet"] for row in response.context["snippets_with_progress"]
+        ]
+        assert source not in snippets
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_exists_in_all_languages_checks_all_locales(
+        self, admin_client, locale_en, locale_de, locale_es
+    ):
+        """
+        'All languages' really checks all active Locale objects.
+
+        A snippet translated into en+de+zh (an unconfigured-but-active locale) should
+        NOT match when es is also active, since es is missing.
+        """
+        locale_zh, _ = Locale.objects.get_or_create(language_code="zh")
+        # Locale.objects.count() is now 4 (en, de, es, zh)
+
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Source")
+        source.copy_for_translation(locale_de).save()
+        source.copy_for_translation(locale_zh).save()
+        # The source does not have a translation in "es".
+        assert not SampleSnippet.objects.filter(
+            translation_key=source.translation_key,
+            locale__language_code="es",
+        ).exists()
+
+        url = reverse(SNIPPET_DASHBOARD_URL_NAME)
+        response = admin_client.get(url, {"exists_in_language": "__all__"})
+
+        assert response.status_code == 200
+        # Because the source SampleSnippet does not have a translation in "es",
+        # it is not in the results.
+        snippets = [
+            row["snippet"] for row in response.context["snippets_with_progress"]
+        ]
+        assert source not in snippets

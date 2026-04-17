@@ -276,7 +276,7 @@ class SnippetProgressDashboardView(ListView, BaseListingView):
         original_language = form.cleaned_data.get("original_language")
         translation_key = form.cleaned_data.get("translation_key")
         exists_in_language = form.cleaned_data.get("exists_in_language")
-        num_languages = len(settings.WAGTAIL_CONTENT_LANGUAGES)
+        num_languages = Locale.objects.count()
 
         combined: List[Any] = []
         for model in tracked_models:
