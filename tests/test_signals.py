@@ -591,9 +591,9 @@ def test_uploading_po_file_updates_page_translation_data(
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
-@patch("wagtail_localize_dashboard.utils.create_translation_progress")
-def test_snippet_translation_does_not_call_create_translation_progress(
-    _mock_create_translation_progress, _mock_on_commit, locale_en, locale_fr
+@patch("wagtail_localize_dashboard.utils.create_page_translation_progress")
+def test_snippet_translation_does_not_call_create_page_translation_progress(
+    _mock_create_page_translation_progress, _mock_on_commit, locale_en, locale_fr
 ):
     """Test that creating a translation for a snippet does NOT call create_page_translation_data."""
     # Create a snippet (non-page object)
@@ -614,14 +614,14 @@ def test_snippet_translation_does_not_call_create_translation_progress(
     )
     translation.save_target(user=None, publish=True)
 
-    # Verify that create_translation_progress was NOT called
-    _mock_create_translation_progress.assert_not_called()
+    # Verify that create_page_translation_progress was NOT called
+    _mock_create_page_translation_progress.assert_not_called()
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
-@patch("wagtail_localize_dashboard.utils.create_translation_progress")
-def test_snippet_string_translation_does_not_call_create_translation_progress(
-    _mock_create_translation_progress, _mock_on_commit, locale_en, locale_fr
+@patch("wagtail_localize_dashboard.utils.create_page_translation_progress")
+def test_snippet_string_translation_does_not_call_create_page_translation_progress(
+    _mock_create_page_translation_progress, _mock_on_commit, locale_en, locale_fr
 ):
     """Test that creating a StringTranslation for a snippet does NOT call create_page_translation_data."""
     # Create a snippet (non-page object)
@@ -649,7 +649,7 @@ def test_snippet_string_translation_does_not_call_create_translation_progress(
     )
 
     # Reset the mock to clear any calls from the translation creation
-    _mock_create_translation_progress.reset_mock()
+    _mock_create_page_translation_progress.reset_mock()
 
     # Create a StringTranslation for the snippet
     StringTranslation.objects.create(
@@ -659,14 +659,14 @@ def test_snippet_string_translation_does_not_call_create_translation_progress(
         data="Titre français",
     )
 
-    # Verify that create_translation_progress was NOT called
-    _mock_create_translation_progress.assert_not_called()
+    # Verify that create_page_translation_progress was NOT called
+    _mock_create_page_translation_progress.assert_not_called()
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
-@patch("wagtail_localize_dashboard.utils.create_translation_progress")
-def test_snippet_string_translation_deletion_does_not_call_create_translation_progress(
-    _mock_create_translation_progress, _mock_on_commit, locale_en, locale_fr
+@patch("wagtail_localize_dashboard.utils.create_page_translation_progress")
+def test_snippet_string_translation_deletion_does_not_call_create_page_translation_progress(
+    _mock_create_page_translation_progress, _mock_on_commit, locale_en, locale_fr
 ):
     """Test that deleting a StringTranslation for a snippet does NOT call create_page_translation_data."""
     # Create a snippet (non-page object)
@@ -702,19 +702,19 @@ def test_snippet_string_translation_deletion_does_not_call_create_translation_pr
     )
 
     # Reset the mock to clear any calls from the translation creation
-    _mock_create_translation_progress.reset_mock()
+    _mock_create_page_translation_progress.reset_mock()
 
     # Delete the StringTranslation
     string_translation.delete()
 
-    # Verify that create_translation_progress was NOT called
-    _mock_create_translation_progress.assert_not_called()
+    # Verify that create_page_translation_progress was NOT called
+    _mock_create_page_translation_progress.assert_not_called()
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
-@patch("wagtail_localize_dashboard.utils.create_translation_progress")
-def test_snippet_translation_source_save_does_not_call_create_translation_progress(
-    _mock_create_translation_progress, _mock_on_commit, locale_en
+@patch("wagtail_localize_dashboard.utils.create_page_translation_progress")
+def test_snippet_translation_source_save_does_not_call_create_page_translation_progress(
+    _mock_create_page_translation_progress, _mock_on_commit, locale_en
 ):
     """Test that saving a TranslationSource for a snippet does NOT call create_page_translation_data."""
     # Create a snippet (non-page object)
@@ -725,26 +725,26 @@ def test_snippet_translation_source_save_does_not_call_create_translation_progre
     )
 
     # Reset the mock before creating translation source
-    _mock_create_translation_progress.reset_mock()
+    _mock_create_page_translation_progress.reset_mock()
 
     # Create a TranslationSource for the snippet
     translation_source, _ = TranslationSource.get_or_create_from_instance(snippet)
 
-    # Verify that create_translation_progress was NOT called
-    _mock_create_translation_progress.assert_not_called()
+    # Verify that create_page_translation_progress was NOT called
+    _mock_create_page_translation_progress.assert_not_called()
 
     # Now update the snippet and update the translation source
     snippet.heading = "Updated Heading"
     snippet.save()
 
     # Reset the mock again
-    _mock_create_translation_progress.reset_mock()
+    _mock_create_page_translation_progress.reset_mock()
 
     # Update the translation source
     translation_source.update_from_db()
 
-    # Verify that create_translation_progress was NOT called
-    _mock_create_translation_progress.assert_not_called()
+    # Verify that create_page_translation_progress was NOT called
+    _mock_create_page_translation_progress.assert_not_called()
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())

@@ -149,7 +149,7 @@ Use the targeted commands when you know only one type of content has changed, to
 ```python
 from wagtail_localize_dashboard.utils import (
     get_translation_percentages,
-    create_translation_progress,
+    create_page_translation_progress,
     create_snippet_translation_progress,
     rebuild_all_progress,
     rebuild_all_progress_for_pages,

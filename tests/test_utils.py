@@ -16,8 +16,8 @@ from wagtail_localize_dashboard.models import (
 )
 from wagtail_localize_dashboard.settings import get_tracked_snippet_models
 from wagtail_localize_dashboard.utils import (
+    create_page_translation_progress,
     create_snippet_translation_progress,
-    create_translation_progress,
     get_translation_percentages,
     rebuild_all_progress,
     rebuild_all_progress_for_pages,
@@ -207,10 +207,12 @@ class TestGetTranslationPercentages:
         assert percent is None
 
 
-class TestCreateTranslationProgress:
-    """Tests for create_translation_progress function."""
+class TestCreatePageTranslationProgress:
+    """Tests for create_page_translation_progress function."""
 
-    def test_create_translation_progress_no_translations(self, page_with_translations):
+    def test_create_page_translation_progress_no_translations(
+        self, page_with_translations
+    ):
         """Test that a page with no translations creates no progress records."""
         en_page = page_with_translations["en_page"]
         de_page = page_with_translations["de_page"]
@@ -224,11 +226,11 @@ class TestCreateTranslationProgress:
         TranslationProgress.objects.all().delete()
 
         # Create progress (should create nothing since there are no translations)
-        create_translation_progress(en_page)
+        create_page_translation_progress(en_page)
 
         assert TranslationProgress.objects.count() == 0
 
-    def test_create_translation_progress_with_translations(
+    def test_create_page_translation_progress_with_translations(
         self, page_with_translations
     ):
         """Test creating progress records for a page with translations."""
@@ -254,7 +256,7 @@ class TestCreateTranslationProgress:
         TranslationProgress.objects.all().delete()
 
         # Create progress
-        create_translation_progress(en_page)
+        create_page_translation_progress(en_page)
 
         # Should have created 2 progress records (one for each translation)
         assert TranslationProgress.objects.count() == 2
@@ -274,8 +276,10 @@ class TestCreateTranslationProgress:
             assert progress.source_page_id == en_page.id
             assert isinstance(progress.translated_page, Page)
 
-    def test_create_translation_progress_updates_existing(self, page_with_translations):
-        """Test that create_translation_progress updates existing records."""
+    def test_create_page_translation_progress_updates_existing(
+        self, page_with_translations
+    ):
+        """Test that create_page_translation_progress updates existing records."""
         en_page = page_with_translations["en_page"]
         de_locale = page_with_translations["de_locale"]
         fr_page = page_with_translations["fr_page"]
@@ -292,7 +296,7 @@ class TestCreateTranslationProgress:
         )
 
         # Create initial progress
-        create_translation_progress(en_page)
+        create_page_translation_progress(en_page)
         assert TranslationProgress.objects.count() == 1
 
         initial_progress = TranslationProgress.objects.first()
@@ -302,7 +306,7 @@ class TestCreateTranslationProgress:
         with patch(
             "wagtail_localize.models.Translation.get_progress", return_value=(10, 10)
         ):
-            create_translation_progress(en_page)
+            create_page_translation_progress(en_page)
 
         # Should still have only 1 record (updated, not duplicated)
         assert TranslationProgress.objects.count() == 1
@@ -310,7 +314,7 @@ class TestCreateTranslationProgress:
         assert updated_progress.id == initial_id  # Same record
         assert updated_progress.percent_translated == 100  # Updated value
 
-    def test_create_translation_progress_uses_original_page(
+    def test_create_page_translation_progress_uses_original_page(
         self, page_with_translations
     ):
         """Test that progress is created from the original page, not translations."""
@@ -321,9 +325,9 @@ class TestCreateTranslationProgress:
         # Clear existing progress
         TranslationProgress.objects.all().delete()
 
-        # Call create_translation_progress on the original English page
+        # Call create_page_translation_progress on the original English page
         # This creates progress records for all its translations
-        create_translation_progress(en_page)
+        create_page_translation_progress(en_page)
 
         # Verify progress was created
         assert TranslationProgress.objects.count() == 2
@@ -339,7 +343,7 @@ class TestCreateTranslationProgress:
         assert set(translated_ids) == set([de_page.id, fr_page.id])
 
     @override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACK_PAGES=False)
-    def test_create_translation_progress_respects_track_pages_setting(
+    def test_create_page_translation_progress_respects_track_pages_setting(
         self, page_with_translations
     ):
         """Test that TRACK_PAGES setting is respected."""
@@ -358,11 +362,11 @@ class TestCreateTranslationProgress:
         TranslationProgress.objects.all().delete()
 
         # Should not create progress when TRACK_PAGES=False
-        create_translation_progress(en_page)
+        create_page_translation_progress(en_page)
 
         assert TranslationProgress.objects.count() == 0
 
-    def test_create_translation_progress_handles_translation_chain(
+    def test_create_page_translation_progress_handles_translation_chain(
         self, page_with_translations
     ):
         """Test translation chain (A→B→C) where C is translated from B."""
@@ -394,7 +398,7 @@ class TestCreateTranslationProgress:
         TranslationProgress.objects.all().delete()
 
         # Create progress from English page
-        create_translation_progress(en_page)
+        create_page_translation_progress(en_page)
 
         # Should create progress for both German and French
         assert TranslationProgress.objects.count() == 2
@@ -417,7 +421,7 @@ class TestCreateTranslationProgress:
         "wagtail_localize_dashboard.utils.TranslationSource.objects.get_for_instance"
     )
     @patch("wagtail_localize_dashboard.utils.Translation.objects.get")
-    def test_create_translation_progress_fallback_to_nested_search(
+    def test_create_page_translation_progress_fallback_to_nested_search(
         self, mock_translation_get, mock_translation_source_get, page_with_translations
     ):
         """Test the fallback logic when translation is from another translation."""
@@ -440,7 +444,7 @@ class TestCreateTranslationProgress:
         # Make sure there are currently no TranslationProgress objects.
         TranslationProgress.objects.all().delete()
 
-        create_translation_progress(en_homepage)
+        create_page_translation_progress(en_homepage)
 
         # Should find translations via the fallback method
         assert TranslationProgress.objects.count() == 2
@@ -450,10 +454,10 @@ class TestCreateTranslationProgress:
         }
         assert 75 in progress_values
 
-    def test_create_translation_progress_handles_value_error(
+    def test_create_page_translation_progress_handles_value_error(
         self, page_with_translations
     ):
-        """Test create_translation_progress handles ValueError gracefully."""
+        """Test create_page_translation_progress handles ValueError gracefully."""
         en_page = page_with_translations["en_page"]
 
         # Make sure there are currently no TranslationProgress objects.
@@ -463,16 +467,16 @@ class TestCreateTranslationProgress:
         with patch.object(
             Page, "get_translations", side_effect=ValueError("Test error")
         ):
-            create_translation_progress(en_page)
+            create_page_translation_progress(en_page)
 
             # Should not create any TranslationProgress when ValueError occurs
             assert TranslationProgress.objects.count() == 0
 
     @patch("wagtail_localize_dashboard.utils.logger")
-    def test_create_translation_progress_handles_attribute_error(
+    def test_create_page_translation_progress_handles_attribute_error(
         self, mock_logger, page_with_translations
     ):
-        """Test create_translation_progress handles AttributeError gracefully."""
+        """Test create_page_translation_progress handles AttributeError gracefully."""
         en_homepage = page_with_translations["en_page"]
 
         # Make sure there are currently no TranslationProgress objects.
@@ -482,7 +486,7 @@ class TestCreateTranslationProgress:
         with patch.object(
             Page, "get_translations", side_effect=AttributeError("Test error")
         ):
-            create_translation_progress(en_homepage)
+            create_page_translation_progress(en_homepage)
 
             # If an AttributeError occurs, then no TranslationProgress should be created.
             assert TranslationProgress.objects.count() == 0

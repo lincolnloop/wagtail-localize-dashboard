@@ -18,7 +18,7 @@ from wagtail_localize.models import (
 
 from .models import SnippetTranslationProgress
 from .settings import get_setting, get_tracked_snippet_models
-from .utils import create_snippet_translation_progress, create_translation_progress
+from .utils import create_page_translation_progress, create_snippet_translation_progress
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ def translation_saved_handler(
                         .first()
                     )
                     if original_page:
-                        create_translation_progress(original_page)
+                        create_page_translation_progress(original_page)
 
             elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
                 original = (
@@ -98,7 +98,7 @@ def string_translation_saved_handler(
                         .first()
                     )
                     if original_page:
-                        create_translation_progress(original_page)
+                        create_page_translation_progress(original_page)
 
             elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
                 original = (
@@ -143,7 +143,7 @@ def string_translation_deleted_handler(
                 def update_after_commit() -> None:
                     try:
                         if original_page:
-                            create_translation_progress(original_page)
+                            create_page_translation_progress(original_page)
                     except Exception as e:
                         logger.exception(f"Error in update_after_commit: {e}")
 
@@ -194,7 +194,7 @@ def translation_source_saved_handler(
                         .first()
                     )
                     if original_page:
-                        create_translation_progress(original_page)
+                        create_page_translation_progress(original_page)
 
             elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
                 original = (
@@ -240,7 +240,7 @@ def page_saved_handler(
                 .first()
             )
             if original_page:
-                create_translation_progress(original_page)
+                create_page_translation_progress(original_page)
         except Exception as e:
             logger.exception(f"Error in page_saved_handler: {e}")
 

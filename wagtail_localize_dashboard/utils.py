@@ -64,7 +64,7 @@ def get_translation_percentages(
         return None
 
 
-def create_translation_progress(source_page: Page) -> None:
+def create_page_translation_progress(source_page: Page) -> None:
     """
     Calculate and store translation progress for a source page.
 
@@ -76,7 +76,7 @@ def create_translation_progress(source_page: Page) -> None:
 
     Example:
         >>> page = Page.objects.get(id=123)
-        >>> create_translation_progress(page)
+        >>> create_page_translation_progress(page)
     """
     # Check if tracking is enabled
     if not get_setting("TRACK_PAGES"):
@@ -155,7 +155,7 @@ def rebuild_all_progress_for_pages() -> Dict[str, int]:
 
         for page in original_pages:
             try:
-                create_translation_progress(page)
+                create_page_translation_progress(page)
                 stats["pages"] += 1
             except Exception as e:
                 logger.exception(f"Error processing page {page.id}: {e}")
