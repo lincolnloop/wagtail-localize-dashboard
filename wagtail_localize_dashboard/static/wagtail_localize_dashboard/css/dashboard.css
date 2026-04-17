@@ -99,6 +99,13 @@
     align-items: center;
 }
 
+/* Tooltip info icon on column headers */
+.icon--column-tooltip {
+    width: 0.7rem;
+    height: 0.7rem;
+    vertical-align: middle;
+}
+
 /* Status icon indicators on translation buttons */
 .status-icon {
     display: inline-flex;

@@ -82,7 +82,15 @@
             <tr class="table-headers">
               <th class="title">{% trans "Name" %}</th>
               <th>{% trans "Type" %}</th>
-              <th>{% trans "Status" %}</th>
+              <th>
+                <span class="w-flex w-items-center w-gap-2">
+                  {% trans "Status" %}
+                  <span
+                    data-controller="w-tooltip"
+                    data-w-tooltip-content-value="{% trans "An empty value means this snippet type does not support a draft/live workflow." %}"
+                  >{% icon name="info-circle" classname="icon icon--column-tooltip" %}</span>
+                </span>
+              </th>
               <th>{% trans "Translations" %}</th>
               <th>{% trans "Actions" %}</th>
             </tr>
@@ -150,7 +158,6 @@
           {% include "wagtailadmin/shared/pagination_nav.html" with items=page_obj %}
         {% endif %}
 
-        <p class="pl-4em w-pt-4"><span class="sm:w-pl-5"><em>{% trans "An empty value in the Status column means this snippet type does not support a draft/live workflow." %}</em></span></p>
       </div>
 
     {% else %}
