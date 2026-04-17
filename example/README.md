@@ -128,6 +128,7 @@ The example project now supports testing with **1000 pages** across **40 locales
   - `--pages N` - Number of pages to create (default: 1000)
   - `--skip-translations` - Only create source pages
   - `--batch-size N` - Batch size for progress reporting
+- `generate_snippets` - Generate sample snippets for testing the snippet dashboard
 - `rebuild_translation_progress` - Rebuild the translation progress cache
 
 ### Supported Locales (40 total)
@@ -160,6 +161,7 @@ python manage.py migrate
 python manage.py setup_demo
 python manage.py setup_locales
 python manage.py generate_pages
+python manage.py generate_snippets
 python manage.py rebuild_translation_progress
 ```
 
