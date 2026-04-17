@@ -12,7 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.generic import ListView
 
 from wagtail.admin.views.generic.base import BaseListingView
-from wagtail.models import DraftStateMixin, Page
+from wagtail.models import DraftStateMixin, Locale, Page
 
 from .forms import ProgressFilterForm, SnippetProgressFilterForm
 from .models import SnippetTranslationProgress, TranslationProgress
@@ -97,7 +97,7 @@ class ProgressDashboardView(ListView, BaseListingView):
             if exists_in_language:
                 if exists_in_language == ProgressFilterForm.ALL_LANGUAGES:
                     # Special case: filter for pages that exist in ALL languages
-                    num_languages = len(settings.WAGTAIL_CONTENT_LANGUAGES)
+                    num_languages = Locale.objects.count()
 
                     translation_keys_in_all = (
                         all_pages.order_by("translation_key")

@@ -5,6 +5,7 @@ from typing import Any
 from django import forms
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from wagtail.models import Locale
 
 from .settings import get_setting
 
@@ -38,7 +39,7 @@ class ProgressFilterForm(forms.Form):
     )
 
     original_language = forms.ChoiceField(
-        choices=[("", _("Any language"))] + list(settings.WAGTAIL_CONTENT_LANGUAGES),
+        choices=[],  # Will be populated in __init__
         required=False,
         label=_("Original Language"),
         widget=forms.Select(attrs={"class": "w-field__input"}),
@@ -55,10 +56,19 @@ class ProgressFilterForm(forms.Form):
         """Initialize form with dynamic choices."""
         super().__init__(*args, **kwargs)
 
-        # Ensure original_language choices are always up to date
-        self.fields["original_language"].choices = [("", _("Any language"))] + list(
-            settings.WAGTAIL_CONTENT_LANGUAGES
-        )
+        # Build language choices from Locale objects that are in WAGTAIL_CONTENT_LANGUAGES
+        language_map = dict(settings.WAGTAIL_CONTENT_LANGUAGES)
+        configured_codes = list(language_map.keys())
+        active_languages = [
+            (locale.language_code, language_map[locale.language_code])
+            for locale in Locale.objects.filter(
+                language_code__in=configured_codes
+            ).order_by("language_code")
+        ]
+
+        self.fields["original_language"].choices = [
+            ("", _("Any language"))
+        ] + active_languages
 
         # Build exists_in_language choices dynamically
         exists_in_choices = [
@@ -73,7 +83,7 @@ class ProgressFilterForm(forms.Form):
         ):
             exists_in_choices.append((self.CORE_LANGUAGES, _("Core languages")))
 
-        exists_in_choices.extend(list(settings.WAGTAIL_CONTENT_LANGUAGES))
+        exists_in_choices.extend(active_languages)
 
         self.fields["exists_in_language"].choices = exists_in_choices
 
