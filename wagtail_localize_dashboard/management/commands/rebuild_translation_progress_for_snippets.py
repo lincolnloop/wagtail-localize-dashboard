@@ -22,34 +22,41 @@ class Command(BaseCommand):
         if not get_tracked_snippet_models():
             self.stdout.write(
                 self.style.WARNING(
-                    "WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS is empty. "
-                    "No snippet progress to rebuild. "
-                    "Add snippet models to that setting to enable snippet tracking."
+                    _(
+                        "WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS is empty. "
+                        "No snippet progress to rebuild. "
+                        "Add snippet models to that setting to enable snippet tracking."
+                    )
                 )
             )
             return
 
         start_time = timezone.now()
 
-        self.stdout.write("Rebuilding translation progress for snippets...")
+        self.stdout.write(_("Rebuilding translation progress for snippets..."))
         stats = rebuild_all_snippet_progress()
 
         elapsed = (timezone.now() - start_time).total_seconds()
 
-        self.stdout.write("\nResults:")
-        self.stdout.write(f"  Snippets processed: {stats['snippets']}")
-        self.stdout.write(f"  Errors: {stats['errors']}")
-        self.stdout.write(f"  Time elapsed: {elapsed:.2f}s")
+        self.stdout.write("")
+        self.stdout.write(_("Results:"))
+        self.stdout.write(
+            _("  Snippets: %(snippets)d") % {"snippets": stats["snippets"]}
+        )
+        self.stdout.write(_("  Errors: %(errors)d") % {"errors": stats["errors"]})
+        self.stdout.write(_("  Time: %(elapsed)s") % {"elapsed": f"{elapsed:.2f}s"})
 
+        self.stdout.write("")
         if stats["errors"] > 0:
+            self.stdout.write(self.style.WARNING(_("Completed")))
             self.stdout.write(
                 self.style.WARNING(
-                    f"\nCompleted with {stats['errors']} errors. Check logs for details."
+                    _("Errors: %(errors)d.") % {"errors": stats["errors"]}
                 )
             )
         else:
             self.stdout.write(
                 self.style.SUCCESS(
-                    "\nSuccessfully rebuilt snippet translation progress!"
+                    _("Successfully rebuilt snippet translation progress!")
                 )
             )

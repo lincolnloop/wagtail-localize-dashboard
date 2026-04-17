@@ -28,23 +28,26 @@ class Command(BaseCommand):
     def handle(self, *args: any, **options: any) -> None:
         start_time = timezone.now()
 
-        self.stdout.write("Rebuilding translation progress for pages...")
+        self.stdout.write(_("Rebuilding translation progress for pages..."))
         stats = rebuild_all_progress_for_pages()
 
         elapsed = (timezone.now() - start_time).total_seconds()
 
-        self.stdout.write("\nResults:")
-        self.stdout.write(f"  Pages processed: {stats['pages']}")
-        self.stdout.write(f"  Errors: {stats['errors']}")
-        self.stdout.write(f"  Time elapsed: {elapsed:.2f}s")
+        self.stdout.write("")
+        self.stdout.write(_("Results:"))
+        self.stdout.write(_("  Pages: %(pages)d") % {"pages": stats["pages"]})
+        self.stdout.write(_("  Errors: %(errors)d") % {"errors": stats["errors"]})
+        self.stdout.write(_("  Time: %(elapsed)s") % {"elapsed": f"{elapsed:.2f}s"})
 
+        self.stdout.write("")
         if stats["errors"] > 0:
+            self.stdout.write(self.style.WARNING(_("Completed")))
             self.stdout.write(
                 self.style.WARNING(
-                    f"\nCompleted with {stats['errors']} errors. Check logs for details."
+                    _("Errors: %(errors)d.") % {"errors": stats["errors"]}
                 )
             )
         else:
             self.stdout.write(
-                self.style.SUCCESS("\nSuccessfully rebuilt page translation progress!")
+                self.style.SUCCESS(_("Successfully rebuilt page translation progress!"))
             )

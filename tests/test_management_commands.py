@@ -109,7 +109,7 @@ class TestRebuildTranslationProgress:
         # Check for expected output elements
         assert "Successfully rebuilt translation progress" in output
         # Should show counts
-        assert "pages processed" in output.lower()
+        assert "pages:" in output.lower()
 
     def test_command_with_empty_database(self, db):
         """Test that command handles empty database gracefully."""
@@ -210,7 +210,7 @@ class TestRebuildTranslationProgressForPages:
         out = StringIO()
         call_command("rebuild_translation_progress_for_pages", stdout=out)
         output = out.getvalue()
-        assert "pages processed" in output.lower()
+        assert "pages:" in output.lower()
 
     def test_command_with_clean_orphans(self):
         """Command accepts --clean-orphans without error."""
@@ -255,7 +255,7 @@ class TestRebuildTranslationProgressForPages:
         call_command("rebuild_translation_progress_for_pages", stdout=out)
         output = out.getvalue()
         assert "Successfully rebuilt page translation progress" in output
-        assert "pages processed" in output.lower()
+        assert "pages:" in output.lower()
 
     def test_command_with_empty_database(self, db):
         """Command handles an empty page table gracefully."""
@@ -338,7 +338,7 @@ class TestRebuildTranslationProgressForSnippets:
             out = StringIO()
             call_command("rebuild_translation_progress_for_snippets", stdout=out)
             output = out.getvalue()
-            assert "snippets processed" in output.lower()
+            assert "snippets:" in output.lower()
 
     def test_command_updates_existing_records(self, locale_en, locale_de):
         """Command updates existing progress records with recalculated percentages."""
@@ -380,7 +380,7 @@ class TestRebuildTranslationProgressForSnippets:
             output = out.getvalue()
 
         assert "Successfully rebuilt snippet translation progress" in output
-        assert "snippets processed" in output.lower()
+        assert "snippets:" in output.lower()
 
     def test_command_with_empty_database(self, db):
         """Command handles empty tracked model table gracefully."""
@@ -448,7 +448,7 @@ class TestCombinedCommandReportsBothCounts:
         WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
     )
     def test_outputs_pages_and_snippets_processed(self, locale_en, locale_de):
-        """rebuild_translation_progress output includes both pages processed and snippets processed."""
+        """rebuild_translation_progress output includes both pages and snippets counts."""
         source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
         source.copy_for_translation(locale_de).save()
 
@@ -456,5 +456,5 @@ class TestCombinedCommandReportsBothCounts:
         call_command("rebuild_translation_progress", stdout=out)
         output = out.getvalue()
 
-        assert "pages processed" in output.lower()
-        assert "snippets processed" in output.lower()
+        assert "pages:" in output.lower()
+        assert "snippets:" in output.lower()

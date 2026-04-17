@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-05 17:03+0000\n"
+"POT-Creation-Date: 2026-04-17 15:26+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,187 +17,363 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-#: apps.py:12
+
+#: wagtail_localize_dashboard/apps.py:12
 msgid "Wagtail Localize Dashboard"
 msgstr ""
 
-#: forms.py:20
+#: wagtail_localize_dashboard/forms.py:20
 msgid "Search"
 msgstr ""
 
-#: forms.py:24
+#: wagtail_localize_dashboard/forms.py:24
 msgid "Search by title or slug..."
 msgstr ""
 
-#: forms.py:31
+#: wagtail_localize_dashboard/forms.py:31
 msgid "Translation Key"
 msgstr ""
 
-#: forms.py:35
+#: wagtail_localize_dashboard/forms.py:35
 msgid "Filter by translation key..."
 msgstr ""
 
-#: forms.py:41 forms.py:59 forms.py:65
+#: wagtail_localize_dashboard/forms.py:41
+#: wagtail_localize_dashboard/forms.py:59
+#: wagtail_localize_dashboard/forms.py:65
 msgid "Any language"
 msgstr ""
 
-#: forms.py:43
+#: wagtail_localize_dashboard/forms.py:43
 msgid "Original Language"
 msgstr ""
 
-#: forms.py:50
+#: wagtail_localize_dashboard/forms.py:50
 msgid "Exists In"
 msgstr ""
 
-#: forms.py:66 forms.py:83
+#: wagtail_localize_dashboard/forms.py:66
+#: wagtail_localize_dashboard/forms.py:83
 msgid "All languages"
 msgstr ""
 
-#: forms.py:74
+#: wagtail_localize_dashboard/forms.py:74
 msgid "Core languages"
 msgstr ""
 
-#: forms.py:89
+#: wagtail_localize_dashboard/forms.py:89
 msgid "Show languages"
 msgstr ""
 
-#: management/commands/rebuild_translation_progress.py:19
-msgid "Rebuild translation progress cache for all translatable objects"
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:18
+msgid "Rebuild translation progress cache for pages and tracked snippets"
 msgstr ""
 
-#: management/commands/rebuild_translation_progress.py:26
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:23
+msgid "Rebuilding translation progress for pages and snippets..."
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:29
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:37
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:42
+msgid "Results:"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:30
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:38
+#, python-format
+msgid "  Pages: %(pages)d"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:31
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:43
+#, python-format
+msgid "  Snippets: %(snippets)d"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:32
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:39
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:44
+#, python-format
+msgid "  Errors: %(errors)d"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:33
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:40
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:45
+#, python-format
+msgid "  Time: %(elapsed)s"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:37
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:44
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:49
+msgid "Completed"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:40
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:47
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:52
+#, python-format
+msgid "Errors: %(errors)d."
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress.py:45
+msgid "Successfully rebuilt translation progress!"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:19
+msgid "Rebuild translation progress cache for pages"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:25
 msgid "Clean up orphaned progress records first"
 msgstr ""
 
-#: models.py:26
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:31
+msgid "Rebuilding translation progress for pages..."
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_pages.py:52
+msgid "Successfully rebuilt page translation progress!"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:19
+msgid "Rebuild translation progress cache for tracked snippets"
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:26
+msgid ""
+"WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS is empty. No snippet progress to "
+"rebuild. Add snippet models to that setting to enable snippet tracking."
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:36
+msgid "Rebuilding translation progress for snippets..."
+msgstr ""
+
+#: wagtail_localize_dashboard/management/commands/rebuild_translation_progress_for_snippets.py:57
+msgid "Successfully rebuilt snippet translation progress!"
+msgstr ""
+
+#: wagtail_localize_dashboard/models.py:28
 msgid "The original source page"
 msgstr ""
 
-#: models.py:35
+#: wagtail_localize_dashboard/models.py:37
 msgid "The translated page"
 msgstr ""
 
-#: models.py:40
+#: wagtail_localize_dashboard/models.py:42
+#: wagtail_localize_dashboard/models.py:163
 msgid "Percentage of segments translated (0-100)"
 msgstr ""
 
-#: models.py:48 models.py:49
+#: wagtail_localize_dashboard/models.py:50
+#: wagtail_localize_dashboard/models.py:51
 msgid "Translation Progress"
 msgstr ""
 
-#: settings.py:23 templates/wagtail_localize_dashboard/dashboard.html:92
+#: wagtail_localize_dashboard/models.py:135
+msgid "The content type shared by source and translated snippet"
+msgstr ""
+
+#: wagtail_localize_dashboard/models.py:141
+msgid "The primary key of the source snippet"
+msgstr ""
+
+#: wagtail_localize_dashboard/models.py:148
+msgid "The primary key of the translated snippet"
+msgstr ""
+
+#: wagtail_localize_dashboard/models.py:158
+msgid "The locale of the translated snippet"
+msgstr ""
+
+#: wagtail_localize_dashboard/models.py:171
+#: wagtail_localize_dashboard/models.py:172
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:4
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:16
+msgid "Snippet Translation Progress"
+msgstr ""
+
+#: wagtail_localize_dashboard/settings.py:28
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:92
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:94
 msgid "Translations"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:4
-#: templates/wagtail_localize_dashboard/dashboard.html:16
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:4
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:16
 msgid "Translation Progress Dashboard"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:21
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:21
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:21
 msgid "Filter translations"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:42
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:42
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:38
 msgid "Filter"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:44
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:44
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:40
 msgid "Clear"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:52
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:52
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:48
 msgid "Filter translation columns"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:54
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:54
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:50
 msgid "Translation column filter"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:72
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:72
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:65
 msgid "Apply"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:82
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:82
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:75
 #, python-format
 msgid "Only showing '%(label)s' languages."
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:87
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:87
 msgid "Pages with their translation progress"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:90
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:90
 msgid "Page Title"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:91
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:91
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:87
 msgid "Status"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:93
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:93
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:95
 msgid "Actions"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:107
-msgid "Publication status: Published"
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:107
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:121
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:110
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:125
+msgid "live + draft"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:107
-msgid "Published"
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:109
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:112
+msgid "live"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:109
-msgid "Publication status: Draft"
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:111
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:121
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:114
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:125
+msgid "draft"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:109
-msgid "Draft"
-msgstr ""
-
-#: templates/wagtail_localize_dashboard/dashboard.html:118
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:121
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:125
 #, python-format
 msgid "Edit %(locale)s version - %(percent)s%% complete"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:121
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:124
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:128
 msgid "Complete:"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:124
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:127
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:131
 msgid "In progress:"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:131
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:131
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:135
+msgid "(draft)"
+msgstr ""
+
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:134
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:138
+msgid "(live + draft)"
+msgstr ""
+
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:140
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:144
 msgid "No translations"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:136
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:145
 #, python-format
 msgid "Edit %(title)s"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:136
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:145
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:149
 msgid "Edit"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:138
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:147
 #, python-format
 msgid "View %(title)s (opens in new window)"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:139
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:148
 msgid "View"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:139
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:148
 msgid "(opens in new window)"
 msgstr ""
 
-#: templates/wagtail_localize_dashboard/dashboard.html:155
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/dashboard.html:164
 msgid "No pages found."
 msgstr ""
 
-#: wagtail_hooks.py:40
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:80
+msgid "Snippets with their translation progress"
+msgstr ""
+
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:83
+msgid "Name"
+msgstr ""
+
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:84
+msgid "Type"
+msgstr ""
+
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:90
+msgid ""
+"An empty value means this snippet type does not support a draft/live "
+"workflow."
+msgstr ""
+
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:149
+#, python-format
+msgid "Edit %(name)s"
+msgstr ""
+
+#: wagtail_localize_dashboard/templates/wagtail_localize_dashboard/snippet_dashboard.html:164
+msgid "No snippets found."
+msgstr ""
+
+#: wagtail_localize_dashboard/wagtail_hooks.py:38
+msgid "Pages"
+msgstr ""
+
+#: wagtail_localize_dashboard/wagtail_hooks.py:44
+msgid "Snippets"
+msgstr ""
+
+#: wagtail_localize_dashboard/wagtail_hooks.py:74
 msgid "See Translations"
 msgstr ""
