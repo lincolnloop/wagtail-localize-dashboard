@@ -22,6 +22,12 @@
         {% if filter_form.column_filter.value %}
           <input type="hidden" name="column_filter" value="{{ filter_form.column_filter.value }}">
         {% endif %}
+        {% if filter_form.snippet_type %}
+        <div class="w-flex w-flex-col">
+          {{ filter_form.snippet_type.label_tag }}
+          {{ filter_form.snippet_type }}
+        </div>
+        {% endif %}
         <div class="w-flex w-flex-col">
           {{ filter_form.original_language.label_tag }}
           {{ filter_form.original_language }}
@@ -36,7 +42,7 @@
         </div>
         <div class="w-flex align-items-end">
           <button type="submit" class="button">{% trans "Filter" %}</button>
-          {% if filter_form.original_language.value or filter_form.exists_in_language.value or filter_form.translation_key.value or filter_form.column_filter.value %}
+          {% if filter_form.snippet_type.value or filter_form.original_language.value or filter_form.exists_in_language.value or filter_form.translation_key.value or filter_form.column_filter.value %}
             <a href="?" class="button button-secondary">{% trans "Clear" %}</a>
           {% endif %}
         </div>
@@ -48,6 +54,9 @@
       <form method="get" class="sm:w-pl-5" aria-label="{% trans "Filter translation columns" %}">
         <fieldset class="w-flex w-flex-wrap w-gap-4 w-items-end" style="border: none; padding: 0; margin: 0;">
           <legend class="w-sr-only">{% trans "Translation column filter" %}</legend>
+          {% if filter_form.snippet_type.value %}
+            <input type="hidden" name="snippet_type" value="{{ filter_form.snippet_type.value }}">
+          {% endif %}
           {% if filter_form.original_language.value %}
             <input type="hidden" name="original_language" value="{{ filter_form.original_language.value }}">
           {% endif %}

@@ -7,7 +7,7 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from wagtail.models import Locale
 
-from .settings import get_setting
+from .settings import get_setting, get_tracked_snippet_models
 
 
 class ProgressFilterForm(forms.Form):
@@ -112,3 +112,17 @@ class SnippetProgressFilterForm(ProgressFilterForm):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.fields.pop("search", None)
+
+        # Add snippet_type filter whenever any models are tracked.
+        tracked_models = get_tracked_snippet_models()
+        if tracked_models:
+            snippet_type_choices = [("", _("All"))]
+            for model in tracked_models:
+                value = f"{model._meta.app_label}.{model.__name__}"
+                snippet_type_choices.append((value, model._meta.verbose_name))
+            self.fields["snippet_type"] = forms.ChoiceField(
+                choices=snippet_type_choices,
+                required=False,
+                label=_("Snippet Type"),
+                widget=forms.Select(attrs={"class": "w-field__input"}),
+            )

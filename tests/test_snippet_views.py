@@ -583,6 +583,57 @@ class TestSnippetProgressDashboardView:
             "tests.DraftStateSnippet",
         ]
     )
+    def test_snippet_type_filter_shows_only_matching_model(
+        self, admin_client, locale_en
+    ):
+        """Selecting a snippet type hides snippets of other tracked models."""
+        sample = SampleSnippet.objects.create(locale=locale_en, heading="Sample")
+        draft = DraftStateSnippet.objects.create(locale=locale_en, title="Draft")
+
+        url = reverse(SNIPPET_DASHBOARD_URL_NAME)
+        response = admin_client.get(url, {"snippet_type": "tests.SampleSnippet"})
+
+        snippets = [row["snippet"] for row in response.context["snippets_with_progress"]]
+        assert sample in snippets
+        assert draft not in snippets
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=[
+            "tests.SampleSnippet",
+            "tests.DraftStateSnippet",
+        ]
+    )
+    def test_snippet_type_filter_absent_shows_all_models(
+        self, admin_client, locale_en
+    ):
+        """With no type filter, snippets from all tracked models appear."""
+        sample = SampleSnippet.objects.create(locale=locale_en, heading="Sample")
+        draft = DraftStateSnippet.objects.create(locale=locale_en, title="Draft")
+
+        url = reverse(SNIPPET_DASHBOARD_URL_NAME)
+        response = admin_client.get(url)
+
+        snippets = [row["snippet"] for row in response.context["snippets_with_progress"]]
+        assert sample in snippets
+        assert draft in snippets
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_snippet_type_field_present_when_one_model_tracked(
+        self, admin_client, locale_en
+    ):
+        """snippet_type field is present even when only one model is tracked."""
+        url = reverse(SNIPPET_DASHBOARD_URL_NAME)
+        response = admin_client.get(url)
+        assert "snippet_type" in response.context["filter_form"].fields
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=[
+            "tests.SampleSnippet",
+            "tests.DraftStateSnippet",
+        ]
+    )
     def test_multiple_tracked_models_shown_together(self, admin_client, locale_en):
         """Snippets from all tracked models appear in the same view."""
         sample = SampleSnippet.objects.create(locale=locale_en, heading="Sample")
