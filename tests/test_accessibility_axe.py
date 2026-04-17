@@ -13,149 +13,72 @@ Note: These tests require a web browser (Chrome/Firefox) to be available.
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from django.test import LiveServerTestCase
+from django.test import LiveServerTestCase, override_settings
+from django.urls import reverse
 
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium_axe_python import Axe
 from wagtail.models import Locale, Page
-from wagtail_localize_dashboard.models import TranslationProgress
+from wagtail_localize_dashboard.models import (
+    SnippetTranslationProgress,
+    TranslationProgress,
+)
+
+from tests.models import SampleSnippet
 
 User = get_user_model()
 
 
-@pytest.mark.accessibility
-@pytest.mark.selenium
-class TestDashboardAccessibility(LiveServerTestCase):
-    """Test accessibility of the translation dashboard using axe-core."""
+class DashboardAccessibilityMixin:
+    """
+    Shared axe-core test methods for both dashboard views.
 
-    @classmethod
-    def setUpClass(cls):
-        """Set up Selenium WebDriver for all tests."""
-        super().setUpClass()
+    Concrete subclasses must define:
+        DASHBOARD_URL_NAME  -- Django URL name for the dashboard
+    And implement:
+        _clear_progress_records()        -- delete model-specific progress rows
+        test_filtered_dashboard_accessibility()  -- filtered-state check with explicit params
+    """
 
-        # Configure Chrome to run in headless mode
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--window-size=1920,1080")
+    DASHBOARD_URL_NAME = None
 
-        cls.driver = webdriver.Chrome(options=chrome_options)
-        cls.driver.implicitly_wait(10)
+    def _url(self, params=""):
+        path = reverse(self.DASHBOARD_URL_NAME)
+        if params:
+            path = f"{path}?{params}"
+        return f"{self.live_server_url}{path}"
 
-    @classmethod
-    def tearDownClass(cls):
-        """Clean up WebDriver."""
-        cls.driver.quit()
-        super().tearDownClass()
-
-    def setUp(self):
-        """Set up test data before each test."""
-        super().setUp()
-
-        # Create a superuser for authentication
-        self.user = User.objects.create_superuser(
-            username="testadmin", email="admin@test.com", password="testpass123"
-        )
-
-        # Create locales
-        self.locale_en, _ = Locale.objects.get_or_create(language_code="en")
-        self.locale_de, _ = Locale.objects.get_or_create(language_code="de")
-        self.locale_es, _ = Locale.objects.get_or_create(language_code="es")
-
-        # Create Wagtail root page if it doesn't exist
-        try:
-            root_page = Page.objects.get(depth=1)
-        except Page.DoesNotExist:
-            # Create the root page
-            root_page = Page(
-                title="Root",
-                slug="root",
-                content_type=ContentType.objects.get_for_model(Page),
-                path="0001",
-                depth=1,
-                numchild=0,
-                url_path="/",
-            )
-            root_page.save()
-
-        # Create some test pages
-        self.test_page = Page(
-            title="Test Page", slug="test-page", locale=self.locale_en
-        )
-        root_page.add_child(instance=self.test_page)
-
-        # Create a translated page
-        self.translated_page = self.test_page.copy_for_translation(
-            self.locale_de, copy_parents=True
-        )
-        self.translated_page.save()
-
-        # Create or update translation progress records
-        # (may already exist if signals created it)
-        TranslationProgress.objects.update_or_create(
-            source_page=self.test_page,
-            translated_page=self.translated_page,
-            defaults={"percent_translated": 75},
-        )
-
-    def _login(self):
-        """Helper to log in the test user."""
-        self.driver.get(f"{self.live_server_url}/admin/login/")
-        username_input = self.driver.find_element("id", "id_username")
-        password_input = self.driver.find_element("id", "id_password")
-
-        username_input.send_keys("testadmin")
-        password_input.send_keys("testpass123")
-
-        self.driver.find_element("css selector", "button[type='submit']").click()
-
-    def _run_axe(self, options=None):
-        """Helper to run axe and return results."""
-        axe = Axe(self.driver)
-        axe.inject()
-        return axe.run(options=options)
+    # ------------------------------------------------------------------
+    # Tests
+    # ------------------------------------------------------------------
 
     def test_no_critical_violations(self):
-        """Test that dashboard has no critical accessibility violations."""
+        """Dashboard has no critical or serious axe violations."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Run axe accessibility tests
-        results = self._run_axe()
+        violations = self._run_axe()["violations"]
+        critical = [v for v in violations if v["impact"] in ("critical", "serious")]
 
-        # Check for violations
-        violations = results["violations"]
-
-        # Assert no critical or serious violations
-        critical_violations = [
-            v for v in violations if v["impact"] in ("critical", "serious")
-        ]
-
-        if critical_violations:
-            # Format violation details for debugging
-            violation_details = "\n".join(
-                [
-                    f"- {v['id']}: {v['description']} (Impact: {v['impact']})\n"
-                    f"  Help: {v['helpUrl']}\n"
-                    f"  Affected elements: {len(v['nodes'])}\n"
-                    f"  Tags: {', '.join(v['tags'])}"
-                    for v in critical_violations
-                ]
+        if critical:
+            details = "\n".join(
+                f"- {v['id']}: {v['description']} (Impact: {v['impact']})\n"
+                f"  Help: {v['helpUrl']}\n"
+                f"  Affected elements: {len(v['nodes'])}\n"
+                f"  Tags: {', '.join(v['tags'])}"
+                for v in critical
             )
             self.fail(
-                f"Found {len(critical_violations)} critical accessibility violations:\n{violation_details}"
+                f"Found {len(critical)} critical accessibility violations:\n{details}"
             )
 
     def test_wcag_aa_compliance(self):
-        """Test that dashboard meets WCAG 2.1 Level AA standards."""
+        """Dashboard meets WCAG 2.1 Level AA standards."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Run axe with WCAG 2.1 Level AA rules
         results = self._run_axe(
             options={
                 "runOnly": {
@@ -166,22 +89,18 @@ class TestDashboardAccessibility(LiveServerTestCase):
         )
 
         violations = results["violations"]
-
         if violations:
-            violation_summary = "\n".join(
-                [
-                    f"- {v['id']}: {v['description']} (Impact: {v.get('impact', 'unknown')})"
-                    for v in violations
-                ]
+            summary = "\n".join(
+                f"- {v['id']}: {v['description']} (Impact: {v.get('impact', 'unknown')})"
+                for v in violations
             )
-            self.fail(f"WCAG 2.1 AA violations found:\n{violation_summary}")
+            self.fail(f"WCAG 2.1 AA violations found:\n{summary}")
 
     def test_wcag_aaa_best_effort(self):
-        """Test WCAG 2.1 Level AAA (best effort, non-blocking)."""
+        """WCAG 2.1 Level AAA — informational only, does not fail the suite."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Run axe with WCAG 2.1 Level AAA rules
         results = self._run_axe(
             options={
                 "runOnly": {
@@ -191,36 +110,29 @@ class TestDashboardAccessibility(LiveServerTestCase):
             }
         )
 
-        violations = results["violations"]
-
-        # AAA is aspirational, so we just log violations without failing
-        if violations:
+        if results["violations"]:
             print("\nWCAG 2.1 AAA violations (informational):")
-            for v in violations:
+            for v in results["violations"]:
                 print(f"  - {v['id']}: {v['description']}")
 
     def test_keyboard_accessibility(self):
-        """Test that all interactive elements are keyboard accessible."""
+        """All interactive elements are keyboard accessible."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Run axe with keyboard accessibility rules
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["keyboard"]}}
         )
 
-        violations = results["violations"]
-
-        assert len(violations) == 0, (
-            f"Keyboard accessibility violations found:\n{violations}"
+        assert len(results["violations"]) == 0, (
+            f"Keyboard accessibility violations found:\n{results['violations']}"
         )
 
     def test_screen_reader_compatibility(self):
-        """Test that dashboard works well with screen readers."""
+        """Dashboard has no critical/serious screen-reader compatibility issues."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Check for proper labeling, semantics, and ARIA
         results = self._run_axe(
             options={
                 "runOnly": {
@@ -233,58 +145,46 @@ class TestDashboardAccessibility(LiveServerTestCase):
         violations = [
             v for v in results["violations"] if v["impact"] in ("critical", "serious")
         ]
-
         if violations:
-            violation_details = "\n".join(
-                [f"- {v['id']}: {v['description']}" for v in violations]
-            )
-            self.fail(f"Screen reader compatibility issues found:\n{violation_details}")
+            details = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
+            self.fail(f"Screen reader compatibility issues found:\n{details}")
 
     def test_color_contrast(self):
-        """Test that text and UI elements have sufficient color contrast."""
+        """Text and UI elements have sufficient colour contrast."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Run color contrast checks
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["cat.color"]}}
         )
 
         violations = results["violations"]
-
         if violations:
-            contrast_issues = "\n".join(
-                [
-                    f"- {v['id']}: {v['description']} (Impact: {v.get('impact', 'unknown')})"
-                    for v in violations
-                ]
+            issues = "\n".join(
+                f"- {v['id']}: {v['description']} (Impact: {v.get('impact', 'unknown')})"
+                for v in violations
             )
-            self.fail(f"Color contrast violations:\n{contrast_issues}")
+            self.fail(f"Color contrast violations:\n{issues}")
 
     def test_table_accessibility(self):
-        """Test that the dashboard table is accessible."""
+        """The dashboard table is accessible."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Run tests specific to tables
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["tables"]}}
         )
 
         violations = results["violations"]
-
         if violations:
-            table_issues = "\n".join(
-                [f"- {v['id']}: {v['description']}" for v in violations]
-            )
-            self.fail(f"Table accessibility violations:\n{table_issues}")
+            issues = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
+            self.fail(f"Table accessibility violations:\n{issues}")
 
     def test_form_accessibility(self):
-        """Test that filter form controls are accessible."""
+        """Filter form controls have no critical/serious accessibility issues."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Run tests specific to forms
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["forms"]}}
         )
@@ -292,88 +192,220 @@ class TestDashboardAccessibility(LiveServerTestCase):
         violations = [
             v for v in results["violations"] if v["impact"] in ("critical", "serious")
         ]
-
         if violations:
-            form_issues = "\n".join(
-                [f"- {v['id']}: {v['description']}" for v in violations]
-            )
-            self.fail(f"Form accessibility violations:\n{form_issues}")
+            issues = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
+            self.fail(f"Form accessibility violations:\n{issues}")
 
     def test_landmarks_and_regions(self):
-        """Test that page has proper landmark regions for navigation."""
+        """Page has proper landmark regions for navigation."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Run tests for landmarks and page structure
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["region"]}}
         )
 
         violations = results["violations"]
-
         if violations:
-            landmark_issues = "\n".join(
-                [f"- {v['id']}: {v['description']}" for v in violations]
-            )
-            self.fail(f"Landmark/region violations:\n{landmark_issues}")
+            issues = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
+            self.fail(f"Landmark/region violations:\n{issues}")
 
     def test_language_attributes(self):
-        """Test that HTML language attributes are properly set."""
+        """HTML language attributes are properly set."""
         self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
+        self.driver.get(self._url())
 
-        # Check language-related accessibility
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["language"]}}
         )
 
-        violations = results["violations"]
-
-        assert len(violations) == 0, f"Language attribute violations:\n{violations}"
-
-    def test_empty_dashboard_accessibility(self):
-        """Test accessibility when dashboard has no data."""
-        # Clear all translation progress records
-        TranslationProgress.objects.all().delete()
-
-        self._login()
-        self.driver.get(f"{self.live_server_url}/admin/translations/")
-
-        # Run comprehensive accessibility check on empty state
-        results = self._run_axe()
-
-        violations = [
-            v for v in results["violations"] if v["impact"] in ("critical", "serious")
-        ]
-
-        if violations:
-            violation_details = "\n".join(
-                [f"- {v['id']}: {v['description']}" for v in violations]
-            )
-            self.fail(
-                f"Accessibility violations in empty dashboard state:\n{violation_details}"
-            )
-
-    def test_filtered_dashboard_accessibility(self):
-        """Test accessibility when filters are applied."""
-        self._login()
-
-        # Apply filters via URL parameters
-        self.driver.get(
-            f"{self.live_server_url}/admin/translations/?search=test&original_language=en"
+        assert len(results["violations"]) == 0, (
+            f"Language attribute violations:\n{results['violations']}"
         )
 
-        # Run accessibility check on filtered state
-        results = self._run_axe()
+    def test_empty_dashboard_accessibility(self):
+        """Dashboard has no critical/serious violations in the empty state."""
+        self._clear_progress_records()
 
+        self._login()
+        self.driver.get(self._url())
+
+        results = self._run_axe()
         violations = [
             v for v in results["violations"] if v["impact"] in ("critical", "serious")
         ]
 
         if violations:
-            violation_details = "\n".join(
-                [f"- {v['id']}: {v['description']}" for v in violations]
+            details = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
+            self.fail(f"Accessibility violations in empty dashboard state:\n{details}")
+
+    def test_filtered_dashboard_accessibility(self):
+        """Dashboard has no critical/serious violations when filters are applied.
+
+        Subclasses must override this with view-specific filter parameters.
+        """
+        raise NotImplementedError(
+            "Override this in each subclass with explicit filter params."
+        )
+
+
+class BaseDashboardAccessibility(LiveServerTestCase):
+    """WebDriver setup/teardown and shared test helpers."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--window-size=1920,1080")
+
+        cls.driver = webdriver.Chrome(options=chrome_options)
+        cls.driver.implicitly_wait(10)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.driver.quit()
+        super().tearDownClass()
+
+    def setUp(self):
+        super().setUp()
+
+        self.user = User.objects.create_superuser(
+            username="testadmin", email="admin@test.com", password="testpass123"
+        )
+
+        self.locale_en, _ = Locale.objects.get_or_create(language_code="en")
+        self.locale_de, _ = Locale.objects.get_or_create(language_code="de")
+        self.locale_es, _ = Locale.objects.get_or_create(language_code="es")
+
+    def _login(self):
+        self.driver.get(f"{self.live_server_url}/admin/login/")
+        self.driver.find_element("id", "id_username").send_keys("testadmin")
+        self.driver.find_element("id", "id_password").send_keys("testpass123")
+        self.driver.find_element("css selector", "button[type='submit']").click()
+
+    def _run_axe(self, options=None):
+        axe = Axe(self.driver)
+        axe.inject()
+        return axe.run(options=options)
+
+
+@pytest.mark.accessibility
+@pytest.mark.selenium
+class TestPageDashboardAccessibility(
+    DashboardAccessibilityMixin, BaseDashboardAccessibility
+):
+    """Accessibility tests for the pages translation progress dashboard."""
+
+    DASHBOARD_URL_NAME = "wagtail_localize_dashboard:dashboard"
+
+    def setUp(self):
+        super().setUp()
+
+        try:
+            root_page = Page.objects.get(depth=1)
+        except Page.DoesNotExist:
+            root_page = Page(
+                title="Root",
+                slug="root",
+                content_type=ContentType.objects.get_for_model(Page),
+                path="0001",
+                depth=1,
+                numchild=0,
+                url_path="/",
             )
+            root_page.save()
+
+        self.test_page = Page(
+            title="Test Page", slug="test-page", locale=self.locale_en
+        )
+        root_page.add_child(instance=self.test_page)
+
+        self.translated_page = self.test_page.copy_for_translation(
+            self.locale_de, copy_parents=True
+        )
+        self.translated_page.save()
+
+        TranslationProgress.objects.update_or_create(
+            source_page=self.test_page,
+            translated_page=self.translated_page,
+            defaults={"percent_translated": 75},
+        )
+
+    def _clear_progress_records(self):
+        TranslationProgress.objects.all().delete()
+
+    def test_filtered_dashboard_accessibility(self):
+        """Pages dashboard has no critical/serious violations when search and language filters are applied."""
+        self._login()
+        self.driver.get(self._url("search=test&original_language=en"))
+
+        results = self._run_axe()
+        violations = [
+            v for v in results["violations"] if v["impact"] in ("critical", "serious")
+        ]
+
+        if violations:
+            details = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
             self.fail(
-                f"Accessibility violations in filtered dashboard:\n{violation_details}"
+                f"Accessibility violations in filtered pages dashboard:\n{details}"
+            )
+
+
+@pytest.mark.accessibility
+@pytest.mark.selenium
+@override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"])
+class TestSnippetDashboardAccessibility(
+    DashboardAccessibilityMixin, BaseDashboardAccessibility
+):
+    """Accessibility tests for the snippet translation progress dashboard."""
+
+    DASHBOARD_URL_NAME = "wagtail_localize_dashboard:snippet_dashboard"
+
+    def setUp(self):
+        super().setUp()
+
+        self.source_snippet = SampleSnippet.objects.create(
+            locale=self.locale_en, heading="Test Snippet"
+        )
+        self.translated_snippet = self.source_snippet.copy_for_translation(
+            self.locale_de
+        )
+        self.translated_snippet.save()
+
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+        SnippetTranslationProgress.objects.update_or_create(
+            content_type=ct,
+            source_object_id=self.source_snippet.pk,
+            translated_object_id=self.translated_snippet.pk,
+            translated_locale=self.locale_de,
+            defaults={"percent_translated": 75},
+        )
+
+        # A snippet with no translations, to exercise the "No translations" row state.
+        SampleSnippet.objects.create(
+            locale=self.locale_en, heading="Untranslated Snippet"
+        )
+
+    def _clear_progress_records(self):
+        SnippetTranslationProgress.objects.all().delete()
+
+    def test_filtered_dashboard_accessibility(self):
+        """Snippet dashboard has no critical/serious violations when a language filter is applied."""
+        self._login()
+        self.driver.get(self._url("original_language=en"))
+
+        results = self._run_axe()
+        violations = [
+            v for v in results["violations"] if v["impact"] in ("critical", "serious")
+        ]
+
+        if violations:
+            details = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
+            self.fail(
+                f"Accessibility violations in filtered snippet dashboard:\n{details}"
             )
