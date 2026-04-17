@@ -281,7 +281,10 @@ class SnippetProgressDashboardView(ListView, BaseListingView):
 
         combined: List[Any] = []
         for model in tracked_models:
-            if snippet_type and f"{model._meta.app_label}.{model.__name__}" != snippet_type:
+            if (
+                snippet_type
+                and f"{model._meta.app_label}.{model.__name__}" != snippet_type
+            ):
                 continue
 
             qs = get_original_objects(model).select_related("locale")
