@@ -300,11 +300,12 @@ class SnippetProgressDashboardView(ListView, BaseListingView):
 
                 elif exists_in_language == SnippetProgressFilterForm.CORE_LANGUAGES:
                     if (
-                        hasattr(settings, "WAGTAIL_CORE_LANGUAGES")
-                        and settings.WAGTAIL_CORE_LANGUAGES
+                        hasattr(settings, "WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES")
+                        and settings.WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES
                     ):
                         core_codes = [
-                            code for code, _ in settings.WAGTAIL_CORE_LANGUAGES
+                            code
+                            for code, _ in settings.WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES
                         ]
                         key_sets = [
                             set(

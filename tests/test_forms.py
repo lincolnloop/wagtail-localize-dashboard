@@ -122,22 +122,33 @@ class TestSnippetProgressFilterForm:
         choice_values = [c[0] for c in form.fields["exists_in_language"].choices]
         assert "__all__" in choice_values
 
-    def test_exists_in_language_choices_include_configured_languages(self):
-        """exists_in_language choices include every language from WAGTAIL_CONTENT_LANGUAGES."""
+    def test_exists_in_language_choices_reflect_active_locales(
+        self, locale_en, locale_de
+    ):
+        """exists_in_language includes active Locale objects, not every WAGTAIL_CONTENT_LANGUAGES entry."""
+        active_codes = set(Locale.objects.values_list("language_code", flat=True))
+        configured_codes = {code for code, _ in settings.WAGTAIL_CONTENT_LANGUAGES}
+        inactive_codes = configured_codes - active_codes
+
         form = SnippetProgressFilterForm()
         choice_values = [c[0] for c in form.fields["exists_in_language"].choices]
-        for lang_code, _ in settings.WAGTAIL_CONTENT_LANGUAGES:
-            assert lang_code in choice_values
+
+        for code in active_codes:
+            assert code in choice_values
+        for code in inactive_codes:
+            assert code not in choice_values
 
     def test_core_languages_choice_absent_when_not_configured(self):
-        """CORE_LANGUAGES sentinel is absent when WAGTAIL_CORE_LANGUAGES is not defined."""
+        """CORE_LANGUAGES sentinel is absent when WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES is not defined."""
         form = SnippetProgressFilterForm()
         choice_values = [c[0] for c in form.fields["exists_in_language"].choices]
         assert "__core__" not in choice_values
 
-    @override_settings(WAGTAIL_CORE_LANGUAGES=["de", "fr"])
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES=[("de", "German"), ("fr", "French")]
+    )
     def test_core_languages_choice_present_when_configured(self):
-        """CORE_LANGUAGES sentinel is present when WAGTAIL_CORE_LANGUAGES is defined."""
+        """CORE_LANGUAGES sentinel is present when WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES is defined."""
         form = SnippetProgressFilterForm()
         choice_values = [c[0] for c in form.fields["exists_in_language"].choices]
         assert "__core__" in choice_values

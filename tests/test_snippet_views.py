@@ -552,7 +552,7 @@ class TestSnippetProgressDashboardView:
 
     @override_settings(
         WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"],
-        WAGTAIL_CORE_LANGUAGES=[("de", "German")],
+        WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES=[("de", "German")],
     )
     def test_exists_in_core_languages_filter(
         self, admin_client, locale_en, locale_de, locale_fr
