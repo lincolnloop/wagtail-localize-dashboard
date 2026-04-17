@@ -173,7 +173,7 @@ WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
 
 # Optional: Define core languages (languages that must be complete)
 # This demonstrates the CORE_LANGUAGES feature
-WAGTAIL_CORE_LANGUAGES = [
+WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES = [
     ("en", "English"),
     ("de", "German"),
     ("es", "Spanish"),

@@ -101,6 +101,15 @@ WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS = [
     ("spanish", "Spanish", ["es-es", "es-ar", "es-mx", "es-cl"]),
     ("french", "French", ["fr-fr", "fr-ca", "fr-be"]),
 ]
+
+# Core languages: languages that are considered mandatory/complete.
+# When set, a "Core languages" filter option appears on the dashboard,
+# letting users filter for pages that exist in all of these languages.
+# Each entry is a (language_code, language_name) tuple (default: not set).
+WAGTAIL_LOCALIZE_DASHBOARD_CORE_LANGUAGES = [
+    ("en", "English"),
+    ("de", "German"),
+]
 ```
 
 When `WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS` is configured, a "Show languages" dropdown appears on the dashboard. Selecting a group limits the displayed language columns to the locales in that group. Rows are not hidden — pages with no translations in the selected group will still appear.
