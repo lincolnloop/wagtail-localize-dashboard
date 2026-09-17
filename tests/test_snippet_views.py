@@ -6,6 +6,7 @@ from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from pytest_django.asserts import assertInHTML
 from tests.models import DraftStateSnippet, SampleSnippet
 from wagtail.models import Locale
 from wagtail_localize_dashboard.forms import SnippetProgressFilterForm
@@ -120,10 +121,8 @@ class TestSnippetProgressDashboardView:
     @override_settings(
         WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.DraftStateSnippet"]
     )
-    def test_has_draft_state_true_for_draft_model(self, admin_client, locale_en):
+    def test_has_draft_state_true_for_draft_model(self, admin_client, draft_sample_snippet):
         """has_draft_state is True for models that use DraftStateMixin."""
-
-        DraftStateSnippet.objects.create(locale=locale_en, title="Draft Snippet")
         url = reverse(SNIPPET_DASHBOARD_URL_NAME)
         response = admin_client.get(url)
 
@@ -183,6 +182,109 @@ class TestSnippetProgressDashboardView:
         translations = snippets_data[0]["translations"]
         assert [t["percent_translated"] for t in translations] == [75]
         assert [t["locale"] for t in translations] == ["de"]
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.DraftStateSnippet"]
+    )
+    def test_shows_published_completed_translations(
+        self, admin_client, draft_sample_snippet, draft_sample_snippet_de, locale_de
+    ):
+        """Test that snippet dashboard shows success for a 100% completed, published translation."""
+        # Create 100% progress record
+        ct = ContentType.objects.get_for_model(DraftStateSnippet)
+        SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=draft_sample_snippet.pk,
+            translated_object_id=draft_sample_snippet_de.pk,
+            translated_locale=locale_de,
+            percent_translated=100,
+        )
+        # Publish the translated snippet
+        draft_sample_snippet_de.save_revision().publish()
+
+        url = reverse(SNIPPET_DASHBOARD_URL_NAME)
+        response = admin_client.get(url)
+
+        assert response.status_code == 200
+        # Response should include success title
+        assert b'title="Edit de version - 100% complete"' in response.content
+        html = response.content.decode("utf8")
+        expected_success_icon = """
+            <svg class="icon icon-circle-check icon" aria-hidden="true">
+                <use href="#icon-circle-check"></use>
+            </svg>
+        """
+        assertInHTML(expected_success_icon, html)
+        expected_success_sr_span = '<span class="w-sr-only">Complete:</span>'
+        assertInHTML(expected_success_sr_span, html)
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_shows_completed_translations_no_publish_workflow(
+        self, admin_client, sample_snippet, sample_snippet_de, locale_de
+    ):
+        """Test that snippet dashboard shows success for a 100% completed translation with no publish workflow."""
+        # Create 100% progress record
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+        SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=sample_snippet.pk,
+            translated_object_id=sample_snippet_de.pk,
+            translated_locale=locale_de,
+            percent_translated=100,
+        )
+        # Snippet does not require publishing
+
+        url = reverse(SNIPPET_DASHBOARD_URL_NAME)
+        response = admin_client.get(url)
+
+        assert response.status_code == 200
+        # Response should include success title
+        assert b'title="Edit de version - 100% complete"' in response.content
+        html = response.content.decode("utf8")
+        expected_success_icon = """
+            <svg class="icon icon-circle-check icon" aria-hidden="true">
+                <use href="#icon-circle-check"></use>
+            </svg>
+        """
+        assertInHTML(expected_success_icon, html)
+        expected_success_sr_span = '<span class="w-sr-only">Complete:</span>'
+        assertInHTML(expected_success_sr_span, html)
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.DraftStateSnippet"]
+    )
+    def test_warns_about_unpublished_completed_translations(
+        self, admin_client, draft_sample_snippet, draft_sample_snippet_de, locale_de
+    ):
+        """Test that snippet dashboard shows a warning for a 100% completed, **un**published translation."""
+        # Create 100% progress record
+        ct = ContentType.objects.get_for_model(DraftStateSnippet)
+        SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=draft_sample_snippet.pk,
+            translated_object_id=draft_sample_snippet_de.pk,
+            translated_locale=locale_de,
+            percent_translated=100,
+        )
+        # The translated snippet remains unpublished
+
+        url = reverse(SNIPPET_DASHBOARD_URL_NAME)
+        response = admin_client.get(url)
+
+        assert response.status_code == 200
+        # Response should include warning title
+        assert b'title="Edit de version - 100% complete but unpublished (draft)"' in response.content
+        html = response.content.decode("utf8")
+        expected_warning_icon = """
+            <svg class="icon icon-upload icon" aria-hidden="true">
+                <use href="#icon-upload"></use>
+            </svg>
+        """
+        assertInHTML(expected_warning_icon, html)
+        expected_warning_sr_span = '<span class="w-sr-only">Complete but unpublished:</span>'
+        assertInHTML(expected_warning_sr_span, html)
 
     @override_settings(
         WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]

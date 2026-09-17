@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 
 import pytest
 from wagtail.models import Locale, Page, Site
-from tests.models import SampleSnippet
+from tests.models import SampleSnippet, DraftStateSnippet
 from wagtail_localize_dashboard.models import SnippetTranslationProgress
 
 User = get_user_model()
@@ -201,3 +201,19 @@ def sample_snippet_de_progress(sample_snippet, sample_snippet_de, locale_de):
         translated_locale=locale_de,
         percent_translated=50,
     )
+
+
+@pytest.fixture
+def draft_sample_snippet(locale_en):
+    """A single DraftStateSnippet in the English locale."""
+    return DraftStateSnippet.objects.create(locale=locale_en, title="Draft Snippet")
+
+
+@pytest.fixture
+def draft_sample_snippet_de(draft_sample_snippet, locale_de):
+    """A draft German translation of draft_sample_snippet."""
+    translated = draft_sample_snippet.copy_for_translation(locale_de)
+    translated.live = False
+    translated.save()
+    translated.save_revision()
+    return translated

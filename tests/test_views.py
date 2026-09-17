@@ -11,6 +11,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
+from pytest_django.asserts import assertInHTML
 from wagtail.models import Locale, Page
 from wagtail_localize.models import Translation, TranslationSource
 from wagtail_localize_dashboard.models import TranslationProgress
@@ -89,6 +90,67 @@ class TestDashboardView:
         translations = response.context["pages_with_progress"][0]["translations"]
         assert [t_data["percent_translated"] for t_data in translations] == [75]
         assert [t_data["locale"] for t_data in translations] == ["de"]
+
+    def test_dashboard_shows_published_completed_translations(
+        self, admin_client, test_page_with_translations, locale_de
+    ):
+        """Test that dashboard shows success for a 100% completed, published translation."""
+        # Create 100% progress record
+        de_translation = test_page_with_translations.get_translation(locale_de)
+
+        TranslationProgress.objects.create(
+            source_page=test_page_with_translations,
+            translated_page=de_translation,
+            percent_translated=100,
+        )
+        # Publish the translation
+        de_translation.save_revision().publish()
+
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        response = admin_client.get(url)
+
+        assert response.status_code == 200
+        # Response should include success title
+        assert b'title="Edit de version - 100% complete"' in response.content
+        html = response.content.decode("utf8")
+        expected_success_icon = """
+            <svg class="icon icon-circle-check icon" aria-hidden="true">
+                <use href="#icon-circle-check"></use>
+            </svg>
+        """
+        assertInHTML(expected_success_icon, html)
+        expected_success_sr_span = '<span class="w-sr-only">Complete:</span>'
+        assertInHTML(expected_success_sr_span, html)
+
+    def test_dashboard_warns_about_unpublished_completed_translations(
+        self, admin_client, test_page_with_translations, locale_de
+    ):
+        """Test that dashboard shows a warning for a 100% completed, **un**published translation."""
+        # Create 100% progress record
+        de_translation = test_page_with_translations.get_translation(locale_de)
+
+        TranslationProgress.objects.create(
+            source_page=test_page_with_translations,
+            translated_page=de_translation,
+            percent_translated=100,
+        )
+        # The translation remains unpublished
+
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        response = admin_client.get(url)
+
+        assert response.status_code == 200
+        # Response should include warning title
+        assert b'title="Edit de version - 100% complete but unpublished (draft)"' in response.content
+        html = response.content.decode("utf8")
+        expected_warning_icon = """
+            <svg class="icon icon-upload icon" aria-hidden="true">
+                <use href="#icon-upload"></use>
+            </svg>
+        """
+        assertInHTML(expected_warning_icon, html)
+        expected_warning_sr_span = '<span class="w-sr-only">Complete but unpublished:</span>'
+        assertInHTML(expected_warning_sr_span, html)
 
     def test_dashboard_search_filter(self, admin_client, test_page):
         """Test search filtering on dashboard."""

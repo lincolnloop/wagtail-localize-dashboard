@@ -130,11 +130,16 @@
                     <div class="actions actions-inline-start">
                       {% for translation in snippet_data.translations %}
                         <a href="{{ translation.edit_url }}"
-                           class="button button-small button-secondary {% if translation.percent_translated == 100 %}btn-success{% elif translation.percent_translated >= 80 %}btn-warning{% else %}btn-danger{% endif %}"
-                           title="{% blocktrans with locale=translation.locale percent=translation.percent_translated %}Edit {{ locale }} version - {{ percent }}% complete{% endblocktrans %}{% if translation.live == False %} ({% trans "draft" %}){% elif translation.has_unpublished_changes %} ({% trans "live + draft" %}){% endif %}">
+                           class="button button-small button-secondary {% if translation.percent_translated == 100 %}{% if translation.has_unpublished_changes %}btn-warning{% else %}btn-success{% endif %}{% elif translation.percent_translated >= 80 %}btn-warning{% else %}btn-danger{% endif %}"
+                           title="{% blocktrans with locale=translation.locale percent=translation.percent_translated %}Edit {{ locale }} version - {{ percent }}% complete{% endblocktrans %}{% if translation.percent_translated == 100 and translation.has_unpublished_changes %} {% trans "but unpublished" %}{% endif %}{% if translation.live == False %} ({% trans "draft" %}){% elif translation.has_unpublished_changes %} ({% trans "live + draft" %}){% endif %}">
                           {% if translation.percent_translated == 100 %}
-                            {% icon name="circle-check" %}
-                            <span class="w-sr-only">{% trans "Complete:" %}</span>
+                            {% if translation.has_unpublished_changes %}
+                              {% icon name="upload" %}
+                              <span class="w-sr-only">{% trans "Complete but unpublished:" %}</span>
+                            {% else %}
+                              {% icon name="circle-check" %}
+                              <span class="w-sr-only">{% trans "Complete:" %}</span>
+                            {% endif %}
                           {% else %}
                             {% icon name="warning" %}
                             <span class="w-sr-only">{% trans "In progress:" %}</span>
