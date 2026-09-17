@@ -6,7 +6,6 @@ from typing import Any
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-
 from wagtail.models import Locale
 
 
@@ -23,7 +22,7 @@ class Command(BaseCommand):
         existing_count = 0
 
         for language_code, language_name in settings.WAGTAIL_CONTENT_LANGUAGES:
-            locale, created = Locale.objects.get_or_create(
+            __, created = Locale.objects.get_or_create(
                 language_code=language_code,
             )
 

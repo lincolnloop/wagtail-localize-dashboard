@@ -4,18 +4,18 @@ Tests for management commands.
 
 from io import StringIO
 
+import pytest
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.test import override_settings
-
-import pytest
 from wagtail.models import Page
 from wagtail_localize.models import Translation, TranslationSource
+
+from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
     TranslationProgress,
 )
-from tests.models import SampleSnippet
 
 
 @pytest.mark.django_db

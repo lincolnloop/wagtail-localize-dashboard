@@ -167,6 +167,7 @@ from wagtail_localize_dashboard.utils import (
 
 # Get translation percentage for a specific locale (works for pages and snippets)
 from wagtail.models import Locale
+
 locale_de = Locale.objects.get(language_code="de")
 percent = get_translation_percentages(source_object, locale_de)
 
@@ -176,7 +177,9 @@ snippet_stats = rebuild_all_snippet_progress()
 
 # Or rebuild everything at once
 stats = rebuild_all_progress()
-print(f"Pages: {stats['pages']}, Snippets: {stats['snippets']}, Errors: {stats['errors']}")
+print(
+    f"Pages: {stats['pages']}, Snippets: {stats['snippets']}, Errors: {stats['errors']}"
+)
 ```
 
 ## Snippet Translation Dashboard

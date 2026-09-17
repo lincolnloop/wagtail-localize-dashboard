@@ -4,16 +4,16 @@ Tests for dashboard views.
 
 from unittest.mock import patch
 
+import pytest
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, transaction
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-
-import pytest
 from pytest_django.asserts import assertInHTML
 from wagtail.models import Locale, Page
 from wagtail_localize.models import Translation, TranslationSource
+
 from wagtail_localize_dashboard.models import TranslationProgress
 
 COLUMN_FILTER_OPTIONS = [
@@ -141,7 +141,10 @@ class TestDashboardView:
 
         assert response.status_code == 200
         # Response should include warning title
-        assert b'title="Edit de version - 100% complete but unpublished (draft)"' in response.content
+        assert (
+            b'title="Edit de version - 100% complete but unpublished (draft)"'
+            in response.content
+        )
         html = response.content.decode("utf8")
         expected_warning_icon = """
             <svg class="icon icon-upload icon" aria-hidden="true">
@@ -149,7 +152,9 @@ class TestDashboardView:
             </svg>
         """
         assertInHTML(expected_warning_icon, html)
-        expected_warning_sr_span = '<span class="w-sr-only">Complete but unpublished:</span>'
+        expected_warning_sr_span = (
+            '<span class="w-sr-only">Complete but unpublished:</span>'
+        )
         assertInHTML(expected_warning_sr_span, html)
 
     def test_dashboard_search_filter(self, admin_client, test_page):
@@ -268,9 +273,7 @@ class TestDashboardView:
             test_page
         ]
         translations = response.context["pages_with_progress"][0]["translations"]
-        assert set([t_data["locale"] for t_data in translations]) == set(
-            ["de", "es", "fr"]
-        )
+        assert {t_data["locale"] for t_data in translations} == {"de", "es", "fr"}
 
     def test_dashboard_query_count_optimized(
         self, admin_client, home_page, locale_en, locale_de, locale_es, locale_fr

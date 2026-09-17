@@ -12,7 +12,6 @@ from typing import Any
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
-
 from wagtail.models import Locale, Page
 from wagtail_localize.models import Translation, TranslationSource
 
@@ -177,7 +176,7 @@ class Command(BaseCommand):
 
         # Random date within the last 2 years
         days_ago = random.randint(0, 730)
-        post_date = date.today() - timedelta(days=days_ago)
+        post_date = date.today() - timedelta(days=days_ago)  # noqa: DTZ011
 
         page = ArticlePage(
             title=f"{topic} - Article {index + 1}",
@@ -282,7 +281,7 @@ class Command(BaseCommand):
                 translation_source, created = (
                     TranslationSource.get_or_create_from_instance(source_page)
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self.stdout.write(
                     self.style.WARNING(
                         f"  Could not create translation source for {source_page}: {e}"
@@ -307,7 +306,7 @@ class Command(BaseCommand):
                         total_translations += 1
                         translations_for_page += 1
 
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     self.stdout.write(
                         self.style.WARNING(
                             f"  Could not create translation for {source_page} to {locale.language_code}: {e}"

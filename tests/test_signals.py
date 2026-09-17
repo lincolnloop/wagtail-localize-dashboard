@@ -5,6 +5,7 @@ from unittest.mock import patch
 import polib
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import transaction
@@ -13,8 +14,6 @@ from django.urls import reverse
 from django.utils import timezone
 from wagtail.models import Locale, Page
 from wagtail_localize.models import StringTranslation, Translation, TranslationSource
-
-from django.contrib.contenttypes.models import ContentType
 
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import (

@@ -7,7 +7,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
-
 from wagtail.models import Page
 from wagtail_localize.models import (
     StringSegment,
@@ -64,8 +63,8 @@ def translation_saved_handler(
                 if original:
                     create_snippet_translation_progress(original)
 
-        except Exception as e:
-            logger.exception(f"Error in translation_saved_handler: {e}")
+        except Exception:
+            logger.exception("Error in translation_saved_handler")
 
     transaction.on_commit(update_after_commit)
 
@@ -110,8 +109,8 @@ def string_translation_saved_handler(
                 if original:
                     create_snippet_translation_progress(original)
 
-        except Exception as e:
-            logger.exception(f"Error in string_translation_saved_handler: {e}")
+        except Exception:
+            logger.exception("Error in string_translation_saved_handler")
 
     transaction.on_commit(update_after_commit)
 
@@ -144,8 +143,8 @@ def string_translation_deleted_handler(
                     try:
                         if original_page:
                             create_page_translation_progress(original_page)
-                    except Exception as e:
-                        logger.exception(f"Error in update_after_commit: {e}")
+                    except Exception:
+                        logger.exception("Error in update_after_commit")
 
                 transaction.on_commit(update_after_commit)
 
@@ -161,13 +160,13 @@ def string_translation_deleted_handler(
                 try:
                     if original:
                         create_snippet_translation_progress(original)
-                except Exception as e:
-                    logger.exception(f"Error in update_snippet_after_commit: {e}")
+                except Exception:
+                    logger.exception("Error in update_snippet_after_commit")
 
             transaction.on_commit(update_snippet_after_commit)
 
-    except Exception as e:
-        logger.exception(f"Error in string_translation_deleted_handler: {e}")
+    except Exception:
+        logger.exception("Error in string_translation_deleted_handler")
 
 
 @receiver(post_save, sender=TranslationSource)
@@ -206,8 +205,8 @@ def translation_source_saved_handler(
                 if original:
                     create_snippet_translation_progress(original)
 
-        except Exception as e:
-            logger.exception(f"Error in translation_source_saved_handler: {e}")
+        except Exception:
+            logger.exception("Error in translation_source_saved_handler")
 
     transaction.on_commit(update_after_commit)
 
@@ -241,8 +240,8 @@ def page_saved_handler(
             )
             if original_page:
                 create_page_translation_progress(original_page)
-        except Exception as e:
-            logger.exception(f"Error in page_saved_handler: {e}")
+        except Exception:
+            logger.exception("Error in page_saved_handler")
 
     transaction.on_commit(update_after_commit)
 
@@ -272,8 +271,8 @@ def snippet_saved_handler(
             )
             if original:
                 create_snippet_translation_progress(original)
-        except Exception as e:
-            logger.exception(f"Error in snippet_saved_handler: {e}")
+        except Exception:
+            logger.exception("Error in snippet_saved_handler")
 
     transaction.on_commit(update_after_commit)
 
@@ -295,5 +294,5 @@ def snippet_deleted_handler(sender: type, instance: Any, **kwargs: Any) -> None:
             django_models.Q(source_object_id=instance.pk)
             | django_models.Q(translated_object_id=instance.pk)
         ).delete()
-    except Exception as e:
-        logger.exception(f"Error in snippet_deleted_handler: {e}")
+    except Exception:
+        logger.exception("Error in snippet_deleted_handler")

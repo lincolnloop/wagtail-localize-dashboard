@@ -2,13 +2,13 @@
 
 from unittest.mock import Mock, patch
 
+import pytest
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
-
-import pytest
 from wagtail.models import Locale, Page
 from wagtail_localize.models import Translation, TranslationSource
+
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
@@ -335,12 +335,12 @@ class TestCreatePageTranslationProgress:
         source_ids = TranslationProgress.objects.values_list(
             "source_page_id", flat=True
         )
-        assert set(source_ids) == set([en_page.id])
+        assert set(source_ids) == {en_page.id}
         # Translated should be the German page or the French page
         translated_ids = TranslationProgress.objects.values_list(
             "translated_page_id", flat=True
         )
-        assert set(translated_ids) == set([de_page.id, fr_page.id])
+        assert set(translated_ids) == {de_page.id, fr_page.id}
 
     @override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACK_PAGES=False)
     def test_create_page_translation_progress_respects_track_pages_setting(
@@ -472,9 +472,8 @@ class TestCreatePageTranslationProgress:
             # Should not create any TranslationProgress when ValueError occurs
             assert TranslationProgress.objects.count() == 0
 
-    @patch("wagtail_localize_dashboard.utils.logger")
     def test_create_page_translation_progress_handles_attribute_error(
-        self, mock_logger, page_with_translations
+        self, caplog, page_with_translations
     ):
         """Test create_page_translation_progress handles AttributeError gracefully."""
         en_homepage = page_with_translations["en_page"]
@@ -483,19 +482,18 @@ class TestCreatePageTranslationProgress:
         TranslationProgress.objects.all().delete()
 
         # Mock specific property to raise AttributeError
-        with patch.object(
-            Page, "get_translations", side_effect=AttributeError("Test error")
+        with (
+            patch.object(
+                Page, "get_translations", side_effect=AttributeError("Test error")
+            ),
+            caplog.at_level("ERROR", logger="wagtail_localize_dashboard.utils"),
         ):
             create_page_translation_progress(en_homepage)
 
-            # If an AttributeError occurs, then no TranslationProgress should be created.
-            assert TranslationProgress.objects.count() == 0
-            # The logger was called with an exception.
-            assert mock_logger.exception.call_count == 1
-            # Check that the logger was called with a message containing the error
-            log_message = str(mock_logger.exception.call_args_list[0].args[0])
-            assert "Test error" in log_message
-            assert "Error creating translation progress" in log_message
+        # If an AttributeError occurs, then no TranslationProgress should be created.
+        assert TranslationProgress.objects.count() == 0
+        # Check that the logger was called with a message containing the error
+        assert "Error creating translation progress" in caplog.text
 
 
 class TestRebuildAllProgress:

@@ -196,16 +196,16 @@ python manage.py shell
    ```python
    # In settings.py
    LOGGING = {
-       'version': 1,
-       'handlers': {
-           'console': {
-               'class': 'logging.StreamHandler',
+       "version": 1,
+       "handlers": {
+           "console": {
+               "class": "logging.StreamHandler",
            },
        },
-       'loggers': {
-           'django.db.backends': {
-               'level': 'DEBUG',
-               'handlers': ['console'],
+       "loggers": {
+           "django.db.backends": {
+               "level": "DEBUG",
+               "handlers": ["console"],
            },
        },
    }
@@ -298,7 +298,7 @@ print(f"Rebuilt {stats['pages']} pages in {elapsed:.2f}s")
 start = time.time()
 progress_records = TranslationProgress.objects.all()[:100]
 elapsed = time.time() - start
-print(f"Queried 100 records in {elapsed*1000:.2f}ms")
+print(f"Queried 100 records in {elapsed * 1000:.2f}ms")
 
 # Check translation coverage
 total_pages = Page.objects.filter(depth__gt=2).count()

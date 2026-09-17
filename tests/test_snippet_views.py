@@ -7,8 +7,9 @@ from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from pytest_django.asserts import assertInHTML
-from tests.models import DraftStateSnippet, SampleSnippet
 from wagtail.models import Locale
+
+from tests.models import DraftStateSnippet, SampleSnippet
 from wagtail_localize_dashboard.forms import SnippetProgressFilterForm
 from wagtail_localize_dashboard.models import SnippetTranslationProgress
 
@@ -121,7 +122,9 @@ class TestSnippetProgressDashboardView:
     @override_settings(
         WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.DraftStateSnippet"]
     )
-    def test_has_draft_state_true_for_draft_model(self, admin_client, draft_sample_snippet):
+    def test_has_draft_state_true_for_draft_model(
+        self, admin_client, draft_sample_snippet
+    ):
         """has_draft_state is True for models that use DraftStateMixin."""
         url = reverse(SNIPPET_DASHBOARD_URL_NAME)
         response = admin_client.get(url)
@@ -275,7 +278,10 @@ class TestSnippetProgressDashboardView:
 
         assert response.status_code == 200
         # Response should include warning title
-        assert b'title="Edit de version - 100% complete but unpublished (draft)"' in response.content
+        assert (
+            b'title="Edit de version - 100% complete but unpublished (draft)"'
+            in response.content
+        )
         html = response.content.decode("utf8")
         expected_warning_icon = """
             <svg class="icon icon-upload icon" aria-hidden="true">
@@ -283,7 +289,9 @@ class TestSnippetProgressDashboardView:
             </svg>
         """
         assertInHTML(expected_warning_icon, html)
-        expected_warning_sr_span = '<span class="w-sr-only">Complete but unpublished:</span>'
+        expected_warning_sr_span = (
+            '<span class="w-sr-only">Complete but unpublished:</span>'
+        )
         assertInHTML(expected_warning_sr_span, html)
 
     @override_settings(

@@ -1,16 +1,15 @@
 """Views for the translation progress dashboard."""
 
-from typing import Any, Dict, List
+from typing import Any
 
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Min, Q, QuerySet
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.generic import ListView
-
 from wagtail.admin.views.generic.base import BaseListingView
 from wagtail.models import DraftStateMixin, Locale, Page
 
@@ -159,7 +158,7 @@ class ProgressDashboardView(ListView, BaseListingView):
         # Prefetch locale data for pages
         return pages_qs.select_related("locale")
 
-    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """
         Add translation progress data to context.
 
@@ -193,7 +192,7 @@ class ProgressDashboardView(ListView, BaseListingView):
             # Get the proper edit URL using Wagtail's URL routing
             try:
                 edit_url = reverse("wagtailadmin_pages:edit", args=[page.id])
-            except Exception:
+            except NoReverseMatch:
                 edit_url = "#"
 
             pages_with_progress.append(
@@ -259,7 +258,7 @@ class SnippetProgressDashboardView(ListView, BaseListingView):
             self._filter_form = SnippetProgressFilterForm(self.request.GET)
         return self._filter_form
 
-    def get_queryset(self) -> List[Any]:
+    def get_queryset(self) -> list[Any]:
         """
         Build the combined, filtered, sorted list of original snippets across
         all tracked models.
@@ -279,7 +278,7 @@ class SnippetProgressDashboardView(ListView, BaseListingView):
         snippet_type = form.cleaned_data.get("snippet_type")
         num_languages = Locale.objects.count()
 
-        combined: List[Any] = []
+        combined: list[Any] = []
         for model in tracked_models:
             if (
                 snippet_type
@@ -342,15 +341,15 @@ class SnippetProgressDashboardView(ListView, BaseListingView):
         combined.sort(key=lambda s: (type(s)._meta.verbose_name, str(s)))
         return combined
 
-    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
 
-        page_snippets: List[Any] = context["snippets"]
+        page_snippets: list[Any] = context["snippets"]
 
         # Group snippets on this page by content type so we can fetch all
         # their progress records in as few queries as possible.
-        ct_to_pks: Dict[int, List[int]] = {}
-        ct_cache: Dict[type, ContentType] = {}
+        ct_to_pks: dict[int, list[int]] = {}
+        ct_cache: dict[type, ContentType] = {}
         for snippet in page_snippets:
             model_class = type(snippet)
             if model_class not in ct_cache:
@@ -359,7 +358,7 @@ class SnippetProgressDashboardView(ListView, BaseListingView):
             ct_to_pks.setdefault(ct.pk, []).append(snippet.pk)
 
         # One DB query (plus one per content type for the GFK prefetch).
-        progress_by_key: Dict[tuple, List[SnippetTranslationProgress]] = {}
+        progress_by_key: dict[tuple, list[SnippetTranslationProgress]] = {}
         if ct_to_pks:
             q = Q()
             for ct_id, pks in ct_to_pks.items():
@@ -387,7 +386,7 @@ class SnippetProgressDashboardView(ListView, BaseListingView):
                     f"wagtailsnippets_{ct.app_label}_{ct.model}:edit",
                     args=[snippet.pk],
                 )
-            except Exception:
+            except NoReverseMatch:
                 edit_url = "#"
 
             snippets_with_progress.append(

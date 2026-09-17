@@ -1,10 +1,10 @@
 """Tests for dashboard forms."""
 
+import pytest
 from django.conf import settings
 from django.test import override_settings
 from wagtail.models import Locale
 
-import pytest
 from wagtail_localize_dashboard.forms import (
     ProgressFilterForm,
     SnippetProgressFilterForm,

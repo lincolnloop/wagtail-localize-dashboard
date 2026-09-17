@@ -3,7 +3,7 @@ Django settings for wagtail-localize-dashboard example project.
 """
 
 import os
-from typing import List
+
 from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -15,7 +15,7 @@ SECRET_KEY = "django-insecure-example-key-change-in-production"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS: List[str] = ["*"]
+ALLOWED_HOSTS: list[str] = ["*"]
 
 
 # Application definition
