@@ -4,11 +4,11 @@ Pytest fixtures for wagtail-localize-dashboard tests.
 These fixtures provide reusable test setup for all test files.
 """
 
+import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-
-import pytest
 from wagtail.models import Locale, Page, Site
+
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import SnippetTranslationProgress
 

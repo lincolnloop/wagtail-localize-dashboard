@@ -6,8 +6,9 @@ from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-from tests.models import DraftStateSnippet, SampleSnippet
 from wagtail.models import Locale
+
+from tests.models import DraftStateSnippet, SampleSnippet
 from wagtail_localize_dashboard.forms import SnippetProgressFilterForm
 from wagtail_localize_dashboard.models import SnippetTranslationProgress
 

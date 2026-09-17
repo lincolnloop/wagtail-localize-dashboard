@@ -8,7 +8,6 @@ from typing import Any
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
-
 from wagtail.models import Locale, Page, Site
 
 from home.models import ArticlePage, HomePage, NavigationMenu, ProductPage, SiteAlert
@@ -56,13 +55,13 @@ class Command(BaseCommand):
         if created:
             self.stdout.write(self.style.SUCCESS("Created English locale"))
 
-        de_locale, created = Locale.objects.get_or_create(
+        __, created = Locale.objects.get_or_create(
             language_code="de",
         )
         if created:
             self.stdout.write(self.style.SUCCESS("Created German locale"))
 
-        es_locale, created = Locale.objects.get_or_create(
+        __, created = Locale.objects.get_or_create(
             language_code="es",
         )
         if created:

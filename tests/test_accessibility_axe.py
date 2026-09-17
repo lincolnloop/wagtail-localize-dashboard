@@ -11,22 +11,21 @@ To run these tests:
 Note: These tests require a web browser (Chrome/Firefox) to be available.
 """
 
+import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test import LiveServerTestCase, override_settings
 from django.urls import reverse
-
-import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium_axe_python import Axe
 from wagtail.models import Locale, Page
+
+from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
     TranslationProgress,
 )
-
-from tests.models import SampleSnippet
 
 User = get_user_model()
 

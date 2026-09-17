@@ -4,15 +4,15 @@ Tests for dashboard views.
 
 from unittest.mock import patch
 
+import pytest
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, transaction
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-
-import pytest
 from wagtail.models import Locale, Page
 from wagtail_localize.models import Translation, TranslationSource
+
 from wagtail_localize_dashboard.models import TranslationProgress
 
 COLUMN_FILTER_OPTIONS = [
@@ -206,9 +206,7 @@ class TestDashboardView:
             test_page
         ]
         translations = response.context["pages_with_progress"][0]["translations"]
-        assert set([t_data["locale"] for t_data in translations]) == set(
-            ["de", "es", "fr"]
-        )
+        assert {t_data["locale"] for t_data in translations} == {"de", "es", "fr"}
 
     def test_dashboard_query_count_optimized(
         self, admin_client, home_page, locale_en, locale_de, locale_es, locale_fr

@@ -4,14 +4,13 @@ Settings for wagtail-localize-dashboard.
 All settings are prefixed with WAGTAIL_LOCALIZE_DASHBOARD_
 """
 
-from typing import Any, List, Type
+from typing import Any
 
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-
 from wagtail_localize.models import TranslatableMixin
 
 # Default settings
@@ -56,7 +55,7 @@ def get_setting(name: str, default: Any = None) -> Any:
     return getattr(settings, setting_name, DEFAULTS.get(name, default))
 
 
-def get_tracked_snippet_models() -> List[Type[models.Model]]:
+def get_tracked_snippet_models() -> list[type[models.Model]]:
     """
     Resolve the TRACKED_SNIPPETS setting to a list of model classes.
 
@@ -68,7 +67,7 @@ def get_tracked_snippet_models() -> List[Type[models.Model]]:
     Returns:
         List of model classes (may be empty if TRACKED_SNIPPETS is not set).
     """
-    tracked: List[str] = get_setting("TRACKED_SNIPPETS", [])
+    tracked: list[str] = get_setting("TRACKED_SNIPPETS", [])
     result = []
     for entry in tracked:
         try:
