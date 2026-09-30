@@ -80,9 +80,15 @@ def string_translation_saved_handler(
     def update_after_commit() -> None:
         try:
             # StringTranslation -> StringSegment -> TranslationSource -> instance
-            segment = StringSegment.objects.get(
-                context=instance.context, string=instance.translation_of
+            segment = (
+                StringSegment.objects.filter(
+                    context=instance.context, string=instance.translation_of
+                )
+                .order_by("order")
+                .first()
             )
+            if segment is None:
+                return
             source_instance = segment.source.get_source_instance()
 
             if isinstance(source_instance, Page):
@@ -124,9 +130,15 @@ def string_translation_deleted_handler(
         return
 
     try:
-        segment = StringSegment.objects.get(
-            context=instance.context, string=instance.translation_of
+        segment = (
+            StringSegment.objects.filter(
+                context=instance.context, string=instance.translation_of
+            )
+            .order_by("order")
+            .first()
         )
+        if segment is None:
+            return
         source_instance = segment.source.get_source_instance()
 
         if isinstance(source_instance, Page):
