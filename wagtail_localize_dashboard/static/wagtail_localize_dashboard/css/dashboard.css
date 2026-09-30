@@ -152,5 +152,6 @@
    with opacity would drop the contrast ratio too low. */
 .published-pct {
     font-variant-numeric: tabular-nums;
+    margin-inline-start: .25rem;
     white-space: nowrap;
 }
