@@ -3,9 +3,16 @@
 import logging
 
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Min, Model, QuerySet
-from wagtail.models import Locale, Page
-from wagtail_localize.models import TranslatableObject, Translation, TranslationSource
+from django.db.models import Exists, Max, Min, Model, OuterRef, QuerySet
+from wagtail.models import DraftStateMixin, Locale, Page
+from wagtail_localize.models import (
+    StringSegment,
+    StringTranslation,
+    TranslatableObject,
+    Translation,
+    TranslationLog,
+    TranslationSource,
+)
 
 from .models import SnippetTranslationProgress, TranslationProgress
 from .settings import get_setting, get_tracked_snippet_models
@@ -60,6 +67,138 @@ def get_translation_percentages(
         TranslatableObject.DoesNotExist,
     ):
         return None
+
+
+def _count_published(
+    source: TranslationSource,
+    target_locale: Locale,
+    translated_object: Model | None,
+) -> int:
+    """
+    Count segments whose translations are live on the target.
+
+    This mirrors Translation.get_progress(): it annotates StringSegment rows
+    with an Exists() over StringTranslation joined on the pair
+    (string_id, context_id) and counts *segments*. The only addition is the
+    updated_at bound. Counting StringTranslation rows instead - for example via
+    StringSegmentQuerySet.get_translations() - undercounts, because a rich text
+    field holding the same phrase twice produces two segments that share one
+    (string, context) pair and therefore one StringTranslation.
+
+    What the timestamp bound means
+    ------------------------------
+    updated_at__lte=last_push answers "was this translation last written before
+    the last push", NOT "was this translation included in the last push".
+    Upstream records no per-segment push provenance, so this is the closest
+    available proxy. StringTranslation.updated_at is auto_now=True, which gives
+    the proxy two known errors:
+
+    - False gap. The edit_string_translation view does an unconditional
+      update_or_create, so re-saving a segment with BYTE-IDENTICAL text bumps
+      updated_at and drops that segment out of the published count. It errs
+      safe (it under-reports published, never over-reports), but a translator
+      who opens a segment and saves without editing will see a gap appear and
+      will report it as a bug.
+    - False publish. A segment removed from the source and re-added after a
+      push keeps its old StringTranslation row, and therefore its old
+      updated_at, so it counts as published even though it was never pushed.
+
+    Do not "fix" either by switching to last_published_at.
+
+    Args:
+        source: The TranslationSource for the source object
+        target_locale: The target Locale instance
+        translated_object: The translated instance, or None when the caller has
+            none. Required, not defaulted: passing None skips the live gate.
+
+    Returns:
+        int: Number of segments whose translation was live as of the last push
+    """
+    # Nothing is on display if the target isn't live, whatever was pushed.
+    if isinstance(translated_object, DraftStateMixin) and not translated_object.live:
+        return 0
+
+    # TranslationLog records every save_target(); its latest entry is the last
+    # time translations were written into the target. last_published_at is not
+    # equivalent - publishing the target by any other route bumps it without
+    # pushing anything.
+    last_push = TranslationLog.objects.filter(
+        source=source, locale=target_locale
+    ).aggregate(at=Max("created_at"))["at"]
+
+    if last_push is None:
+        return 0
+
+    return (
+        StringSegment.objects.filter(source=source)
+        .annotate(
+            is_published=Exists(
+                StringTranslation.objects.filter(
+                    translation_of_id=OuterRef("string_id"),
+                    context_id=OuterRef("context_id"),
+                    locale_id=target_locale.pk,
+                    has_error=False,
+                    updated_at__lte=last_push,
+                )
+            )
+        )
+        .filter(is_published=True)
+        .count()
+    )
+
+
+def get_translation_progress(
+    source_object: Model,
+    target_locale: Locale,
+    translated_object: Model | None,
+) -> tuple[int, int] | None:
+    """
+    Calculate translated and published percentages for a source/locale pair.
+
+    percent_translated is wagtail-localize's own figure, untouched.
+    percent_published is the share of segments whose translations have actually
+    been pushed to a live target.
+
+    Args:
+        source_object: The source model instance (Page or translatable snippet)
+        target_locale: The target Locale instance
+        translated_object: The translated instance, or None. Required - without
+            it the live gate cannot run and every target looks published.
+
+    Returns:
+        tuple[int, int]: (percent_translated, percent_published), or None if no
+            translation exists
+
+    Example:
+        >>> get_translation_progress(page, locale_de, translated_page)
+        (60, 40)
+    """
+    try:
+        source = TranslationSource.objects.get_for_instance(source_object)
+        translation = Translation.objects.get(
+            source=source, target_locale=target_locale
+        )
+    except (
+        TranslationSource.DoesNotExist,
+        Translation.DoesNotExist,
+        TranslatableObject.DoesNotExist,
+    ):
+        return None
+
+    total_segments, translated_segments = translation.get_progress()
+
+    # With nothing to translate there is nothing that could be unpublished,
+    # so an unpublished empty target still reports (100, 100). Otherwise, a
+    # target with no translatable text looks 0% live forever.
+    if total_segments == 0:
+        return 100, 100
+
+    percent_translated = int(translated_segments / total_segments * 100)
+    published_segments = _count_published(source, target_locale, translated_object)
+    percent_published = int(published_segments / total_segments * 100)
+
+    # Published can never outrank translated, whatever upstream's definitions do
+    return percent_translated, min(percent_published, percent_translated)
 
 
 def create_page_translation_progress(source_page: Page) -> None:
