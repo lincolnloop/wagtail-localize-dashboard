@@ -11,7 +11,8 @@ A translation dashboard for Wagtail sites using [wagtail-localize](https://githu
 - **Auto-Updates**: Signals automatically update percentages when translations change
 - **Performance**: Translation percentages are stored in the database, for fast loading
 - **Filtering**: Search by title, filter by language, translation key, or language group
-- **Color-Coded Status**: Green (100%), Yellow (80-99%), Red (<80%)
+- **Color-Coded Status**: Green (100% translated), Amber (80-99%), Red (<80%)
+- **Publish Tracking**: Indicators with a `(N% live)` badge mark translations saved but not yet published to the live page or snippet
 - **Admin Integration**: Adds menu item to Wagtail admin
 - **Configurable**: Enable/disable features via Django settings
 

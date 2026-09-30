@@ -20,15 +20,15 @@
 }
 
 .button.btn-warning {
-    background-color: #faa500;
+    background-color: #a06400;
     color: white;
-    border-color: #faa500;
+    border-color: #a06400;
 }
 
 .button.btn-warning:hover {
     background-color: white;
-    color: #faa500;
-    border-color: #faa500;
+    color: #a06400;
+    border-color: #a06400;
 }
 
 .button.btn-danger {
