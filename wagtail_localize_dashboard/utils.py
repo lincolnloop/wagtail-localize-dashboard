@@ -41,6 +41,11 @@ def get_translation_percentages(
         >>> locale_de = Locale.objects.get(language_code="de")
         >>> percent = get_translation_percentages(page, locale_de)
         >>> print(f"{percent}% translated")
+
+    Note:
+        Retained as public API. The dashboard itself now uses
+        get_translation_progress(), which returns this figure plus the published
+        percentage.
     """
     try:
         # Find the translation source for the source object
@@ -229,32 +234,35 @@ def create_page_translation_progress(source_page: Page) -> None:
             if translated_page.id == source_page.id:
                 continue
 
-            # Try to get translation percentage from source to this translation
-            percent_translated = get_translation_percentages(
-                source_page, translated_page.locale
+            # Try to get progress from source to this translation
+            progress = get_translation_progress(
+                source_page, translated_page.locale, translated_page
             )
 
             # If we can't get data from source to translation,
             # the translation might be a translation of another translation.
             # Try other translations as sources.
-            if percent_translated is None:
+            if progress is None:
                 for other_translation in translations:
                     if other_translation.id == translated_page.id:
                         continue
 
-                    percent_translated = get_translation_percentages(
-                        other_translation, translated_page.locale
+                    progress = get_translation_progress(
+                        other_translation, translated_page.locale, translated_page
                     )
 
-                    if percent_translated is not None:
+                    if progress is not None:
                         break
+
+            percent_translated, percent_published = progress or (0, None)
 
             # Create or update progress record
             TranslationProgress.objects.update_or_create(
                 source_page=source_page,
                 translated_page=translated_page,
                 defaults={
-                    "percent_translated": percent_translated or 0,
+                    "percent_translated": percent_translated,
+                    "percent_published": percent_published,
                 },
             )
 
@@ -319,19 +327,21 @@ def create_snippet_translation_progress(source_snippet: Model) -> None:
             if translated_snippet.pk == source_snippet.pk:
                 continue
 
-            percent_translated = get_translation_percentages(
-                source_snippet, translated_snippet.locale
+            progress = get_translation_progress(
+                source_snippet, translated_snippet.locale, translated_snippet
             )
 
-            if percent_translated is None:
+            if progress is None:
                 for other_translation in translations:
                     if other_translation.pk == translated_snippet.pk:
                         continue
-                    percent_translated = get_translation_percentages(
-                        other_translation, translated_snippet.locale
+                    progress = get_translation_progress(
+                        other_translation, translated_snippet.locale, translated_snippet
                     )
-                    if percent_translated is not None:
+                    if progress is not None:
                         break
+
+            percent_translated, percent_published = progress or (0, None)
 
             SnippetTranslationProgress.objects.update_or_create(
                 content_type=content_type,
@@ -339,7 +349,8 @@ def create_snippet_translation_progress(source_snippet: Model) -> None:
                 translated_object_id=translated_snippet.pk,
                 defaults={
                     "translated_locale": translated_snippet.locale,
-                    "percent_translated": percent_translated or 0,
+                    "percent_translated": percent_translated,
+                    "percent_published": percent_published,
                 },
             )
 

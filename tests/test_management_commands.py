@@ -71,6 +71,24 @@ class TestRebuildTranslationProgress:
         # The percentage should have been recalculated.
         assert updated_progress != 50
 
+    def test_command_backfills_null_percent_published(
+        self, test_page_with_translations, locale_de
+    ):
+        """The documented upgrade path: null percent_published rows are populated."""
+        call_command("rebuild_translation_progress", stdout=StringIO())
+        TranslationProgress.objects.update(percent_published=None)
+        assert TranslationProgress.objects.filter(percent_published=None).exists()
+
+        call_command("rebuild_translation_progress", stdout=StringIO())
+
+        de_translation = test_page_with_translations.get_translation(locale_de)
+        progress = TranslationProgress.objects.get(
+            source_page_id=test_page_with_translations.id,
+            translated_page_id=de_translation.id,
+        )
+        assert progress.percent_published is not None
+        assert progress.percent_published == progress.percent_translated
+
     def test_command_with_clean_orphans_flag(self, test_page):
         """Test that --clean-orphans flag works via the for_pages command.
 
@@ -249,6 +267,24 @@ class TestRebuildTranslationProgressForPages:
         assert updated is not None
         assert updated.percent_translated != 50
 
+    def test_command_backfills_null_percent_published(
+        self, test_page_with_translations, locale_de
+    ):
+        """The documented upgrade path: null percent_published rows are populated."""
+        call_command("rebuild_translation_progress_for_pages", stdout=StringIO())
+        TranslationProgress.objects.update(percent_published=None)
+        assert TranslationProgress.objects.filter(percent_published=None).exists()
+
+        call_command("rebuild_translation_progress_for_pages", stdout=StringIO())
+
+        de_translation = test_page_with_translations.get_translation(locale_de)
+        progress = TranslationProgress.objects.get(
+            source_page_id=test_page_with_translations.id,
+            translated_page_id=de_translation.id,
+        )
+        assert progress.percent_published is not None
+        assert progress.percent_published == progress.percent_translated
+
     def test_command_output_shows_statistics(self, test_page_with_translations):
         """Command output includes pages-processed count and success message."""
         out = StringIO()
@@ -365,6 +401,32 @@ class TestRebuildTranslationProgressForSnippets:
         ).first()
         assert updated is not None
         assert updated.percent_translated != 50
+
+    def test_command_backfills_null_percent_published(self, locale_en, locale_de):
+        """The documented upgrade path: null percent_published rows are populated."""
+        source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
+        translation_source, _ = TranslationSource.get_or_create_from_instance(source)
+        translation, _ = Translation.objects.get_or_create(
+            source=translation_source, target_locale=locale_de
+        )
+        translation.save_target(publish=True)
+
+        with override_settings(
+            WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+        ):
+            call_command("rebuild_translation_progress_for_snippets", stdout=StringIO())
+            SnippetTranslationProgress.objects.update(percent_published=None)
+            assert SnippetTranslationProgress.objects.filter(
+                percent_published=None
+            ).exists()
+
+            call_command("rebuild_translation_progress_for_snippets", stdout=StringIO())
+
+        progress = SnippetTranslationProgress.objects.get(
+            source_object_id=source.pk, translated_locale=locale_de
+        )
+        assert progress.percent_published is not None
+        assert progress.percent_published == progress.percent_translated
 
     def test_command_output_shows_statistics(self, locale_en, locale_de):
         """Command output includes snippets-processed count and success message."""

@@ -12,6 +12,7 @@ from wagtail_localize.models import (
     StringSegment,
     StringTranslation,
     Translation,
+    TranslationLog,
     TranslationSource,
 )
 
@@ -179,6 +180,54 @@ def string_translation_deleted_handler(
 
     except Exception:
         logger.exception("Error in string_translation_deleted_handler")
+
+
+@receiver(post_save, sender=TranslationLog)
+def translation_log_saved_handler(
+    sender: type, instance: TranslationLog, created: bool, **kwargs: Any
+) -> None:
+    """Update progress when translations are pushed to a target.
+
+    TranslationLog is created after create_or_update_translation's atomic block
+    exits, which is after every on_commit callback queued inside it has already
+    run. Without this receiver, the rebuilds triggered by a push all observe an
+    empty TranslationLog and store percent_published = 0.
+    """
+    if not should_auto_update():
+        return
+
+    def update_after_commit() -> None:
+        try:
+            source_instance = instance.source.get_source_instance()
+
+            if isinstance(source_instance, Page):
+                if not get_setting("TRACK_PAGES"):
+                    return
+                if hasattr(source_instance, "translation_key"):
+                    original_page = (
+                        Page.objects.filter(
+                            translation_key=source_instance.translation_key
+                        )
+                        .order_by("id")
+                        .first()
+                    )
+                    if original_page:
+                        create_page_translation_progress(original_page)
+
+            elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
+                original = (
+                    type(source_instance)
+                    .objects.filter(translation_key=source_instance.translation_key)
+                    .order_by("id")
+                    .first()
+                )
+                if original:
+                    create_snippet_translation_progress(original)
+
+        except Exception:
+            logger.exception("Error in translation_log_saved_handler")
+
+    transaction.on_commit(update_after_commit)
 
 
 @receiver(post_save, sender=TranslationSource)

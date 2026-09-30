@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 from django.db import transaction
+from django.test import override_settings
 from wagtail_localize.models import (
     StringSegment,
     StringTranslation,
@@ -13,7 +14,15 @@ from wagtail_localize.models import (
 )
 
 from tests.models import DraftStateSnippet, RichTextSnippet, SampleSnippet
-from wagtail_localize_dashboard.utils import get_translation_progress
+from wagtail_localize_dashboard.models import (
+    SnippetTranslationProgress,
+    TranslationProgress,
+)
+from wagtail_localize_dashboard.utils import (
+    create_page_translation_progress,
+    create_snippet_translation_progress,
+    get_translation_progress,
+)
 
 pytestmark = [pytest.mark.django_db]
 
@@ -416,3 +425,146 @@ def test_editing_the_target_page_directly_does_not_affect_published_percentage(
 
     assert get_translation_progress(page, locale_es, target) == (100, 100)
     assert target.has_unpublished_changes is True
+
+
+@run_on_commit
+def test_rebuild_stores_percent_published_for_pages(
+    _on_commit, page_translation, locale_de
+):
+    page, source, translation = page_translation
+    paths = segment_paths(source)
+    translate_segment(source, locale_de, paths[0], "DE first")
+    translation.save_target(publish=True)
+    translate_segment(source, locale_de, paths[1], "DE second")
+
+    create_page_translation_progress(page)
+
+    progress = TranslationProgress.objects.get(
+        source_page=page, translated_page__locale=locale_de
+    )
+    total, translated = translation.get_progress()
+    assert progress.percent_translated == int(translated / total * 100)
+    assert progress.percent_published == int(1 / total * 100)
+
+
+@run_on_commit
+def test_rebuild_refreshes_percent_published_after_a_push(
+    _on_commit, page_translation, locale_de
+):
+    page, source, translation = page_translation
+    for path in segment_paths(source):
+        translate_segment(source, locale_de, path, f"DE {path}")
+    translation.save_target(publish=True)
+
+    target = target_of(page, locale_de)
+    target.unpublish()
+    create_page_translation_progress(page)
+
+    progress = TranslationProgress.objects.get(
+        source_page=page, translated_page__locale=locale_de
+    )
+    assert progress.percent_published == 0
+
+    target.refresh_from_db()
+    target.get_latest_revision().publish()
+    create_page_translation_progress(page)
+
+    progress.refresh_from_db()
+    assert progress.percent_published == progress.percent_translated
+
+
+@run_on_commit
+def test_fallback_source_branch_carries_percent_published(
+    _on_commit, test_page, locale_en, locale_de, locale_fr
+):
+    """FR is translated from DE, not EN; the fallback must still set published."""
+    source_en, _ = TranslationSource.get_or_create_from_instance(test_page)
+    translation_de, _ = Translation.objects.get_or_create(
+        source=source_en, target_locale=locale_de
+    )
+    for path in segment_paths(source_en):
+        translate_segment(source_en, locale_de, path, f"DE {path}")
+    translation_de.save_target(publish=True)
+
+    de_page = target_of(test_page, locale_de)
+    source_de, _ = TranslationSource.get_or_create_from_instance(de_page)
+    translation_fr, _ = Translation.objects.get_or_create(
+        source=source_de, target_locale=locale_fr
+    )
+    for path in segment_paths(source_de):
+        translate_segment(source_de, locale_fr, path, f"FR {path}")
+    translation_fr.save_target(publish=True)
+
+    assert not Translation.objects.filter(
+        source=source_en, target_locale=locale_fr
+    ).exists(), "EN->FR must not exist, so the fallback branch is exercised"
+
+    create_page_translation_progress(test_page)
+
+    progress = TranslationProgress.objects.get(
+        source_page=test_page, translated_page__locale=locale_fr
+    )
+    assert progress.percent_translated > 0
+    assert progress.percent_published == progress.percent_translated
+
+
+@override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"])
+@run_on_commit
+def test_rebuild_stores_percent_published_for_snippets(
+    _on_commit, locale_en, locale_de
+):
+    snippet = SampleSnippet.objects.create(
+        locale=locale_en, heading="Heading", desc="Desc"
+    )
+    source, _ = TranslationSource.get_or_create_from_instance(snippet)
+    translation, _ = Translation.objects.get_or_create(
+        source=source, target_locale=locale_de
+    )
+    for path in segment_paths(source):
+        translate_segment(source, locale_de, path, f"DE {path}")
+    translation.save_target(publish=True)
+
+    create_snippet_translation_progress(snippet)
+
+    progress = SnippetTranslationProgress.objects.get(
+        source_object_id=snippet.pk, translated_locale=locale_de
+    )
+    assert progress.percent_published == progress.percent_translated
+
+
+@run_on_commit
+def test_publishing_the_target_refreshes_percent_published_via_signals(
+    _on_commit, page_translation, locale_de
+):
+    """The handlers must keep percent_published correct with no explicit rebuild."""
+    page, source, translation = page_translation
+    paths = segment_paths(source)
+    total = len(paths)
+
+    # The target page does not exist until the first push, and neither does the
+    # progress row - create_page_translation_progress iterates get_translations().
+    translate_segment(source, locale_de, paths[0], "DE first")
+    translation.save_target(publish=True)
+
+    progress = TranslationProgress.objects.get(
+        source_page=page, translated_page__locale=locale_de
+    )
+    assert progress.percent_published == int(1 / total * 100), (
+        "translation_log_saved_handler must have rebuilt after the push"
+    )
+
+    # A new translation arrives: string_translation_saved_handler must rebuild,
+    # and the published percentage must be recalculated.
+    translate_segment(source, locale_de, paths[1], "DE second")
+
+    progress.refresh_from_db()
+    assert progress.percent_translated == 100
+    assert progress.percent_published == int(1 / total * 100), (
+        "the second translation is not live yet"
+    )
+
+    # Pushing it must recalculate, again with no explicit rebuild call.
+    translation.save_target(publish=True)
+
+    progress.refresh_from_db()
+    assert progress.percent_published == progress.percent_translated == 100
