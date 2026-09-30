@@ -1,9 +1,10 @@
 """Tests for models in wagtail-localize-dashboard."""
 
+import pytest
 from django.contrib.contenttypes.models import ContentType
+from django.db import IntegrityError
 from django.urls import reverse
 
-import pytest
 from tests.models import DraftStateSnippet, SampleSnippet
 from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
@@ -81,7 +82,7 @@ class TestTranslationProgress:
         )
 
         # Attempting to create duplicate should fail
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(IntegrityError):
             TranslationProgress.objects.create(
                 source_page=test_page,
                 translated_page=de_page,
@@ -257,7 +258,7 @@ class TestSnippetTranslationProgress:
             percent_translated=0,
         )
 
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(IntegrityError):
             SnippetTranslationProgress.objects.create(
                 content_type=ct,
                 source_object_id=source.pk,

@@ -1,13 +1,12 @@
 """Models for storing cached translation progress data."""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils.translation import gettext_lazy as _
-
 from wagtail.models import DraftStateMixin, Locale, Page
 
 
@@ -68,7 +67,7 @@ class TranslationProgress(models.Model):
             f"{self.source_page} -> {self.translated_page} ({self.percent_translated}%)"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Return dictionary representation for API/templates.
 
@@ -85,7 +84,7 @@ class TranslationProgress(models.Model):
 
         try:
             edit_url = self.get_edit_url()
-        except Exception:
+        except NoReverseMatch:
             edit_url = "#"
 
         return {
@@ -198,7 +197,7 @@ class SnippetTranslationProgress(models.Model):
         url_name = f"wagtailsnippets_{app_label}_{model_name}:edit"
         return reverse(url_name, args=[self.translated_object_id])
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Return dictionary representation for use in templates.
 
@@ -211,7 +210,7 @@ class SnippetTranslationProgress(models.Model):
 
         try:
             edit_url = self.get_edit_url()
-        except Exception:
+        except NoReverseMatch:
             edit_url = "#"
 
         model_class = self.content_type.model_class()
@@ -219,8 +218,8 @@ class SnippetTranslationProgress(models.Model):
             model_class, DraftStateMixin
         )
 
-        live: Optional[bool] = None
-        has_unpublished_changes: Optional[bool] = None
+        live: bool | None = None
+        has_unpublished_changes: bool | None = None
         if has_draft_state:
             live = self.translated.live
             has_unpublished_changes = self.translated.has_unpublished_changes

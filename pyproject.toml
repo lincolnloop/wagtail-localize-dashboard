@@ -106,3 +106,8 @@ markers = [
     "accessibility: marks tests as accessibility tests (deselect with '-m \"not accessibility\"')",
     "selenium: marks tests that require Selenium WebDriver",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore "Mutable default value for class attribute" in all migrations and models
+"*/migrations/*" = ["RUF012"]
+"*/models.py" = ["RUF012"]

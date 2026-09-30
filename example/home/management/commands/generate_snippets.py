@@ -7,7 +7,6 @@ import time
 from typing import Any
 
 from django.core.management.base import BaseCommand
-
 from wagtail.models import Locale
 from wagtail_localize.models import Translation, TranslationSource
 
@@ -208,7 +207,7 @@ class Command(BaseCommand):
                 translation_source, _ = TranslationSource.get_or_create_from_instance(
                     snippet
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self.stdout.write(
                     self.style.WARNING(
                         f"  Could not create translation source for {snippet}: {e}"
@@ -226,7 +225,7 @@ class Command(BaseCommand):
                     if created:
                         translation.save_target()
                         total_translations += 1
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     self.stdout.write(
                         self.style.WARNING(
                             f"  Could not translate {snippet} to {locale.language_code}: {e}"

@@ -3,7 +3,6 @@
 import pytest
 from django.test import override_settings
 from django.urls import reverse
-
 from wagtail.admin.menu import MenuItem, SubmenuMenuItem
 
 from wagtail_localize_dashboard.wagtail_hooks import (

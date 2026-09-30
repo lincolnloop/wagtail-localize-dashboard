@@ -1,11 +1,9 @@
 """Utility functions for calculating and managing translation progress."""
 
 import logging
-from typing import Dict, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Min, Model, QuerySet
-
 from wagtail.models import Locale, Page
 from wagtail_localize.models import TranslatableObject, Translation, TranslationSource
 
@@ -17,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def get_translation_percentages(
     source_object: Model, target_locale: Locale
-) -> Optional[int]:
+) -> int | None:
     """
     Calculate translation percentage for a source object to target locale.
 
@@ -121,15 +119,15 @@ def create_page_translation_progress(source_page: Page) -> None:
                 },
             )
 
-    except (ValueError, AttributeError) as error:
+    except (ValueError, AttributeError):
         # If there's an unexpected error, log it
         logger.exception(
-            f"Error creating translation progress for {source_page}: {error}",
+            f"Error creating translation progress for {source_page}",
             stack_info=True,
         )
 
 
-def rebuild_all_progress_for_pages() -> Dict[str, int]:
+def rebuild_all_progress_for_pages() -> dict[str, int]:
     """
     Rebuild translation progress for all pages.
 
@@ -157,8 +155,8 @@ def rebuild_all_progress_for_pages() -> Dict[str, int]:
             try:
                 create_page_translation_progress(page)
                 stats["pages"] += 1
-            except Exception as e:
-                logger.exception(f"Error processing page {page.id}: {e}")
+            except Exception:
+                logger.exception(f"Error processing page {page.id}")
                 stats["errors"] += 1
 
     return stats
@@ -206,14 +204,14 @@ def create_snippet_translation_progress(source_snippet: Model) -> None:
                 },
             )
 
-    except (ValueError, AttributeError) as error:
+    except (ValueError, AttributeError):
         logger.exception(
-            f"Error creating snippet translation progress for {source_snippet}: {error}",
+            f"Error creating snippet translation progress for {source_snippet}",
             stack_info=True,
         )
 
 
-def rebuild_all_snippet_progress() -> Dict[str, int]:
+def rebuild_all_snippet_progress() -> dict[str, int]:
     """
     Rebuild translation progress for all tracked snippets.
 
@@ -230,14 +228,14 @@ def rebuild_all_snippet_progress() -> Dict[str, int]:
             try:
                 create_snippet_translation_progress(snippet)
                 stats["snippets"] += 1
-            except Exception as e:
-                logger.exception(f"Error processing snippet {snippet}: {e}")
+            except Exception:
+                logger.exception(f"Error processing snippet {snippet}")
                 stats["errors"] += 1
 
     return stats
 
 
-def rebuild_all_progress() -> Dict[str, int]:
+def rebuild_all_progress() -> dict[str, int]:
     """
     Rebuild translation progress for all pages and all tracked snippets.
 

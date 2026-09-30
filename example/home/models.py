@@ -3,13 +3,11 @@ Example page models demonstrating translatable content.
 """
 
 from django.db import models
-
 from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import DraftStateMixin, Page, RevisionMixin
 from wagtail.snippets.models import register_snippet
-
 from wagtail_localize.models import TranslatableMixin
 
 
