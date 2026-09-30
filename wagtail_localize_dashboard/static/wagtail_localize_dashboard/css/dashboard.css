@@ -133,3 +133,24 @@
     color: #999;
     opacity: 0.5;
 }
+
+/* A separate channel from the translated-percentage colour scale, so a row can
+   be both "mostly untranslated" (red) and "awaiting publish".
+
+   The ring is currentColor, not a fixed amber. Each button sets `color: white`
+   on a coloured fill and inverts to `color: <its own hue>` on white on hover,
+   so currentColor contrasts in both states: 4.86 / 4.52 / 5.00 against amber,
+   green and red respectively, and the same three ratios again on hover.
+
+   An inset box-shadow rather than an outline so it cannot displace the focus
+   ring. */
+.button.has-unpublished {
+    box-shadow: inset 0 0 0 2px currentColor;
+}
+
+/* The "(N% live)" badge. */
+.published-pct {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+    white-space: nowrap;
+}

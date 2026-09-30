@@ -749,3 +749,60 @@ class TestSnippetProgressDashboardView:
             row["snippet"] for row in response.context["snippets_with_progress"]
         ]
         assert source not in snippets
+
+
+class TestSnippetPublishedPercentageRendering:
+    """The snippet dashboard shows the publish gap."""
+
+    def _progress(self, snippet, translated, locale, translated_pct, published_pct):
+        return SnippetTranslationProgress.objects.create(
+            content_type=ContentType.objects.get_for_model(SampleSnippet),
+            source_object_id=snippet.pk,
+            translated_object_id=translated.pk,
+            translated_locale=locale,
+            percent_translated=translated_pct,
+            percent_published=published_pct,
+        )
+
+    def _content(self, admin_client):
+        return admin_client.get(reverse(SNIPPET_DASHBOARD_URL_NAME)).content.decode()
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_gap_is_flagged(
+        self, admin_client, sample_snippet, sample_snippet_de, locale_de
+    ):
+        progress = self._progress(sample_snippet, sample_snippet_de, locale_de, 40, 20)
+        content = self._content(admin_client)
+
+        assert "has-unpublished" in content
+        assert "In progress, awaiting publish:" in content
+        assert f"{progress.percent_published}% live" in content
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_no_gap_is_not_flagged(
+        self, admin_client, sample_snippet, sample_snippet_de, locale_de
+    ):
+        self._progress(sample_snippet, sample_snippet_de, locale_de, 100, 100)
+        content = self._content(admin_client)
+
+        assert "awaiting publish:" not in content
+        assert "has-unpublished" not in content
+
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
+    def test_uncomputed_rows_are_not_flagged(
+        self, admin_client, sample_snippet, sample_snippet_de, locale_de
+    ):
+        progress = self._progress(
+            sample_snippet, sample_snippet_de, locale_de, 100, None
+        )
+        assert progress.percent_published is None
+
+        content = self._content(admin_client)
+        assert "awaiting publish:" not in content
+        assert "% live" not in content
