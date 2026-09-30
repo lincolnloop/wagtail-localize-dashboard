@@ -309,3 +309,77 @@ class TestSnippetTranslationProgress:
         assert ct.app_label in url
         assert ct.model in url
         assert str(translated.pk) in url
+
+
+class TestPercentPublished:
+    """percent_published is nullable and drives has_unpublished_translations."""
+
+    def test_defaults_to_none(self, test_page, locale_de):
+        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
+        translated.save()
+        progress = TranslationProgress.objects.create(
+            source_page=test_page, translated_page=translated, percent_translated=40
+        )
+        assert progress.percent_published is None
+
+    def test_to_dict_reports_none_without_flagging(self, test_page, locale_de):
+        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
+        translated.save()
+        progress = TranslationProgress.objects.create(
+            source_page=test_page, translated_page=translated, percent_translated=40
+        )
+        data = progress.to_dict()
+        assert data["percent_published"] is None
+        assert data["has_unpublished_translations"] is False
+
+    def test_to_dict_flags_a_gap(self, test_page, locale_de):
+        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
+        translated.save()
+        progress = TranslationProgress.objects.create(
+            source_page=test_page,
+            translated_page=translated,
+            percent_translated=40,
+            percent_published=20,
+        )
+        data = progress.to_dict()
+        assert data["percent_published"] == 20
+        assert data["has_unpublished_translations"] is True
+
+    def test_to_dict_does_not_flag_when_equal(self, test_page, locale_de):
+        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
+        translated.save()
+        progress = TranslationProgress.objects.create(
+            source_page=test_page,
+            translated_page=translated,
+            percent_translated=40,
+            percent_published=40,
+        )
+        assert progress.to_dict()["has_unpublished_translations"] is False
+
+    def test_zero_published_is_flagged(self, test_page, locale_de):
+        """0 and None must not be conflated."""
+        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
+        translated.save()
+        progress = TranslationProgress.objects.create(
+            source_page=test_page,
+            translated_page=translated,
+            percent_translated=100,
+            percent_published=0,
+        )
+        assert progress.to_dict()["has_unpublished_translations"] is True
+
+    def test_snippet_progress_to_dict(
+        self, sample_snippet, sample_snippet_de, locale_de
+    ):
+        ct = ContentType.objects.get_for_model(SampleSnippet)
+        progress = SnippetTranslationProgress.objects.create(
+            content_type=ct,
+            source_object_id=sample_snippet.pk,
+            translated_object_id=sample_snippet_de.pk,
+            translated_locale=locale_de,
+            percent_translated=50,
+            percent_published=25,
+        )
+        data = progress.to_dict()
+        assert data["percent_published"] == 25
+        assert data["has_unpublished_translations"] is True

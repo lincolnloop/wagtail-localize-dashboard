@@ -41,6 +41,17 @@ class TranslationProgress(models.Model):
         default=0, help_text=_("Percentage of segments translated (0-100)")
     )
 
+    # Share of segments actually pushed to a live target; null = not yet computed
+    percent_published = models.IntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=_(
+            "Percentage of segments translated and pushed to a live target "
+            "(0-100), or null if it has not been calculated yet"
+        ),
+    )
+
     # Metadata
     last_updated = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -55,6 +66,7 @@ class TranslationProgress(models.Model):
         # Indexes for common queries
         indexes = [
             models.Index(fields=["percent_translated"], name="trans_prog_percent_idx"),
+            models.Index(fields=["percent_published"], name="trans_prog_pub_idx"),
             models.Index(fields=["last_updated"], name="trans_prog_updated_idx"),
         ]
 
@@ -90,6 +102,11 @@ class TranslationProgress(models.Model):
         return {
             "locale": locale,
             "percent_translated": self.percent_translated,
+            "percent_published": self.percent_published,
+            "has_unpublished_translations": (
+                self.percent_published is not None
+                and self.percent_published < self.percent_translated
+            ),
             "edit_url": edit_url,
             "view_url": self.get_view_url,
             "last_updated": self.last_updated,
@@ -162,6 +179,17 @@ class SnippetTranslationProgress(models.Model):
         default=0, help_text=_("Percentage of segments translated (0-100)")
     )
 
+    # Share of segments actually pushed to a live target; null = not yet computed
+    percent_published = models.IntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=_(
+            "Percentage of segments translated and pushed to a live target "
+            "(0-100), or null if it has not been calculated yet"
+        ),
+    )
+
     # Metadata
     last_updated = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -174,6 +202,7 @@ class SnippetTranslationProgress(models.Model):
 
         indexes = [
             models.Index(fields=["percent_translated"], name="snip_prog_percent_idx"),
+            models.Index(fields=["percent_published"], name="snip_prog_pub_idx"),
             models.Index(fields=["last_updated"], name="snip_prog_updated_idx"),
         ]
 
@@ -227,6 +256,11 @@ class SnippetTranslationProgress(models.Model):
         return {
             "locale": locale,
             "percent_translated": self.percent_translated,
+            "percent_published": self.percent_published,
+            "has_unpublished_translations": (
+                self.percent_published is not None
+                and self.percent_published < self.percent_translated
+            ),
             "edit_url": edit_url,
             "last_updated": self.last_updated,
             "live": live,
