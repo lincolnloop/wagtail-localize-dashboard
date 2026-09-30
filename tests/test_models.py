@@ -312,7 +312,8 @@ class TestSnippetTranslationProgress:
 
 
 class TestPercentPublished:
-    """percent_published is nullable and drives has_unpublished_translations."""
+    """Tests for the TranslationProgress and SnippetTranslationProgress models
+    involving the percent_published and has_unpublished_translations fields."""
 
     def test_defaults_to_none(self, test_page, locale_de):
         translated = test_page.copy_for_translation(locale_de, copy_parents=True)

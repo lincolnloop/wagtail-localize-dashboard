@@ -572,12 +572,8 @@ def test_publishing_the_target_refreshes_percent_published_via_signals(
 
 @pytest.mark.django_db(transaction=True)
 def test_percent_published_is_correct_after_a_real_commit(test_page, locale_de):
-    """The receiver must hold under real COMMIT semantics, not just a patched on_commit.
-
-    Every other test here runs under run_on_commit, which fires callbacks inline.
-    This one does not, so it is the only test that proves wagtail-localize's
-    publish callback really does run before our rebuild callback at COMMIT.
-    """
+    """The receiver must hold under real COMMIT semantics, not just a patched
+    on_commit."""
     source, __ = TranslationSource.get_or_create_from_instance(test_page)
     translation, __ = Translation.objects.get_or_create(
         source=source, target_locale=locale_de

@@ -74,7 +74,7 @@ class TestRebuildTranslationProgress:
     def test_command_backfills_null_percent_published(
         self, test_page_with_translations, locale_de
     ):
-        """The documented upgrade path: null percent_published rows are populated."""
+        """Test that command populates null percent_published rows."""
         call_command("rebuild_translation_progress", stdout=StringIO())
         TranslationProgress.objects.update(percent_published=None)
         assert TranslationProgress.objects.filter(percent_published=None).exists()
@@ -270,7 +270,7 @@ class TestRebuildTranslationProgressForPages:
     def test_command_backfills_null_percent_published(
         self, test_page_with_translations, locale_de
     ):
-        """The documented upgrade path: null percent_published rows are populated."""
+        """Command populates null percent_published rows."""
         call_command("rebuild_translation_progress_for_pages", stdout=StringIO())
         TranslationProgress.objects.update(percent_published=None)
         assert TranslationProgress.objects.filter(percent_published=None).exists()
@@ -403,7 +403,7 @@ class TestRebuildTranslationProgressForSnippets:
         assert updated.percent_translated != 50
 
     def test_command_backfills_null_percent_published(self, locale_en, locale_de):
-        """The documented upgrade path: null percent_published rows are populated."""
+        """Command populates null percent_published rows."""
         source = SampleSnippet.objects.create(locale=locale_en, heading="Hello")
         translation_source, _ = TranslationSource.get_or_create_from_instance(source)
         translation, _ = Translation.objects.get_or_create(

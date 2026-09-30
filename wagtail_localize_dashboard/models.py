@@ -41,7 +41,7 @@ class TranslationProgress(models.Model):
         default=0, help_text=_("Percentage of segments translated (0-100)")
     )
 
-    # Share of segments actually pushed to a live target; null = not yet computed
+    # Translation published progress (0-100); null = not yet computed
     percent_published = models.IntegerField(
         null=True,
         blank=True,
@@ -179,7 +179,7 @@ class SnippetTranslationProgress(models.Model):
         default=0, help_text=_("Percentage of segments translated (0-100)")
     )
 
-    # Share of segments actually pushed to a live target; null = not yet computed
+    # Translation published progress (0-100); null = not yet computed
     percent_published = models.IntegerField(
         null=True,
         blank=True,
