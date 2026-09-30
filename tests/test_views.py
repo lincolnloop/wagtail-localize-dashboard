@@ -554,6 +554,16 @@ class TestPublishedPercentageRendering:
         assert "0% live" in content
         assert "Complete, awaiting publish:" in content
 
+    def test_a_low_percentage_row_stays_red(self, admin_client, test_page, locale_de):
+        """The publish gap must not borrow the translated-percentage colour scale."""
+        self._progress(test_page, locale_de, 10, 5)
+        content = self._content(admin_client)
+
+        assert "btn-danger" in content
+        assert "btn-success" not in content
+        assert "has-unpublished" in content
+        assert "5% live" in content
+
     def test_no_gap_is_not_flagged(self, admin_client, test_page, locale_de):
         self._progress(test_page, locale_de, 100, 100)
         content = self._content(admin_client)
