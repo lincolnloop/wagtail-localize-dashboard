@@ -170,7 +170,7 @@ def test_duplicate_segments_in_rich_text_are_counted_per_segment(
     assert percent_published == percent_translated, (
         "published must count segments, not StringTranslation rows"
     )
-    assert "DE Hello" in target.body, "the duplicate really is published"
+    assert target.body.count("DE Hello") == 2, "the duplicate really is published"
 
 
 @run_on_commit
@@ -209,7 +209,7 @@ def test_draft_push_to_a_live_page_counts_as_published(
     translate_segment(source, locale_de, paths[0], "DE first")
     translation.save_target(publish=True)
 
-    translate_segment(source, locale_de, paths[1], "DE second")
+    translate_segment(source, locale_de, paths[1], "de-second")  # slug field
     translation.save_target(publish=False)
 
     target = target_of(page, locale_de)
@@ -219,6 +219,7 @@ def test_draft_push_to_a_live_page_counts_as_published(
         page, locale_de, target
     )
     assert percent_published == percent_translated
+    assert target.slug == "de-second", "the new translation is not live"
 
 
 @run_on_commit
