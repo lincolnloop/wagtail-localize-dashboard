@@ -29,12 +29,4 @@ class Migration(migrations.Migration):
                 null=True,
             ),
         ),
-        migrations.AddIndex(
-            model_name="snippettranslationprogress",
-            index=models.Index(fields=["percent_published"], name="snip_prog_pub_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="translationprogress",
-            index=models.Index(fields=["percent_published"], name="trans_prog_pub_idx"),
-        ),
     ]

@@ -66,7 +66,6 @@ class TranslationProgress(models.Model):
         # Indexes for common queries
         indexes = [
             models.Index(fields=["percent_translated"], name="trans_prog_percent_idx"),
-            models.Index(fields=["percent_published"], name="trans_prog_pub_idx"),
             models.Index(fields=["last_updated"], name="trans_prog_updated_idx"),
         ]
 
@@ -202,7 +201,6 @@ class SnippetTranslationProgress(models.Model):
 
         indexes = [
             models.Index(fields=["percent_translated"], name="snip_prog_percent_idx"),
-            models.Index(fields=["percent_published"], name="snip_prog_pub_idx"),
             models.Index(fields=["last_updated"], name="snip_prog_updated_idx"),
         ]
 
