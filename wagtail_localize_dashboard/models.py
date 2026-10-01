@@ -52,6 +52,17 @@ class TranslationProgress(models.Model):
         ),
     )
 
+    # Whether the number of published translated segments is less
+    # than the count of total translated segments. Stored since int()
+    # truncation can make two different segment counts the same
+    # percentage.
+    has_unpublished_translations = models.BooleanField(
+        default=False,
+        help_text=_(
+            "True when some translated segments have not been pushed to a live target."
+        ),
+    )
+
     # Metadata
     last_updated = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -186,6 +197,17 @@ class SnippetTranslationProgress(models.Model):
         help_text=_(
             "Percentage of segments translated and pushed to a live target "
             "(0-100), or null if it has not been calculated yet"
+        ),
+    )
+
+    # Whether the number of published translated segments is less
+    # than the count of total translated segments. Stored since int()
+    # truncation can make two different segment counts the same
+    # percentage.
+    has_unpublished_translations = models.BooleanField(
+        default=False,
+        help_text=_(
+            "True when some translated segments have not been pushed to a live target."
         ),
     )
 

@@ -29,4 +29,20 @@ class Migration(migrations.Migration):
                 null=True,
             ),
         ),
+        migrations.AddField(
+            model_name="snippettranslationprogress",
+            name="has_unpublished_translations",
+            field=models.BooleanField(
+                default=False,
+                help_text="True when some translated segments have not been pushed to a live target.",
+            ),
+        ),
+        migrations.AddField(
+            model_name="translationprogress",
+            name="has_unpublished_translations",
+            field=models.BooleanField(
+                default=False,
+                help_text="True when some translated segments have not been pushed to a live target.",
+            ),
+        ),
     ]

@@ -384,3 +384,23 @@ class TestPercentPublished:
         data = progress.to_dict()
         assert data["percent_published"] == 25
         assert data["has_unpublished_translations"] is True
+
+    def test_has_unpublished_translations_defaults_to_false(self, test_page, locale_de):
+        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
+        translated.save()
+        progress = TranslationProgress.objects.create(
+            source_page=test_page, translated_page=translated, percent_translated=40
+        )
+        assert progress.has_unpublished_translations is False
+
+    def test_snippet_has_unpublished_translations_defaults_to_false(
+        self, sample_snippet, sample_snippet_de, locale_de
+    ):
+        progress = SnippetTranslationProgress.objects.create(
+            content_type=ContentType.objects.get_for_model(SampleSnippet),
+            source_object_id=sample_snippet.pk,
+            translated_object_id=sample_snippet_de.pk,
+            translated_locale=locale_de,
+            percent_translated=50,
+        )
+        assert progress.has_unpublished_translations is False
