@@ -16,9 +16,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test import LiveServerTestCase, override_settings
 from django.urls import reverse
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium_axe_python import Axe
 from wagtail.models import Locale, Page
 
 from tests.models import SampleSnippet
@@ -26,6 +23,14 @@ from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
     TranslationProgress,
 )
+
+# These tests drive a real browser. The dependencies ship in the
+# `accessibility` extra, not in the test extras, so the version matrix does
+# not carry a browser stack it never uses. Guarding the import skips this
+# module where they are absent instead of failing the whole run at collection.
+webdriver = pytest.importorskip("selenium.webdriver")
+Options = pytest.importorskip("selenium.webdriver.chrome.options").Options
+Axe = pytest.importorskip("selenium_axe_python").Axe
 
 User = get_user_model()
 

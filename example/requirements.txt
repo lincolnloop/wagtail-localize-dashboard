@@ -1,7 +1,7 @@
 # Core dependencies
-Django>=4.2,<5.1
-Wagtail>=5.2,<7.0
-wagtail-localize>=1.8
+Django>=5.2
+Wagtail>=7.0
+wagtail-localize>=1.14
 django-debug-toolbar==6.1.0
 django-extensions==4.1
 
