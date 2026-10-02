@@ -619,7 +619,7 @@ def test_a_gap_smaller_than_one_percent_is_still_flagged(
     )
 
     assert percent_translated == percent_published == 1, (
-        "this test is only meaningful while the two percentages collide"
+        "the two percentages must be equal for this test's premise to hold"
     )
     assert has_unpublished is True, (
         "2 of 3 translated segments are live - the gap should be reported"

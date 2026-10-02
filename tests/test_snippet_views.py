@@ -812,6 +812,9 @@ class TestSnippetPublishedPercentageRendering:
         assert "awaiting publish:" not in content
         assert "% live" not in content
 
+    @override_settings(
+        WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
+    )
     def test_reported_gap_without_percentage_is_not_flagged(
         self, admin_client, sample_snippet, sample_snippet_de, locale_de
     ):
