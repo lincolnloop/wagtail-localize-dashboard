@@ -2,6 +2,10 @@
 
 ## 0.6.0
 
+### Added
+
+- Pre-commit hooks for linting, and a `pre-commit` CI workflow.
+
 ### Removed
 
 - Support for Django 4.2-5.1 and Wagtail 5.2-6.x. Those versions are not
