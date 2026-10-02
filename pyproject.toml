@@ -38,9 +38,9 @@ classifiers = [
     "Topic :: Software Development :: Localization",
 ]
 dependencies = [
-    "Django>=4.2",
-    "Wagtail>=5.2",
-    "wagtail-localize>=1.8",
+    "Django>=5.2",
+    "Wagtail>=7.0",
+    "wagtail-localize>=1.14",
 ]
 
 [project.optional-dependencies]
