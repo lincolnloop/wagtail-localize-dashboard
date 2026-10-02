@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-17 16:07-0400\n"
+"POT-Creation-Date: 2026-10-01 17:06-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -127,6 +127,15 @@ msgstr ""
 msgid "Percentage of segments translated (0-100)"
 msgstr ""
 
+msgid ""
+"Percentage of segments translated and pushed to a live target (0-100), or "
+"null if it has not been calculated yet"
+msgstr ""
+
+msgid ""
+"True when some translated segments have not been pushed to a live target."
+msgstr ""
+
 msgid "Translation Progress"
 msgstr ""
 
@@ -195,13 +204,28 @@ msgid "draft"
 msgstr ""
 
 #, python-format
+msgid ""
+"Edit %(locale)s version - %(percent)s%% translated, %(published)s%% published"
+msgstr ""
+
+#, python-format
 msgid "Edit %(locale)s version - %(percent)s%% complete"
+msgstr ""
+
+msgid "Complete, awaiting publish:"
+msgstr ""
+
+msgid "In progress, awaiting publish:"
 msgstr ""
 
 msgid "Complete:"
 msgstr ""
 
 msgid "In progress:"
+msgstr ""
+
+#, python-format
+msgid "%(published)s%% live"
 msgstr ""
 
 msgid "(draft)"

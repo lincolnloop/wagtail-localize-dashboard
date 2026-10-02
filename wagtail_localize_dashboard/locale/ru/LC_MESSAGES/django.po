@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wagtail-localize-dashboard 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-17 16:07-0400\n"
+"POT-Creation-Date: 2026-10-01 17:06-0600\n"
 "PO-Revision-Date: 2026-04-17 15:26+0000\n"
 "Last-Translator: \n"
 "Language-Team: Russian\n"
@@ -131,6 +131,19 @@ msgstr "Переведённая страница"
 msgid "Percentage of segments translated (0-100)"
 msgstr "Процент переведённых сегментов (0–100)"
 
+msgid ""
+"Percentage of segments translated and pushed to a live target (0-100), or "
+"null if it has not been calculated yet"
+msgstr ""
+"Процент переведенных и опубликованных сегментов (0-100), или null, если он "
+"еще не рассчитан"
+
+msgid ""
+"True when some translated segments have not been pushed to a live target."
+msgstr ""
+"Верно в том случае, если некоторые переведенные фрагменты не были "
+"опубликованы."
+
 msgid "Translation Progress"
 msgstr "Прогресс перевода"
 
@@ -198,15 +211,32 @@ msgstr "опубликовано"
 msgid "draft"
 msgstr "черновик"
 
+#, fuzzy, python-format
+msgid ""
+"Edit %(locale)s version - %(percent)s%% translated, %(published)s%% published"
+msgstr ""
+"Редактировать версию %(locale)s — %(percent)s%% завершено, %(published)s%% "
+"опубликовано"
+
 #, python-format
 msgid "Edit %(locale)s version - %(percent)s%% complete"
 msgstr "Редактировать версию %(locale)s — %(percent)s%% завершено"
+
+msgid "Complete, awaiting publish:"
+msgstr "Завершено, ожидание публикации:"
+
+msgid "In progress, awaiting publish:"
+msgstr "В процессе, ожидание публикации:"
 
 msgid "Complete:"
 msgstr "Завершено:"
 
 msgid "In progress:"
 msgstr "В процессе:"
+
+#, python-format
+msgid "%(published)s%% live"
+msgstr "%(published)s%% опубликовано"
 
 msgid "(draft)"
 msgstr "(черновик)"
