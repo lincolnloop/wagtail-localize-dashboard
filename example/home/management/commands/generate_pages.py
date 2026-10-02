@@ -1,3 +1,5 @@
+# ruff: noqa: S311  Demo data generator: `random` picks sample titles,
+# dates and prices. Nothing here is security-sensitive.
 """
 Management command to generate 1000 pages with translations into all locales.
 """
@@ -268,7 +270,7 @@ class Command(BaseCommand):
         start_time = time.time()
 
         self.stdout.write(
-            f"  Total to create: {len(source_pages)} pages × {len(target_locales)} locales = {total_to_create:,} translations"
+            f"  Total to create: {len(source_pages)} pages × {len(target_locales)} locales = {total_to_create:,} translations"  # noqa: RUF001
         )
         self.stdout.write("  Progress updates every 5 pages...\n")
         sys.stdout.flush()

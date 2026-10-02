@@ -57,8 +57,9 @@ accessibility = [
 dev = [
     # Everything the tests need, declared once in `test` above.
     "wagtail-localize-dashboard[test]",
-    # Pinned exactly, and must match [tool.hatch.envs.lint] below.
-    "ruff==0.15.12",
+    # Pinned exactly, and must match [tool.hatch.envs.lint] and
+    # [tool.ruff].required-version below. Ruff refuses to run on a mismatch.
+    "ruff==0.16.9",
 ]
 
 [project.urls]
@@ -83,7 +84,7 @@ wagtail_localize_dashboard = [
 [tool.hatch.envs.lint]
 detached = true
 installer = "uv"
-dependencies = ["ruff==0.15.12"]
+dependencies = ["ruff==0.16.9"]
 
 [tool.hatch.envs.lint.scripts]
 check = ["ruff check {args:.}", "ruff format --check {args:.}"]
@@ -154,7 +155,21 @@ markers = [
     "selenium: marks tests that require Selenium WebDriver",
 ]
 
+[tool.ruff]
+# Must match the two `ruff==` pins above. Ruff refuses to run on a mismatch.
+required-version = "==0.16.9"
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "C4", "SIM", "RUF", "TRY", "BLE", "DTZ", "PT", "LOG", "DJ", "W", "S"]
+ignore = [
+    "TRY003",  # long messages at the raise site
+    "RUF005",  # list concatenation over iterable unpacking
+]
+
 [tool.ruff.lint.per-file-ignores]
 # Ignore "Mutable default value for class attribute" in all migrations and models
 "*/migrations/*" = ["RUF012"]
 "*/models.py" = ["RUF012"]
+"tests/*" = ["PT019", "S101", "S106"] # PT019: fixture-naming convention local to this suite

@@ -52,14 +52,14 @@ def get_translation_percentages(
         else:
             percent_translated = 100  # No segments = 100% complete
 
-        return percent_translated
-
     except (
         TranslationSource.DoesNotExist,
         Translation.DoesNotExist,
         TranslatableObject.DoesNotExist,
     ):
         return None
+    else:
+        return percent_translated
 
 
 def create_page_translation_progress(source_page: Page) -> None:
