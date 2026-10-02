@@ -10,6 +10,8 @@
 - `TranslationProgress.to_dict()` and `SnippetTranslationProgress.to_dict()`
   gain two keys, `percent_published` (`int | None`) and
   `has_unpublished_translations` (`bool`).
+- `get_translation_progress`, which returns a tuple of `percent_translated`,
+  `percent_published`, and `has_unpublished_translations`.
 - A segment re-saved without changes counts as unpublished until the next
   push: upstream records no per-segment push provenance, so an identical
   re-save still bumps `updated_at` and drops the segment from the published
@@ -22,6 +24,11 @@
   `MultipleObjectsReturned` into a bare `except`.
 - The amber status color (`#faa500`) failed WCAG AA against white text at
   2.01:1 and is now `#a06400` at 4.86:1.
+
+### Deprecated
+
+- `get_translation_percentages` deprecated in favor of 
+  `get_translation_progress`.
 
 ### Upgrading
 

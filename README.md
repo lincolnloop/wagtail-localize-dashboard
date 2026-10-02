@@ -158,7 +158,7 @@ Use the targeted commands when you know only one type of content has changed, to
 
 ```python
 from wagtail_localize_dashboard.utils import (
-    get_translation_percentages,
+    get_translation_progress,
     create_page_translation_progress,
     create_snippet_translation_progress,
     rebuild_all_progress,
@@ -166,11 +166,12 @@ from wagtail_localize_dashboard.utils import (
     rebuild_all_snippet_progress,
 )
 
-# Get translation percentage for a specific locale (works for pages and snippets)
+# Get translation progress for a specific locale (works for pages and snippets)
 from wagtail.models import Locale
 
 locale_de = Locale.objects.get(language_code="de")
-percent = get_translation_percentages(source_object, locale_de)
+progress = get_translation_progress(source_object, locale_de, translated_object)
+percent_translated, percent_published, has_unpublished_translations = progress
 
 # Rebuild progress selectively
 page_stats = rebuild_all_progress_for_pages()

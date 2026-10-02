@@ -1,6 +1,7 @@
 """Utility functions for calculating and managing translation progress."""
 
 import logging
+import warnings
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Exists, Max, Min, Model, OuterRef, QuerySet
@@ -43,10 +44,16 @@ def get_translation_percentages(
         >>> print(f"{percent}% translated")
 
     Note:
-        Retained as public API. The dashboard itself now uses
+        Deprecated but retained as public API. The dashboard itself now uses
         get_translation_progress(), which returns this figure plus the published
-        percentage.
+        percentage and whether some translations remain unpublished.
     """
+    warnings.warn(
+        "get_translation_percentages is deprecated and will be removed in a future "
+        "version. Use get_translation_progress() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     try:
         # Find the translation source for the source object
         translation_source = TranslationSource.objects.get_for_instance(source_object)
