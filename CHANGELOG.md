@@ -10,6 +10,11 @@
 - The unused `docs` extra (mkdocs, mkdocs-material, mkdocstrings), and the
   unused `black`, `flake8`, `isort` and `mypy` entries in the `dev` extra.
 
+### Fixed
+
+- a few color contrast issues (white text on amber in the 80-99% translation
+  badge, grey text in the "No translations" message)
+
 ### Changed
 
 - A supported matrix is now declared in `pyproject.toml` as hatch
