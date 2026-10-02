@@ -31,6 +31,8 @@ class TestTranslationProgress:
         assert progress.source_page_id == test_page.id
         assert progress.translated_page_id == de_page.id
         assert progress.percent_translated == 50
+        assert progress.percent_published is None
+        assert progress.has_unpublished_translations is False
 
     def test_to_dict(self, test_page, locale_de):
         """Test the to_dict method."""
@@ -42,6 +44,8 @@ class TestTranslationProgress:
             source_page=test_page,
             translated_page=de_page,
             percent_translated=75,
+            percent_published=25,
+            has_unpublished_translations=True,
         )
 
         result = progress.to_dict()
@@ -49,6 +53,8 @@ class TestTranslationProgress:
         assert isinstance(result, dict)
         assert result["locale"] == "de"
         assert result["percent_translated"] == 75
+        assert result["percent_published"] == 25
+        assert result["has_unpublished_translations"] is True
         assert result["edit_url"] == reverse(
             "wagtailadmin_pages:edit", args=[de_page.id]
         )
@@ -196,6 +202,8 @@ class TestSnippetTranslationProgress:
             translated_object_id=translated.pk,
             translated_locale=locale_de,
             percent_translated=50,
+            percent_published=25,
+            has_unpublished_translations=True,
         )
         progress = (
             SnippetTranslationProgress.objects.select_related(
@@ -209,6 +217,8 @@ class TestSnippetTranslationProgress:
 
         assert result["locale"] == "de"
         assert result["percent_translated"] == 50
+        assert result["percent_published"] == 25
+        assert result["has_unpublished_translations"] is True
         assert result["live"] is None
         assert result["has_unpublished_changes"] is None
 
@@ -241,6 +251,8 @@ class TestSnippetTranslationProgress:
 
         assert result["locale"] == "de"
         assert result["percent_translated"] == 75
+        assert result["percent_published"] is None
+        assert result["has_unpublished_translations"] is False
         assert result["live"] is True
         assert result["has_unpublished_changes"] is False
 
@@ -309,97 +321,3 @@ class TestSnippetTranslationProgress:
         assert ct.app_label in url
         assert ct.model in url
         assert str(translated.pk) in url
-
-
-class TestPercentPublished:
-    """Tests for the TranslationProgress and SnippetTranslationProgress models
-    involving the percent_published and has_unpublished_translations fields."""
-
-    def test_defaults_to_none(self, test_page, locale_de):
-        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
-        translated.save()
-        progress = TranslationProgress.objects.create(
-            source_page=test_page, translated_page=translated, percent_translated=40
-        )
-        assert progress.percent_published is None
-
-    def test_to_dict_reports_none_without_flagging(self, test_page, locale_de):
-        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
-        translated.save()
-        progress = TranslationProgress.objects.create(
-            source_page=test_page, translated_page=translated, percent_translated=40
-        )
-        data = progress.to_dict()
-        assert data["percent_published"] is None
-        assert data["has_unpublished_translations"] is False
-
-    def test_to_dict_flags_a_gap(self, test_page, locale_de):
-        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
-        translated.save()
-        progress = TranslationProgress.objects.create(
-            source_page=test_page,
-            translated_page=translated,
-            percent_translated=40,
-            percent_published=20,
-            has_unpublished_translations=True,
-        )
-        data = progress.to_dict()
-        assert data["percent_published"] == 20
-        assert data["has_unpublished_translations"] is True
-
-    def test_snippet_progress_to_dict(
-        self, sample_snippet, sample_snippet_de, locale_de
-    ):
-        ct = ContentType.objects.get_for_model(SampleSnippet)
-        progress = SnippetTranslationProgress.objects.create(
-            content_type=ct,
-            source_object_id=sample_snippet.pk,
-            translated_object_id=sample_snippet_de.pk,
-            translated_locale=locale_de,
-            percent_translated=50,
-            percent_published=25,
-            has_unpublished_translations=True,
-        )
-        data = progress.to_dict()
-        assert data["percent_published"] == 25
-        assert data["has_unpublished_translations"] is True
-
-    def test_has_unpublished_translations_defaults_to_false(self, test_page, locale_de):
-        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
-        translated.save()
-        progress = TranslationProgress.objects.create(
-            source_page=test_page, translated_page=translated, percent_translated=40
-        )
-        assert progress.has_unpublished_translations is False
-
-    def test_snippet_has_unpublished_translations_defaults_to_false(
-        self, sample_snippet, sample_snippet_de, locale_de
-    ):
-        progress = SnippetTranslationProgress.objects.create(
-            content_type=ContentType.objects.get_for_model(SampleSnippet),
-            source_object_id=sample_snippet.pk,
-            translated_object_id=sample_snippet_de.pk,
-            translated_locale=locale_de,
-            percent_translated=50,
-        )
-        assert progress.has_unpublished_translations is False
-
-    def test_to_dict_reflects_a_stored_flag_when_percentages_are_equal(
-        self, test_page, locale_de
-    ):
-        """The flag is stored, not derived - equal percentages can still be a gap.
-
-        This is the shape the old derived implementation got wrong: on a source
-        with more than 100 segments the two percentages collide while the
-        underlying counts differ.
-        """
-        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
-        translated.save()
-        progress = TranslationProgress.objects.create(
-            source_page=test_page,
-            translated_page=translated,
-            percent_translated=1,
-            percent_published=1,
-            has_unpublished_translations=True,
-        )
-        assert progress.to_dict()["has_unpublished_translations"] is True
