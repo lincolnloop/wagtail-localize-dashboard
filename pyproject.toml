@@ -58,7 +58,7 @@ dev = [
     # Everything the tests need, declared once in `test` above.
     "wagtail-localize-dashboard[test]",
     # Pinned exactly, and must match [tool.hatch.envs.lint] below.
-    "ruff==0.15.12",
+    "ruff==0.16.9",
 ]
 
 [project.urls]
@@ -83,7 +83,7 @@ wagtail_localize_dashboard = [
 [tool.hatch.envs.lint]
 detached = true
 installer = "uv"
-dependencies = ["ruff==0.15.12"]
+dependencies = ["ruff==0.16.9"]
 
 [tool.hatch.envs.lint.scripts]
 check = ["ruff check {args:.}", "ruff format --check {args:.}"]
