@@ -286,6 +286,11 @@ pip install -e ".[dev]"
 
 This installs the package in editable mode along with testing tools.
 
+3. (optional) Install the dependencies for accessibility tests. This is optional, and also requires installing a browser such as Chrome (Selenium manages the driver itself), but CI will run accessibility tests, so it's probably a good idea to run them locally too:
+```bash
+pip install -e ".[accessibility]"
+```
+
 ### Running Tests
 
 Run the test suite with pytest:
@@ -304,7 +309,7 @@ pytest tests/test_utils.py
 pytest tests/test_views.py
 ```
 
-Run accessibility tests (requires `pip install -e ".[test,accessibility]"`):
+Run accessibility tests (requires `pip install -e ".[accessibility]"`):
 ```bash
 pytest -m accessibility
 ```

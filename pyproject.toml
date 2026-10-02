@@ -54,20 +54,10 @@ accessibility = [
     "selenium-axe-python>=2.1",
 ]
 dev = [
-    "pytest>=7.0",
-    "pytest-django>=4.5",
-    "pytest-cov>=4.0",
-    "black>=23.0",
-    "flake8>=6.0",
-    "isort>=5.12",
-    "mypy>=1.0",
-    "selenium>=4.0",
-    "selenium-axe-python>=2.1",
-]
-docs = [
-    "mkdocs>=1.5",
-    "mkdocs-material>=9.0",
-    "mkdocstrings[python]>=0.24",
+    # Everything the tests need, declared once in `test` above.
+    "wagtail-localize-dashboard[test]",
+    # Pinned exactly, and must match [tool.hatch.envs.lint] below.
+    "ruff==0.15.12",
 ]
 
 [project.urls]
@@ -88,14 +78,15 @@ wagtail_localize_dashboard = [
     "locale/**/*",
 ]
 
-[tool.black]
-line-length = 100
-target-version = ["py39", "py310", "py311", "py312", "py313", "py314"]
-include = "\\.pyi?$"
+# ruff does not need Django, Wagtail or project install (so it's detached).
+[tool.hatch.envs.lint]
+detached = true
+installer = "uv"
+dependencies = ["ruff==0.15.12"]
 
-[tool.isort]
-profile = "black"
-line_length = 100
+[tool.hatch.envs.lint.scripts]
+check = ["ruff check {args:.}", "ruff format --check {args:.}"]
+fix = ["ruff check --fix {args:.}", "ruff format {args:.}"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "test_settings"
