@@ -577,3 +577,14 @@ class TestPublishedPercentageRendering:
         assert "% live" not in content
         assert "has-unpublished" not in content
         assert "icon-circle-check" in content
+
+    def test_equal_percentages_still_render_the_gap(
+        self, admin_client, test_page, locale_de
+    ):
+        """The gap flag is read from the stored column, not re-derived from
+        percentages that can collide after int() truncation."""
+        progress = self._progress(test_page, locale_de, 99, 99, has_gap=True)
+        content = self._content(admin_client)
+
+        assert "has-unpublished" in content
+        assert f"{progress.percent_published}% live" in content

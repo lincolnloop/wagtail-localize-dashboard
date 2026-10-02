@@ -193,8 +193,8 @@ def get_translation_progress(
     total_segments, translated_segments = translation.get_progress()
 
     # With nothing to translate there is nothing that could be unpublished,
-    # so an unpublished empty target still reports (100, 100). Otherwise, a
-    # target with no translatable text looks 0% live forever.
+    # so an unpublished empty target still reports (100, 100, False).
+    # Otherwise, a target with no translatable text looks 0% live forever.
     if total_segments == 0:
         return 100, 100, False
 

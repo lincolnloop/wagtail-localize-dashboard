@@ -12,16 +12,18 @@
   `has_unpublished_translations` (`bool`). The latter is now a stored
   `BooleanField`, computed from raw segment counts
   (`published_segments < translated_segments`) when progress is rebuilt,
-  rather than derived from the two displayed percentages.
+  rather than compared from two `int()`-truncated percentages, which collide
+  on sources with more than 100 segments and would hide a real publish gap.
+- A segment re-saved without changes counts as unpublished until the next
+  push: upstream records no per-segment push provenance, so an identical
+  re-save still bumps `updated_at` and drops the segment from the published
+  count.
 
 ### Fixed
 
 - Progress was silently never rebuilt for objects whose rich text contained the
   same phrase twice: the `StringTranslation` signal handlers raised
   `MultipleObjectsReturned` into a bare `except`.
-- `has_unpublished_translations` was derived by comparing two `int()`-truncated
-  percentages, which collide on sources with more than 100 segments and hid a
-  real publish gap whenever that truncation made both percentages equal.
 - The amber status color (`#faa500`) failed WCAG AA against white text at
   2.01:1 and is now `#a06400` at 4.86:1.
 

@@ -32,7 +32,7 @@ run_on_commit = patch.object(transaction, "on_commit", side_effect=lambda func: 
 
 
 def translate_segment(source, locale, path, text, has_error=False, index=0):
-    """Translate one field of a source into a locale."""
+    """Translate the index-th segment at path in source into locale."""
     segment = StringSegment.objects.filter(source=source, context__path=path).order_by(
         "order"
     )[index]
