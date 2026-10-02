@@ -578,6 +578,20 @@ class TestPublishedPercentageRendering:
         assert "has-unpublished" not in content
         assert "icon-circle-check" in content
 
+    def test_reported_gap_without_percentage_is_not_flagged(
+        self, admin_client, test_page, locale_de
+    ):
+        """A misconfigured row claiming a gap without published percentage should not
+        show "None% live"."""
+        progress = self._progress(test_page, locale_de, 100, None, has_gap=True)
+        assert progress.percent_published is None
+
+        content = self._content(admin_client)
+        assert "awaiting publish:" not in content
+        assert "% live" not in content
+        assert "has-unpublished" not in content
+        assert "icon-circle-check" in content
+
     def test_equal_percentages_still_render_the_gap(
         self, admin_client, test_page, locale_de
     ):

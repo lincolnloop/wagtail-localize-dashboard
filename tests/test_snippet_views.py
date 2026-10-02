@@ -812,6 +812,20 @@ class TestSnippetPublishedPercentageRendering:
         assert "awaiting publish:" not in content
         assert "% live" not in content
 
+    def test_reported_gap_without_percentage_is_not_flagged(
+        self, admin_client, sample_snippet, sample_snippet_de, locale_de
+    ):
+        """A misconfigured row claiming a gap without published percentage should not
+        show "None% live"."""
+        progress = self._progress(
+            sample_snippet, sample_snippet_de, locale_de, 100, None, has_gap=True,
+        )
+        assert progress.percent_published is None
+
+        content = self._content(admin_client)
+        assert "awaiting publish:" not in content
+        assert "% live" not in content
+
     @override_settings(
         WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
     )

@@ -104,6 +104,11 @@ class TranslationProgress(models.Model):
         except AttributeError:
             locale = "unknown"
 
+        if self.percent_published is None:
+            has_unpublished_translations = False
+        else:
+            has_unpublished_translations = self.has_unpublished_translations
+
         try:
             edit_url = self.get_edit_url()
         except NoReverseMatch:
@@ -113,7 +118,7 @@ class TranslationProgress(models.Model):
             "locale": locale,
             "percent_translated": self.percent_translated,
             "percent_published": self.percent_published,
-            "has_unpublished_translations": self.has_unpublished_translations,
+            "has_unpublished_translations": has_unpublished_translations,
             "edit_url": edit_url,
             "view_url": self.get_view_url,
             "last_updated": self.last_updated,
@@ -254,6 +259,11 @@ class SnippetTranslationProgress(models.Model):
         """
         locale = self.translated_locale.language_code
 
+        if self.percent_published is None:
+            has_unpublished_translations = False
+        else:
+            has_unpublished_translations = self.has_unpublished_translations
+
         try:
             edit_url = self.get_edit_url()
         except NoReverseMatch:
@@ -274,7 +284,7 @@ class SnippetTranslationProgress(models.Model):
             "locale": locale,
             "percent_translated": self.percent_translated,
             "percent_published": self.percent_published,
-            "has_unpublished_translations": self.has_unpublished_translations,
+            "has_unpublished_translations": has_unpublished_translations,
             "edit_url": edit_url,
             "last_updated": self.last_updated,
             "live": live,
