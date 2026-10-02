@@ -1,6 +1,8 @@
 """Test models for wagtail-localize-dashboard tests."""
 
 from django.db import models
+from django.utils.html import strip_tags
+from wagtail.fields import RichTextField
 from wagtail.models import DraftStateMixin, RevisionMixin, TranslatableMixin
 from wagtail.snippets.models import register_snippet
 
@@ -32,3 +34,18 @@ class DraftStateSnippet(
 
     def __str__(self):
         return self.title
+
+
+@register_snippet
+class RichTextSnippet(TranslatableMixin, models.Model):
+    """A snippet with a RichTextField, which can yield several segments per context."""
+
+    body = RichTextField(blank=True)
+
+    class Meta:
+        unique_together = [("translation_key", "locale")]
+
+    def __str__(self):
+        # __str__ becomes display_str and the sort key on the snippet dashboard,
+        # so it must not be raw markup.
+        return strip_tags(self.body)

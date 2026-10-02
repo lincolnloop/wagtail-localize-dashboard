@@ -1,5 +1,6 @@
 """Tests for signal handlers in wagtail-localize-dashboard."""
 
+import logging
 from unittest.mock import patch
 
 import polib
@@ -13,9 +14,14 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from wagtail.models import Locale, Page
-from wagtail_localize.models import StringTranslation, Translation, TranslationSource
+from wagtail_localize.models import (
+    StringSegment,
+    StringTranslation,
+    Translation,
+    TranslationSource,
+)
 
-from tests.models import SampleSnippet
+from tests.models import RichTextSnippet, SampleSnippet
 from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
     TranslationProgress,
@@ -944,3 +950,41 @@ def test_snippet_saved_handler_does_nothing_when_no_original(mock_on_commit):
     ) as mock_fn:
         snippet_saved_handler(SampleSnippet, dummy, created=False)
         mock_fn.assert_not_called()
+
+
+@override_settings(
+    WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.RichTextSnippet"]
+)
+@patch.object(transaction, "on_commit", side_effect=lambda func: func())
+def test_repeated_rich_text_does_not_break_the_handler(
+    mock_on_commit, caplog, locale_en, locale_de
+):
+    """Repeated text in one rich text field must not break the progress handlers."""
+    snippet = RichTextSnippet.objects.create(
+        locale=locale_en, body="<p>Hello</p><p>World</p><p>Hello</p>"
+    )
+    source, __ = TranslationSource.get_or_create_from_instance(snippet)
+    segments = StringSegment.objects.filter(source=source)
+    assert segments.count() == 3
+    assert segments.values("context_id", "string_id").distinct().count() == 2, (
+        "two of these three segments must share a (context, string) pair"
+    )
+
+    translation, _ = Translation.objects.get_or_create(
+        source=source, target_locale=locale_de
+    )
+    translation.save_target(publish=True)
+
+    with caplog.at_level(logging.ERROR, logger="wagtail_localize_dashboard.signals"):
+        for segment in segments:
+            StringTranslation.objects.update_or_create(
+                translation_of_id=segment.string_id,
+                context_id=segment.context_id,
+                locale=locale_de,
+                defaults={"data": f"DE {segment.string.data}"},
+            )
+
+    assert caplog.records == [], [r.getMessage() for r in caplog.records]
+    assert SnippetTranslationProgress.objects.filter(
+        source_object_id=snippet.pk, translated_locale=locale_de
+    ).exists()
