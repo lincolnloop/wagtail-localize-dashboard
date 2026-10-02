@@ -818,7 +818,12 @@ class TestSnippetPublishedPercentageRendering:
         """A misconfigured row claiming a gap without published percentage should not
         show "None% live"."""
         progress = self._progress(
-            sample_snippet, sample_snippet_de, locale_de, 100, None, has_gap=True,
+            sample_snippet,
+            sample_snippet_de,
+            locale_de,
+            100,
+            None,
+            has_gap=True,
         )
         assert progress.percent_published is None
 
