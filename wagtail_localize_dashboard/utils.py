@@ -156,7 +156,7 @@ def get_translation_progress(
     source_object: Model,
     target_locale: Locale,
     translated_object: Model | None,
-) -> tuple[int, int] | None:
+) -> tuple[int, int, bool] | None:
     """
     Calculate translated and published percentages for a source/locale pair.
 
@@ -171,12 +171,12 @@ def get_translation_progress(
             it the live gate cannot run and every target looks published.
 
     Returns:
-        tuple[int, int]: (percent_translated, percent_published), or None if no
-            translation exists
+        tuple[int, int, bool]: (percent_translated, percent_published,
+            has_unpublished_translations), or None if no translation exists.
 
     Example:
         >>> get_translation_progress(page, locale_de, translated_page)
-        (60, 40)
+        (60, 40, True)
     """
     try:
         source = TranslationSource.objects.get_for_instance(source_object)
@@ -196,14 +196,22 @@ def get_translation_progress(
     # so an unpublished empty target still reports (100, 100). Otherwise, a
     # target with no translatable text looks 0% live forever.
     if total_segments == 0:
-        return 100, 100
+        return 100, 100, False
 
     percent_translated = int(translated_segments / total_segments * 100)
     published_segments = _count_published(source, target_locale, translated_object)
     percent_published = int(published_segments / total_segments * 100)
 
+    # Compare the raw counts since int() truncation can make rounded
+    # percentages equivalent despite raw percentages being unequal.
+    has_unpublished_translations = published_segments < translated_segments
+
     # Published can never outrank translated, whatever upstream's definitions do
-    return percent_translated, min(percent_published, percent_translated)
+    return (
+        percent_translated,
+        min(percent_published, percent_translated),
+        has_unpublished_translations,
+    )
 
 
 def create_page_translation_progress(source_page: Page) -> None:
@@ -254,7 +262,11 @@ def create_page_translation_progress(source_page: Page) -> None:
                     if progress is not None:
                         break
 
-            percent_translated, percent_published = progress or (0, None)
+            percent_translated, percent_published, has_unpublished = progress or (
+                0,
+                None,
+                False,
+            )
 
             # Create or update progress record
             TranslationProgress.objects.update_or_create(
@@ -263,6 +275,7 @@ def create_page_translation_progress(source_page: Page) -> None:
                 defaults={
                     "percent_translated": percent_translated,
                     "percent_published": percent_published,
+                    "has_unpublished_translations": has_unpublished,
                 },
             )
 
@@ -341,7 +354,11 @@ def create_snippet_translation_progress(source_snippet: Model) -> None:
                     if progress is not None:
                         break
 
-            percent_translated, percent_published = progress or (0, None)
+            percent_translated, percent_published, has_unpublished = progress or (
+                0,
+                None,
+                False,
+            )
 
             SnippetTranslationProgress.objects.update_or_create(
                 content_type=content_type,
@@ -351,6 +368,7 @@ def create_snippet_translation_progress(source_snippet: Model) -> None:
                     "translated_locale": translated_snippet.locale,
                     "percent_translated": percent_translated,
                     "percent_published": percent_published,
+                    "has_unpublished_translations": has_unpublished,
                 },
             )
 

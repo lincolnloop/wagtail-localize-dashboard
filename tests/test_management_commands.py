@@ -76,7 +76,9 @@ class TestRebuildTranslationProgress:
     ):
         """Test that command populates null percent_published rows."""
         call_command("rebuild_translation_progress", stdout=StringIO())
-        TranslationProgress.objects.update(percent_published=None)
+        TranslationProgress.objects.update(
+            percent_published=None, has_unpublished_translations=True
+        )
         assert TranslationProgress.objects.filter(percent_published=None).exists()
 
         call_command("rebuild_translation_progress", stdout=StringIO())
@@ -88,6 +90,7 @@ class TestRebuildTranslationProgress:
         )
         assert progress.percent_published is not None
         assert progress.percent_published == progress.percent_translated
+        assert progress.has_unpublished_translations is False
 
     def test_command_with_clean_orphans_flag(self, test_page):
         """Test that --clean-orphans flag works via the for_pages command.
@@ -272,7 +275,9 @@ class TestRebuildTranslationProgressForPages:
     ):
         """Command populates null percent_published rows."""
         call_command("rebuild_translation_progress_for_pages", stdout=StringIO())
-        TranslationProgress.objects.update(percent_published=None)
+        TranslationProgress.objects.update(
+            percent_published=None, has_unpublished_translations=True
+        )
         assert TranslationProgress.objects.filter(percent_published=None).exists()
 
         call_command("rebuild_translation_progress_for_pages", stdout=StringIO())
@@ -284,6 +289,7 @@ class TestRebuildTranslationProgressForPages:
         )
         assert progress.percent_published is not None
         assert progress.percent_published == progress.percent_translated
+        assert progress.has_unpublished_translations is False
 
     def test_command_output_shows_statistics(self, test_page_with_translations):
         """Command output includes pages-processed count and success message."""
@@ -415,7 +421,9 @@ class TestRebuildTranslationProgressForSnippets:
             WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"]
         ):
             call_command("rebuild_translation_progress_for_snippets", stdout=StringIO())
-            SnippetTranslationProgress.objects.update(percent_published=None)
+            SnippetTranslationProgress.objects.update(
+                percent_published=None, has_unpublished_translations=True
+            )
             assert SnippetTranslationProgress.objects.filter(
                 percent_published=None
             ).exists()
@@ -427,6 +435,7 @@ class TestRebuildTranslationProgressForSnippets:
         )
         assert progress.percent_published is not None
         assert progress.percent_published == progress.percent_translated
+        assert progress.has_unpublished_translations is False
 
     def test_command_output_shows_statistics(self, locale_en, locale_de):
         """Command output includes snippets-processed count and success message."""

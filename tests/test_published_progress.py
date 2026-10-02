@@ -31,13 +31,11 @@ pytestmark = [pytest.mark.django_db]
 run_on_commit = patch.object(transaction, "on_commit", side_effect=lambda func: func())
 
 
-def translate_segment(source, locale, path, text, has_error=False):
+def translate_segment(source, locale, path, text, has_error=False, index=0):
     """Translate one field of a source into a locale."""
-    segment = (
-        StringSegment.objects.filter(source=source, context__path=path)
-        .order_by("order")
-        .first()
-    )
+    segment = StringSegment.objects.filter(source=source, context__path=path).order_by(
+        "order"
+    )[index]
     StringTranslation.objects.update_or_create(
         translation_of=segment.string,
         context=segment.context,
@@ -82,7 +80,7 @@ def test_everything_translated_and_pushed_reports_equal_percentages(
     target = target_of(page, locale_de)
     assert target.live is True, "the on_commit patch must have published the target"
 
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         page, locale_de, target
     )
     total, translated = translation.get_progress()
@@ -103,7 +101,7 @@ def test_translation_saved_after_the_last_push_is_not_counted(
     translate_segment(source, locale_de, paths[1], "DE second")
 
     target = target_of(page, locale_de)
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         page, locale_de, target
     )
     total, translated = translation.get_progress()
@@ -121,7 +119,7 @@ def test_retranslating_one_field_counts_once(_on_commit, page_translation, local
     translation.save_target(publish=True)
 
     total, __ = translation.get_progress()
-    __, percent_published = get_translation_progress(
+    __, percent_published, __ = get_translation_progress(
         page, locale_de, target_of(page, locale_de)
     )
     assert percent_published == int(1 / total * 100)
@@ -161,7 +159,7 @@ def test_duplicate_segments_in_rich_text_are_counted_per_segment(
 
     target = target_of(snippet, locale_de)
     total, translated = translation.get_progress()
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         snippet, locale_de, target
     )
 
@@ -186,7 +184,7 @@ def test_translations_with_errors_are_not_counted(
     total, translated = translation.get_progress()
     assert translated == 1, "get_progress ignores has_error rows"
 
-    __, percent_published = get_translation_progress(
+    __, percent_published, __ = get_translation_progress(
         page, locale_de, target_of(page, locale_de)
     )
     assert percent_published == int(1 / total * 100)
@@ -215,7 +213,7 @@ def test_draft_push_to_a_live_page_counts_as_published(
     target = target_of(page, locale_de)
     assert target.live is True
 
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         page, locale_de, target
     )
     assert percent_published == percent_translated
@@ -228,7 +226,7 @@ def test_never_pushed_reports_zero(_on_commit, page_translation, locale_de):
     translate_segment(source, locale_de, segment_paths(source)[0], "DE only")
 
     assert not TranslationLog.objects.filter(source=source, locale=locale_de).exists()
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         page, locale_de, None
     )
     assert percent_translated > 0
@@ -247,7 +245,7 @@ def test_unpublished_target_reports_zero(_on_commit, page_translation, locale_de
     target.refresh_from_db()
     assert target.live is False
 
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         page, locale_de, target
     )
     assert percent_translated > 0
@@ -263,7 +261,7 @@ def test_zero_segments_reports_fully_published(locale_en, locale_de):
     total, _ = translation.get_progress()
     assert total == 0, "this test only means anything with no segments"
 
-    assert get_translation_progress(snippet, locale_de, None) == (100, 100)
+    assert get_translation_progress(snippet, locale_de, None) == (100, 100, False)
 
 
 def test_no_translation_returns_none(test_page, locale_de):
@@ -287,7 +285,7 @@ def test_non_draft_state_snippet_is_not_gated(_on_commit, locale_en, locale_de):
     target = target_of(snippet, locale_de)
     assert not hasattr(target, "live")
 
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         snippet, locale_de, target
     )
     assert percent_published == percent_translated
@@ -307,7 +305,7 @@ def test_draft_state_snippet_that_is_live_is_counted(_on_commit, locale_en, loca
     target = target_of(snippet, locale_de)
     assert target.live is True
 
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         snippet, locale_de, target
     )
     assert percent_published == percent_translated
@@ -330,7 +328,7 @@ def test_draft_state_snippet_pushed_as_draft_reports_zero(
     target = target_of(snippet, locale_de)
     assert target.live is False
 
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         snippet, locale_de, target
     )
     assert percent_translated > 0
@@ -346,7 +344,7 @@ def test_published_never_exceeds_translated(_on_commit, page_translation, locale
 
     target = target_of(page, locale_de)
     assert target.live is True
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         page, locale_de, target
     )
     assert percent_published <= percent_translated
@@ -381,13 +379,13 @@ def test_editing_a_translation_after_publishing_decreases_published_percentage(
     """
     page, source, translation = fully_published_page
     target = target_of(page, locale_es)
-    assert get_translation_progress(page, locale_es, target) == (100, 100)
+    assert get_translation_progress(page, locale_es, target) == (100, 100, False)
 
     translate_segment(source, locale_es, "title", "ES title REVISED")
 
     target.refresh_from_db()
     total, __ = translation.get_progress()
-    percent_translated, percent_published = get_translation_progress(
+    percent_translated, percent_published, __ = get_translation_progress(
         page, locale_es, target
     )
     assert percent_translated == 100
@@ -401,7 +399,7 @@ def test_editing_a_translation_after_publishing_decreases_published_percentage(
 
     translation.save_target(publish=True)
     target.refresh_from_db()
-    assert get_translation_progress(page, locale_es, target) == (100, 100)
+    assert get_translation_progress(page, locale_es, target) == (100, 100, False)
     assert target.title == "ES title REVISED"
 
 
@@ -418,13 +416,13 @@ def test_editing_the_target_page_directly_does_not_affect_published_percentage(
     """
     page, _source, _translation = fully_published_page
     target = target_of(page, locale_es)
-    assert get_translation_progress(page, locale_es, target) == (100, 100)
+    assert get_translation_progress(page, locale_es, target) == (100, 100, False)
 
     target.title = "Manually edited, unpublished"
     target.save_revision()
     target.refresh_from_db()
 
-    assert get_translation_progress(page, locale_es, target) == (100, 100)
+    assert get_translation_progress(page, locale_es, target) == (100, 100, False)
     assert target.has_unpublished_changes is True
 
 
@@ -590,3 +588,39 @@ def test_percent_published_is_correct_after_a_real_commit(test_page, locale_de):
     )
     assert progress.percent_published == int(1 / total * 100)
     assert progress.percent_translated == int(1 / total * 100)
+
+
+@run_on_commit
+def test_a_gap_smaller_than_one_percent_is_still_flagged(
+    _on_commit, locale_en, locale_de
+):
+    """int() truncation must not hide a real gap.
+
+    With 200 segments one segment is worth half a percentage point, so 3
+    translated and 2 published both render as 1%. Comparing the percentages
+    reports no gap; comparing the raw counts reports accurately.
+    """
+    body = "".join(f"<p>Paragraph number {i}</p>" for i in range(200))
+    snippet = RichTextSnippet.objects.create(locale=locale_en, body=body)
+    source, __ = TranslationSource.get_or_create_from_instance(snippet)
+    assert StringSegment.objects.filter(source=source).count() == 200
+
+    translation, __ = Translation.objects.get_or_create(
+        source=source, target_locale=locale_de
+    )
+    path = segment_paths(source)[0]
+    translate_segment(source, locale_de, path, "DE one", index=0)
+    translate_segment(source, locale_de, path, "DE two", index=1)
+    translation.save_target(publish=True)
+    translate_segment(source, locale_de, path, "DE three", index=2)
+
+    percent_translated, percent_published, has_unpublished = get_translation_progress(
+        snippet, locale_de, target_of(snippet, locale_de)
+    )
+
+    assert percent_translated == percent_published == 1, (
+        "this test is only meaningful while the two percentages collide"
+    )
+    assert has_unpublished is True, (
+        "2 of 3 translated segments are live - the gap should be reported"
+    )
