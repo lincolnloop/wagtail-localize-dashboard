@@ -330,6 +330,26 @@ Format with ruff:
 uv run ruff format .
 ```
 
+### Pre-commit hooks
+
+The hooks catch all of the above at commit time. Install pre-commit:
+
+```bash
+uv tool install pre-commit --with pre-commit-uv
+```
+
+Then install the git hook:
+
+```bash
+pre-commit install
+```
+
+To run every hook against the whole repo:
+
+```bash
+pre-commit run --all-files
+```
+
 ## Release
 
 In order to make a release, we add a git tag and push it to GitHub. We have a GitHub Action that releases the code to PyPI when we add a new tag.

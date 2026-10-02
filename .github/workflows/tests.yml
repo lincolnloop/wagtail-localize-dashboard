@@ -1,6 +1,7 @@
+---
 name: CI
 
-on:
+"on":
   push:
     branches:
       - main
@@ -79,23 +80,6 @@ jobs:
       - name: Test
         run: uvx hatch==${HATCH_VERSION} run latest:cov
 
-  lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v10.2.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-
-      # The lint env is detached and pins ruff, so this installs neither the
-      # project nor Django and Wagtail.
-      - name: Lint
-        run: uvx hatch==${HATCH_VERSION} run lint:check
-
   accessibility:
     runs-on: ubuntu-latest
     # Longer than the others, since it installs a browser and drives it.
@@ -122,8 +106,11 @@ jobs:
       - name: Install Chrome and ChromeDriver
         run: |
           # Install Chrome
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub \
+            | sudo apt-key add -
+          REPO="deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main"
+          LIST=/etc/apt/sources.list.d/google-chrome.list
+          echo "$REPO" | sudo tee -a "$LIST" > /dev/null
           sudo apt-get update
           sudo apt-get install -y google-chrome-stable
 
