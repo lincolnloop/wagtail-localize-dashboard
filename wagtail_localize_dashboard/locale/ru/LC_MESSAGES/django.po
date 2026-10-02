@@ -141,7 +141,7 @@ msgstr ""
 msgid ""
 "True when some translated segments have not been pushed to a live target."
 msgstr ""
-"True в том случае, если некоторые переведенные фрагменты не были "
+"True в том случае, если некоторые переведённые сегменты не были "
 "опубликованы."
 
 msgid "Translation Progress"
