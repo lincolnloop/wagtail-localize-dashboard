@@ -212,7 +212,7 @@ msgstr "publicado"
 msgid "draft"
 msgstr "borrador"
 
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "Edit %(locale)s version - %(percent)s%% translated, %(published)s%% published"
 msgstr ""

@@ -211,7 +211,7 @@ msgstr "опубликовано"
 msgid "draft"
 msgstr "черновик"
 
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "Edit %(locale)s version - %(percent)s%% translated, %(published)s%% published"
 msgstr ""
