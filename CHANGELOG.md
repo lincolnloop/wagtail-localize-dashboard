@@ -9,11 +9,7 @@
   with an inset ring, an upload icon and a `(N% live)` badge.
 - `TranslationProgress.to_dict()` and `SnippetTranslationProgress.to_dict()`
   gain two keys, `percent_published` (`int | None`) and
-  `has_unpublished_translations` (`bool`). The latter is now a stored
-  `BooleanField`, computed from raw segment counts
-  (`published_segments < translated_segments`) when progress is rebuilt,
-  rather than compared from two `int()`-truncated percentages, which collide
-  on sources with more than 100 segments and would hide a real publish gap.
+  `has_unpublished_translations` (`bool`).
 - A segment re-saved without changes counts as unpublished until the next
   push: upstream records no per-segment push provenance, so an identical
   re-save still bumps `updated_at` and drops the segment from the published
