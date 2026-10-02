@@ -347,7 +347,11 @@ class TestPageDashboardAccessibility(
         TranslationProgress.objects.update_or_create(
             source_page=self.test_page,
             translated_page=self.warning_page,
-            defaults={"percent_translated": 85, "percent_published": 85},
+            defaults={
+                "percent_translated": 85,
+                "percent_published": 85,
+                "has_unpublished_translations": False,
+            },
         )
 
         self.locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
@@ -358,7 +362,11 @@ class TestPageDashboardAccessibility(
         TranslationProgress.objects.update_or_create(
             source_page=self.test_page,
             translated_page=self.gap_page,
-            defaults={"percent_translated": 100, "percent_published": 60},
+            defaults={
+                "percent_translated": 100,
+                "percent_published": 60,
+                "has_unpublished_translations": True,
+            },
         )
 
     def _clear_progress_records(self):
@@ -418,7 +426,11 @@ class TestSnippetDashboardAccessibility(
             source_object_id=self.source_snippet.pk,
             translated_object_id=warning_snippet.pk,
             translated_locale=self.locale_es,
-            defaults={"percent_translated": 85, "percent_published": 85},
+            defaults={
+                "percent_translated": 85,
+                "percent_published": 85,
+                "has_unpublished_translations": False,
+            },
         )
 
         locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
@@ -429,7 +441,11 @@ class TestSnippetDashboardAccessibility(
             source_object_id=self.source_snippet.pk,
             translated_object_id=gap_snippet.pk,
             translated_locale=locale_fr,
-            defaults={"percent_translated": 100, "percent_published": 60},
+            defaults={
+                "percent_translated": 100,
+                "percent_published": 60,
+                "has_unpublished_translations": True,
+            },
         )
 
         # A snippet with no translations, to exercise the "No translations" row state.

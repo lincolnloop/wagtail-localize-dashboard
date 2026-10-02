@@ -754,7 +754,11 @@ class TestSnippetProgressDashboardView:
 class TestSnippetPublishedPercentageRendering:
     """The snippet dashboard shows the publish gap."""
 
-    def _progress(self, snippet, translated, locale, translated_pct, published_pct):
+    def _progress(
+        self, snippet, translated, locale, translated_pct, published_pct, has_gap=None
+    ):
+        if has_gap is None:
+            has_gap = published_pct is not None and published_pct < translated_pct
         return SnippetTranslationProgress.objects.create(
             content_type=ContentType.objects.get_for_model(SampleSnippet),
             source_object_id=snippet.pk,
@@ -762,6 +766,7 @@ class TestSnippetPublishedPercentageRendering:
             translated_locale=locale,
             percent_translated=translated_pct,
             percent_published=published_pct,
+            has_unpublished_translations=has_gap,
         )
 
     def _content(self, admin_client):

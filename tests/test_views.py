@@ -518,7 +518,11 @@ class TestDashboardView:
 class TestPublishedPercentageRendering:
     """The dashboard shows the publish gap."""
 
-    def _progress(self, test_page, locale_de, translated_pct, published_pct):
+    def _progress(
+        self, test_page, locale_de, translated_pct, published_pct, has_gap=None
+    ):
+        if has_gap is None:
+            has_gap = published_pct is not None and published_pct < translated_pct
         translated = test_page.copy_for_translation(locale_de, copy_parents=True)
         translated.save()
         return TranslationProgress.objects.create(
@@ -526,6 +530,7 @@ class TestPublishedPercentageRendering:
             translated_page=translated,
             percent_translated=translated_pct,
             percent_published=published_pct,
+            has_unpublished_translations=has_gap,
         )
 
     def _content(self, admin_client):

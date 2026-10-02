@@ -113,10 +113,7 @@ class TranslationProgress(models.Model):
             "locale": locale,
             "percent_translated": self.percent_translated,
             "percent_published": self.percent_published,
-            "has_unpublished_translations": (
-                self.percent_published is not None
-                and self.percent_published < self.percent_translated
-            ),
+            "has_unpublished_translations": self.has_unpublished_translations,
             "edit_url": edit_url,
             "view_url": self.get_view_url,
             "last_updated": self.last_updated,
@@ -277,10 +274,7 @@ class SnippetTranslationProgress(models.Model):
             "locale": locale,
             "percent_translated": self.percent_translated,
             "percent_published": self.percent_published,
-            "has_unpublished_translations": (
-                self.percent_published is not None
-                and self.percent_published < self.percent_translated
-            ),
+            "has_unpublished_translations": self.has_unpublished_translations,
             "edit_url": edit_url,
             "last_updated": self.last_updated,
             "live": live,

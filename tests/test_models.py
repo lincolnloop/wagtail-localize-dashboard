@@ -341,33 +341,11 @@ class TestPercentPublished:
             translated_page=translated,
             percent_translated=40,
             percent_published=20,
+            has_unpublished_translations=True,
         )
         data = progress.to_dict()
         assert data["percent_published"] == 20
         assert data["has_unpublished_translations"] is True
-
-    def test_to_dict_does_not_flag_when_equal(self, test_page, locale_de):
-        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
-        translated.save()
-        progress = TranslationProgress.objects.create(
-            source_page=test_page,
-            translated_page=translated,
-            percent_translated=40,
-            percent_published=40,
-        )
-        assert progress.to_dict()["has_unpublished_translations"] is False
-
-    def test_zero_published_is_flagged(self, test_page, locale_de):
-        """0 and None must not be conflated."""
-        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
-        translated.save()
-        progress = TranslationProgress.objects.create(
-            source_page=test_page,
-            translated_page=translated,
-            percent_translated=100,
-            percent_published=0,
-        )
-        assert progress.to_dict()["has_unpublished_translations"] is True
 
     def test_snippet_progress_to_dict(
         self, sample_snippet, sample_snippet_de, locale_de
@@ -380,6 +358,7 @@ class TestPercentPublished:
             translated_locale=locale_de,
             percent_translated=50,
             percent_published=25,
+            has_unpublished_translations=True,
         )
         data = progress.to_dict()
         assert data["percent_published"] == 25
@@ -404,3 +383,23 @@ class TestPercentPublished:
             percent_translated=50,
         )
         assert progress.has_unpublished_translations is False
+
+    def test_to_dict_reflects_a_stored_flag_when_percentages_are_equal(
+        self, test_page, locale_de
+    ):
+        """The flag is stored, not derived - equal percentages can still be a gap.
+
+        This is the shape the old derived implementation got wrong: on a source
+        with more than 100 segments the two percentages collide while the
+        underlying counts differ.
+        """
+        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
+        translated.save()
+        progress = TranslationProgress.objects.create(
+            source_page=test_page,
+            translated_page=translated,
+            percent_translated=1,
+            percent_published=1,
+            has_unpublished_translations=True,
+        )
+        assert progress.to_dict()["has_unpublished_translations"] is True
