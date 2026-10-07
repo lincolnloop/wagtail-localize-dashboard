@@ -7,17 +7,12 @@ on:
   pull_request:
     branches:
       - main
-  # The workflow can be run manually.
   workflow_dispatch:
 
-# Nothing here writes to the repository.
 permissions:
   contents: read
 
-# A second push to a pull-request branch should replace the first run, not race
-# it. `github.event_name` is in the group so that a push to main and a manual
-# run on main (which share `refs/heads/main`) do not queue behind each
-# other.
+# A second push to a pull-request branch replaces the first run (avoid a race).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -48,8 +43,6 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ matrix.python-version }}
-          # hatch resolves `py3.X` from the interpreters on PATH, and the
-          # activated environment is what puts this job's interpreter there.
           activate-environment: true
           enable-cache: true
 
@@ -68,14 +61,12 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
-      # The lint env is detached and pins ruff, so this installs neither the
-      # project nor Django and Wagtail.
       - name: Lint
         run: uvx hatch==${HATCH_VERSION} run lint:check
 
   accessibility:
     runs-on: ubuntu-latest
-    # Longer than the others, since it installs a browser and drives it.
+    # Longer timeout than the other jobs, since it installs a browser.
     timeout-minutes: 20
 
     steps:
