@@ -22,6 +22,7 @@ from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import Client, override_settings
 from django.urls import reverse
 from wagtail.models import Locale, Page
+from wagtail.users.models import UserProfile
 
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import (
@@ -84,6 +85,15 @@ class DashboardAccessibilityMixin:
             "unstyled markup and tell us nothing about what users see."
         )
 
+        # Make sure the theme we asked for is the theme being used.
+        html_class = self.driver.execute_script(
+            "return document.documentElement.className"
+        )
+        assert f"w-theme-{self.theme}" in html_class, (
+            f"Expected the admin to render in the {self.theme} theme, but "
+            f"<html> carries {html_class!r}."
+        )
+
     # ------------------------------------------------------------------
     # Tests
     # ------------------------------------------------------------------
@@ -107,8 +117,8 @@ class DashboardAccessibilityMixin:
                 f"Found {len(critical)} critical accessibility violations:\n{details}"
             )
 
-    def test_wcag_aa_compliance(self):
-        """Dashboard meets WCAG 2.1 Level AA standards."""
+    def _test_wcag_aa_compliance(self):
+        """Test that the dashboard meets WCAG 2.1 Level AA standards."""
         self._open()
 
         results = self._run_axe(
@@ -127,6 +137,16 @@ class DashboardAccessibilityMixin:
                 for v in violations
             )
             self.fail(f"WCAG 2.1 AA violations found:\n{summary}")
+
+    def test_wcag_aa_compliance_dark_theme(self):
+        """Test WCAG compliance in a dark theme."""
+        self._set_theme("dark")
+        self._test_wcag_aa_compliance()
+
+    def test_wcag_aa_compliance_light_theme(self):
+        """Test WCAG compliance in a light theme."""
+        self._set_theme("light")
+        self._test_wcag_aa_compliance()
 
     def test_wcag_aaa_best_effort(self):
         """WCAG 2.1 Level AAA — informational only, does not fail the suite."""
@@ -178,7 +198,7 @@ class DashboardAccessibilityMixin:
             details = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
             self.fail(f"Screen reader compatibility issues found:\n{details}")
 
-    def test_color_contrast(self):
+    def _test_color_contrast(self):
         """Text and UI elements have sufficient color contrast."""
         self._open()
 
@@ -196,6 +216,16 @@ class DashboardAccessibilityMixin:
                 for v in violations
             )
             self.fail(f"Color contrast violations:\n{issues}")
+
+    def test_color_contrast_dark_theme(self):
+        """Test contrast in a dark theme."""
+        self._set_theme("dark")
+        self._test_color_contrast()
+
+    def test_color_contrast_light_theme(self):
+        """Test contrast in a light theme."""
+        self._set_theme("light")
+        self._test_color_contrast()
 
     def test_table_accessibility(self):
         """The dashboard table is accessible."""
@@ -320,6 +350,15 @@ class BaseDashboardAccessibility(StaticLiveServerTestCase):
         self.locale_es, _ = Locale.objects.get_or_create(language_code="es")
         self.locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
         self.locale_it, _ = Locale.objects.get_or_create(language_code="it")
+
+        self._set_theme("light")
+
+    def _set_theme(self, theme):
+        """Set the color theme (dark or light). Wagtail determines it from the admin user's profile."""
+        self.theme = theme
+        profile = UserProfile.get_for_user(self.user)
+        profile.theme = theme
+        profile.save()
 
     def _login(self):
         """Authenticate by handing the browser a ready-made session cookie."""
