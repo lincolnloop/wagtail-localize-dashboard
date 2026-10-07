@@ -5,7 +5,7 @@ from typing import Any
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-from django.db.models.signals import post_save, pre_delete
+from django.db.models.signals import post_save, pre_delete, pre_save
 from django.dispatch import receiver
 from wagtail.models import Page
 from wagtail_localize.models import (
@@ -26,6 +26,89 @@ logger = logging.getLogger(__name__)
 def should_auto_update() -> bool:
     """Check if auto-update is enabled."""
     return get_setting("ENABLED") and get_setting("AUTO_UPDATE")
+
+
+def noop_timestamps_are_preserved() -> bool:
+    """Return whether a no-op StringTranslation save should keep its timestamp."""
+    return get_setting("ENABLED") and get_setting("PRESERVE_TIMESTAMP_ON_NOOP_SAVES")
+
+
+@receiver(pre_save, sender=StringTranslation)
+def remember_previous_stringtranslation(
+    sender: type, instance: StringTranslation, **kwargs: Any
+) -> None:
+    """Stash the stored row so post_save can tell a real edit from a no-op."""
+    instance._dashboard_previous_translation = None
+    if (
+        kwargs.get("raw", False)
+        or not noop_timestamps_are_preserved()
+        or not instance.pk
+    ):
+        return
+    try:
+        instance._dashboard_previous_translation = (
+            StringTranslation.objects.using(kwargs.get("using"))
+            .filter(pk=instance.pk)
+            .values("data", "has_error", "updated_at")
+            .first()
+        )
+    except Exception:
+        # Never let this package's bookkeeping break somebody else's save.
+        logger.exception("Error in remember_previous_stringtranslation")
+        instance._dashboard_previous_translation = None
+
+
+@receiver(post_save, sender=StringTranslation)
+def restore_updated_stringtranslation_at_on_noop(
+    sender: type, instance: StringTranslation, created: bool, **kwargs: Any
+) -> None:
+    """Put updated_at back when a save changed nothing that reaches the target.
+
+    percent_published asks whether a translation was last written before the
+    last push. wagtail-localize's segment editor writes unconditionally, so a
+    translator who opens a segment and saves without typing would otherwise
+    drop that segment out of the published count and make a fully live page
+    look stale.
+
+    Only data and has_error are compared, because those are the only fields
+    _count_published() reads. The editor also always sends last_translated_by
+    and resets tool_name; neither changes what is on the target, so both are
+    ignored on purpose.
+
+    One no-op is deliberately NOT suppressed: a byte-identical re-save of a row
+    stored with has_error=True. The editor always posts has_error=False and
+    lets StringTranslation.save() re-derive it, so the comparison below sees
+    True != False and lets the bump stand. Harmless - errored segments never
+    count as published, so the percentage does not move either way.
+
+    queryset.update() is deliberate: it bypasses field pre_save(), so it can
+    write a value auto_now would otherwise overwrite. It also fires no signals,
+    so this cannot recurse.
+    """
+    previous = getattr(instance, "_dashboard_previous_translation", None)
+    if created or kwargs.get("raw", False) or not previous:
+        return
+    if previous["data"] != instance.data or previous["has_error"] != instance.has_error:
+        return
+
+    if previous["updated_at"] == instance.updated_at:
+        return
+
+    try:
+        StringTranslation.objects.using(kwargs.get("using")).filter(
+            pk=instance.pk
+        ).update(updated_at=previous["updated_at"])
+    except Exception:
+        # Never let this package's bookkeeping break somebody else's save.
+        logger.exception("Error in restore_updated_stringtranslation_at_on_noop")
+        return
+
+    instance.updated_at = previous["updated_at"]
+    logger.debug(
+        "Preserved updated_at at %s for StringTranslation %s after a no-op save",
+        previous["updated_at"],
+        instance.pk,
+    )
 
 
 @receiver(post_save, sender=Translation)
