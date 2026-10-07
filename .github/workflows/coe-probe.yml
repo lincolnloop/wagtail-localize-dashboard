@@ -1,0 +1,93 @@
+# Throwaway probe: what does `continue-on-error` actually report?
+#
+# Delete this file once the question is answered. It exists to settle three
+# things the GitHub docs do not state for the JOB-level key, which says only
+# "Prevents a workflow run from failing when a job fails":
+#
+#   1. the failing job's own check-run conclusion (the field branch protection
+#      reads -- red X or green check?)
+#   2. the workflow RUN conclusion (the docs claim success; is it?)
+#   3. needs.<job>.result for a downstream job
+#
+# Nothing here has a plain-failing control job, deliberately: `job_level` must
+# be the only failure in the run, or the run conclusion is `failure` no matter
+# what continue-on-error does, and measurement 2 is destroyed. The baseline for
+# an ordinary failing job is in coe-probe-control.yml, which runs separately.
+name: coe probe (delete me)
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # JOB-level continue-on-error, failing. The subject of the experiment.
+  job_level:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+
+    steps:
+      - name: Fail
+        run: |
+          echo "about to exit 1"
+          exit 1
+
+      # If this line appears in the log, a job-level continue-on-error job
+      # keeps running past a failed step. Reports say it does not.
+      - name: Does a later step still run?
+        run: echo "LATER STEP RAN"
+
+  # STEP-level continue-on-error, for contrast. This is the case the docs do
+  # describe (outcome=failure, conclusion=success), so it doubles as a check
+  # that the probe itself is wired up correctly. This job should PASS.
+  step_level:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Fail but tolerated
+        id: tolerated
+        continue-on-error: true
+        run: exit 1
+
+      - name: Report outcome vs conclusion
+        env:
+          OUTCOME: ${{ steps.tolerated.outcome }}
+          CONCLUSION: ${{ steps.tolerated.conclusion }}
+        run: |
+          echo "steps.tolerated.outcome=$OUTCOME"
+          echo "steps.tolerated.conclusion=$CONCLUSION"
+
+  # Reads the results out of the needs context. `if: always()` so it runs
+  # whatever happened upstream.
+  observer:
+    needs: [job_level, step_level]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Report needs results
+        env:
+          JOB_LEVEL: ${{ needs.job_level.result }}
+          STEP_LEVEL: ${{ needs.step_level.result }}
+        run: |
+          echo "needs.job_level.result=$JOB_LEVEL"
+          echo "needs.step_level.result=$STEP_LEVEL"
+
+  # The programmatic version of the same question, not dependent on reading a
+  # string out of a log. No `if:`, so GitHub's own gating decides: this job
+  # runs ONLY if needs.job_level.result is success. If `gated` executed,
+  # continue-on-error made a failed job look successful to downstream jobs.
+  # If `gated` was skipped, it did not.
+  gated:
+    needs: job_level
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Prove it
+        run: echo "GATED JOB RAN -- needs.job_level.result was treated as success"

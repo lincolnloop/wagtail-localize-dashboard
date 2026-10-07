@@ -1,0 +1,50 @@
+# Throwaway probe, baseline half. Delete alongside coe-probe.yml.
+#
+# An ordinary failing job with no continue-on-error anywhere, in its OWN
+# workflow so it gets its own run conclusion and does not contaminate the
+# measurement in coe-probe.yml. Every value this run reports is the control to
+# compare the other run against: check-run conclusion, run conclusion, and
+# whether a downstream job is skipped.
+name: coe probe control (delete me)
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Fail
+        run: exit 1
+
+      - name: Does a later step still run?
+        run: echo "LATER STEP RAN"
+
+  # Same shape as `gated` in coe-probe.yml. Expected to be SKIPPED here --
+  # which is what makes `gated` running over there meaningful.
+  gated:
+    needs: plain
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Prove it
+        run: echo "GATED JOB RAN"
+
+  observer:
+    needs: plain
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Report needs result
+        env:
+          PLAIN: ${{ needs.plain.result }}
+        run: echo "needs.plain.result=$PLAIN"
