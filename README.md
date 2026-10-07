@@ -305,7 +305,7 @@ pytest --cov=wagtail_localize_dashboard   # with coverage
 pytest tests/test_utils.py                # one file
 ```
 
-To run a specific supported combination of dependecies, use the hatch matrix
+To run a specific supported combination of dependencies, use the hatch matrix
 declared in `pyproject.toml`. This needs no installation beyond `uv`:
 
 ```bash

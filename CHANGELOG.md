@@ -5,7 +5,7 @@
 ### Removed
 
 - Support for Django 4.2-5.1 and Wagtail 5.2-6.x. Those versions are not
-  supported by the current `wagtail-localize`, so we don't (explcitily) support
+  supported by the current `wagtail-localize`, so we don't (explicitly) support
   them here.
 - The unused `docs` extra (mkdocs, mkdocs-material, mkdocstrings), and the
   unused `black`, `flake8`, `isort` and `mypy` entries in the `dev` extra.
