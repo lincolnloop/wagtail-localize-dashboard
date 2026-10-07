@@ -41,6 +41,28 @@ class TranslationProgress(models.Model):
         default=0, help_text=_("Percentage of segments translated (0-100)")
     )
 
+    # Translation published progress (0-100); null = not yet computed
+    percent_published = models.IntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=_(
+            "Percentage of segments translated and pushed to a live target "
+            "(0-100), or null if it has not been calculated yet"
+        ),
+    )
+
+    # Whether the number of published translated segments is less
+    # than the count of total translated segments. Stored since int()
+    # truncation can make two different segment counts the same
+    # percentage.
+    has_unpublished_translations = models.BooleanField(
+        default=False,
+        help_text=_(
+            "True when some translated segments have not been pushed to a live target."
+        ),
+    )
+
     # Metadata
     last_updated = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -82,6 +104,11 @@ class TranslationProgress(models.Model):
         except AttributeError:
             locale = "unknown"
 
+        if self.percent_published is None:
+            has_unpublished_translations = False
+        else:
+            has_unpublished_translations = self.has_unpublished_translations
+
         try:
             edit_url = self.get_edit_url()
         except NoReverseMatch:
@@ -90,6 +117,8 @@ class TranslationProgress(models.Model):
         return {
             "locale": locale,
             "percent_translated": self.percent_translated,
+            "percent_published": self.percent_published,
+            "has_unpublished_translations": has_unpublished_translations,
             "edit_url": edit_url,
             "view_url": self.get_view_url,
             "last_updated": self.last_updated,
@@ -162,6 +191,28 @@ class SnippetTranslationProgress(models.Model):
         default=0, help_text=_("Percentage of segments translated (0-100)")
     )
 
+    # Translation published progress (0-100); null = not yet computed
+    percent_published = models.IntegerField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=_(
+            "Percentage of segments translated and pushed to a live target "
+            "(0-100), or null if it has not been calculated yet"
+        ),
+    )
+
+    # Whether the number of published translated segments is less
+    # than the count of total translated segments. Stored since int()
+    # truncation can make two different segment counts the same
+    # percentage.
+    has_unpublished_translations = models.BooleanField(
+        default=False,
+        help_text=_(
+            "True when some translated segments have not been pushed to a live target."
+        ),
+    )
+
     # Metadata
     last_updated = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -208,6 +259,11 @@ class SnippetTranslationProgress(models.Model):
         """
         locale = self.translated_locale.language_code
 
+        if self.percent_published is None:
+            has_unpublished_translations = False
+        else:
+            has_unpublished_translations = self.has_unpublished_translations
+
         try:
             edit_url = self.get_edit_url()
         except NoReverseMatch:
@@ -227,6 +283,8 @@ class SnippetTranslationProgress(models.Model):
         return {
             "locale": locale,
             "percent_translated": self.percent_translated,
+            "percent_published": self.percent_published,
+            "has_unpublished_translations": has_unpublished_translations,
             "edit_url": edit_url,
             "last_updated": self.last_updated,
             "live": live,

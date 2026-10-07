@@ -324,10 +324,15 @@ class TestPageDashboardAccessibility(
             )
             root_page.save()
 
+        self.parent_page = Page(
+            title="Axe Home", slug="axe-home", locale=self.locale_en
+        )
+        root_page.add_child(instance=self.parent_page)
+
         self.test_page = Page(
             title="Test Page", slug="test-page", locale=self.locale_en
         )
-        root_page.add_child(instance=self.test_page)
+        self.parent_page.add_child(instance=self.test_page)
 
         self.translated_page = self.test_page.copy_for_translation(
             self.locale_de, copy_parents=True
@@ -338,6 +343,35 @@ class TestPageDashboardAccessibility(
             source_page=self.test_page,
             translated_page=self.translated_page,
             defaults={"percent_translated": 75},
+        )
+
+        self.warning_page = self.test_page.copy_for_translation(
+            self.locale_es, copy_parents=True
+        )
+        self.warning_page.save()
+        TranslationProgress.objects.update_or_create(
+            source_page=self.test_page,
+            translated_page=self.warning_page,
+            defaults={
+                "percent_translated": 85,
+                "percent_published": 85,
+                "has_unpublished_translations": False,
+            },
+        )
+
+        self.locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
+        self.gap_page = self.test_page.copy_for_translation(
+            self.locale_fr, copy_parents=True
+        )
+        self.gap_page.save()
+        TranslationProgress.objects.update_or_create(
+            source_page=self.test_page,
+            translated_page=self.gap_page,
+            defaults={
+                "percent_translated": 100,
+                "percent_published": 60,
+                "has_unpublished_translations": True,
+            },
         )
 
     def _clear_progress_records(self):
@@ -388,6 +422,35 @@ class TestSnippetDashboardAccessibility(
             translated_object_id=self.translated_snippet.pk,
             translated_locale=self.locale_de,
             defaults={"percent_translated": 75},
+        )
+
+        warning_snippet = self.source_snippet.copy_for_translation(self.locale_es)
+        warning_snippet.save()
+        SnippetTranslationProgress.objects.update_or_create(
+            content_type=ct,
+            source_object_id=self.source_snippet.pk,
+            translated_object_id=warning_snippet.pk,
+            translated_locale=self.locale_es,
+            defaults={
+                "percent_translated": 85,
+                "percent_published": 85,
+                "has_unpublished_translations": False,
+            },
+        )
+
+        locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
+        gap_snippet = self.source_snippet.copy_for_translation(locale_fr)
+        gap_snippet.save()
+        SnippetTranslationProgress.objects.update_or_create(
+            content_type=ct,
+            source_object_id=self.source_snippet.pk,
+            translated_object_id=gap_snippet.pk,
+            translated_locale=locale_fr,
+            defaults={
+                "percent_translated": 100,
+                "percent_published": 60,
+                "has_unpublished_translations": True,
+            },
         )
 
         # A snippet with no translations, to exercise the "No translations" row state.
