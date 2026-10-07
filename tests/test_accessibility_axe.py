@@ -410,7 +410,7 @@ class TestPageDashboardAccessibility(
             root_page.save()
 
         # The dashboard lists pages at depth > 2, which skips the root and the
-        # site's home page. We attach the test page to a home page, so make sure
+        # site's home page. We attach the test page to a home page, to make sure
         # that the dashboard does not render an empty table.
         self.parent_page = Page(
             title="Axe Home", slug="axe-home", locale=self.locale_en
