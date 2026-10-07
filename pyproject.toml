@@ -79,6 +79,11 @@ wagtail_localize_dashboard = [
     "locale/**/*",
 ]
 
+# Make sure that hatch (locally or in CI) uses this version of uv, rather than
+# its own uv.
+[tool.hatch.envs.hatch-uv]
+dependencies = ["uv==0.12.21"]
+
 # ruff does not need Django, Wagtail or project install (so it's detached).
 [tool.hatch.envs.lint]
 detached = true
