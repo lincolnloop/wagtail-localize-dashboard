@@ -3,7 +3,6 @@
 from typing import Any
 
 from django.conf import settings
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Min, Q, QuerySet
 from django.urls import NoReverseMatch, reverse
@@ -19,7 +18,6 @@ from .settings import get_setting, get_tracked_snippet_models
 from .utils import get_original_objects
 
 
-@method_decorator(staff_member_required, name="dispatch")
 @method_decorator(never_cache, name="dispatch")
 class ProgressDashboardView(ListView, BaseListingView):
     """
@@ -238,7 +236,6 @@ class ProgressDashboardView(ListView, BaseListingView):
         return context
 
 
-@method_decorator(staff_member_required, name="dispatch")
 @method_decorator(never_cache, name="dispatch")
 class SnippetProgressDashboardView(ListView, BaseListingView):
     """
