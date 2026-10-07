@@ -79,6 +79,11 @@ wagtail_localize_dashboard = [
     "locale/**/*",
 ]
 
+# Make sure that hatch (locally or in CI) uses this version of uv, rather than
+# its own uv.
+[tool.hatch.envs.hatch-uv]
+dependencies = ["uv==0.12.21"]
+
 # ruff does not need Django, Wagtail or project install (so it's detached).
 [tool.hatch.envs.lint]
 detached = true
@@ -128,21 +133,6 @@ matrix.wagtail.dependencies = [
     { value = "wagtail~=7.4.0", if = ["7.4"] },
     { value = "wagtail~=8.0.0", if = ["8.0"] },
 ]
-
-# This environment purposely uses the latest versions of Django, Wagtail and
-# wagtail-localize, so a breaking upstream change shows up here before reaching
-# a release of this package. A failure here should not break a CI run, but point
-# to a problem that will need to be fixed in the future.
-[tool.hatch.envs.latest]
-features = ["test"]
-installer = "uv"
-# The newest released interpreter. Must match the `latest` job in
-# .github/workflows/tests.yml.
-python = "3.14"
-
-[tool.hatch.envs.latest.scripts]
-run = "pytest -m 'not accessibility' {args}"
-cov = "pytest --cov=wagtail_localize_dashboard -m 'not accessibility' {args}"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "test_settings"

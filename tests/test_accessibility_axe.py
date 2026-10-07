@@ -179,7 +179,7 @@ class DashboardAccessibilityMixin:
             self.fail(f"Screen reader compatibility issues found:\n{details}")
 
     def test_color_contrast(self):
-        """Text and UI elements have sufficient colour contrast."""
+        """Text and UI elements have sufficient color contrast."""
         self._open()
 
         results = self._run_axe(
@@ -278,9 +278,16 @@ class DashboardAccessibilityMixin:
 class BaseDashboardAccessibility(StaticLiveServerTestCase):
     """WebDriver setup/teardown and shared test helpers."""
 
-    # Percentages chosen to render every badge state the templates
-    # can produce: 100 -> btn-success, 80-99 -> btn-warning, <80 -> btn-danger.
-    BADGE_STATES = ((100, "fr"), (85, "es"), (75, "de"))
+    # One translation per locale, covering every visual state the templates can
+    # produce. percent_translated picks the badge color (100 -> btn-success,
+    # 80-99 -> btn-warning, below 80 -> btn-danger), and
+    BADGE_STATES = (
+        # percent_translated, percent_published, has_unpublished_translations, language_code
+        (100, 100, False, "fr"),
+        (85, 85, False, "es"),
+        (75, 75, False, "de"),
+        (100, 60, True, "it"),
+    )
 
     @classmethod
     def setUpClass(cls):
@@ -312,6 +319,7 @@ class BaseDashboardAccessibility(StaticLiveServerTestCase):
         self.locale_de, _ = Locale.objects.get_or_create(language_code="de")
         self.locale_es, _ = Locale.objects.get_or_create(language_code="es")
         self.locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
+        self.locale_it, _ = Locale.objects.get_or_create(language_code="it")
 
     def _login(self):
         """Authenticate by handing the browser a ready-made session cookie."""
@@ -365,32 +373,50 @@ class TestPageDashboardAccessibility(
         # The dashboard lists pages at depth > 2, which skips the root and the
         # site's home page. We attach the test page to a home page, so make sure
         # that the dashboard does not render an empty table.
-        home_page = Page(title="Home", slug="home-a11y", locale=self.locale_en)
-        root_page.add_child(instance=home_page)
+        self.parent_page = Page(
+            title="Axe Home", slug="axe-home", locale=self.locale_en
+        )
+        root_page.add_child(instance=self.parent_page)
 
         self.test_page = Page(
             title="Test Page", slug="test-page", locale=self.locale_en
         )
-        home_page.add_child(instance=self.test_page)
+        self.parent_page.add_child(instance=self.test_page)
 
-        # Make sure there is a badge of each color.
+        # Make sure there is a badge of each state.
         translations = []
-        for percent, language_code in self.BADGE_STATES:
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            language_code,
+        ) in self.BADGE_STATES:
             locale = Locale.objects.get(language_code=language_code)
             translated_page = self.test_page.copy_for_translation(
                 locale, copy_parents=True
             )
             translated_page.save()
-            translations.append((percent, translated_page))
+            translations.append(
+                (translated, published, has_unpublished_translations, translated_page)
+            )
 
         # Note: since there aren't actually translated strings for these pages,
         # make sure that the page doesn't get saved after this point, or the
         # signals will recompute this percentage.
-        for percent, translated_page in translations:
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            translated_page,
+        ) in translations:
             TranslationProgress.objects.update_or_create(
                 source_page=self.test_page,
                 translated_page=translated_page,
-                defaults={"percent_translated": percent},
+                defaults={
+                    "percent_translated": translated,
+                    "percent_published": published,
+                    "has_unpublished_translations": has_unpublished_translations,
+                },
             )
 
     def _clear_progress_records(self):
@@ -430,22 +456,45 @@ class TestSnippetDashboardAccessibility(
         )
         ct = ContentType.objects.get_for_model(SampleSnippet)
 
-        # Make sure there is a badge of each color.
+        # Make sure there is a badge of each state.
         # Same two passes as the page fixture, and for the same reason.
         translations = []
-        for percent, language_code in self.BADGE_STATES:
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            language_code,
+        ) in self.BADGE_STATES:
             locale = Locale.objects.get(language_code=language_code)
             translated_snippet = self.source_snippet.copy_for_translation(locale)
             translated_snippet.save()
-            translations.append((percent, locale, translated_snippet))
+            translations.append(
+                (
+                    translated,
+                    published,
+                    has_unpublished_translations,
+                    locale,
+                    translated_snippet,
+                )
+            )
 
-        for percent, locale, translated_snippet in translations:
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            locale,
+            translated_snippet,
+        ) in translations:
             SnippetTranslationProgress.objects.update_or_create(
                 content_type=ct,
                 source_object_id=self.source_snippet.pk,
                 translated_object_id=translated_snippet.pk,
                 translated_locale=locale,
-                defaults={"percent_translated": percent},
+                defaults={
+                    "percent_translated": translated,
+                    "percent_published": published,
+                    "has_unpublished_translations": has_unpublished_translations,
+                },
             )
 
         # A snippet with no translations, to exercise the "No translations" row state.
