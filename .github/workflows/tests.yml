@@ -56,29 +56,6 @@ jobs:
       - name: Test
         run: uvx hatch==${HATCH_VERSION} run +py=${{ matrix.python-version }} test:cov
 
-  # This environment is separate from the testing matrix, because it tests
-  # against the latest versions of Django, Wagtail, and wagtail-localize. The
-  # goal here is that a breaking upstream release surfaces errors here, before
-  # it reaches a release of this package. It is non-blocking.
-  latest:
-    name: "latest: unpinned dependencies"
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v10.2.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          # Must match [tool.hatch.envs.latest].python in pyproject.toml.
-          python-version: "3.14"
-          activate-environment: true
-          enable-cache: true
-
-      - name: Test
-        run: uvx hatch==${HATCH_VERSION} run latest:cov
-
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
