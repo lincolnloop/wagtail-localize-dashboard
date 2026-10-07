@@ -12,13 +12,16 @@
   `has_unpublished_translations` (`bool`).
 - `get_translation_progress`, which returns a tuple of `percent_translated`,
   `percent_published`, and `has_unpublished_translations`.
-- A segment re-saved without changes counts as unpublished until the next
-  push: upstream records no per-segment push provenance, so an identical
-  re-save still bumps `updated_at` and drops the segment from the published
-  count.
+- `WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES` (default
+  `True`) preserves `StringTranslation.updated_at` at its stored value when a
+  save alters neither the text nor the error state. This behavior exists to
+  avoid lowering the translated percentage when a user updates a segment without
+  making any changes to the segment.
 
 ### Fixed
 
+- Re-saving a translated segment without changing its text no longer lowers a
+  fully published page's published percenage.
 - Progress was silently never rebuilt for objects whose rich text contained the
   same phrase twice: the `StringTranslation` signal handlers raised
   `MultipleObjectsReturned` into a bare `except`.
