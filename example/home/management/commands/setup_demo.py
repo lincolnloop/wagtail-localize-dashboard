@@ -42,7 +42,7 @@ class Command(BaseCommand):
             User.objects.create_superuser(
                 username="admin",
                 email="admin@example.com",
-                password="admin",
+                password="admin",  # noqa: S106
             )
             self.stdout.write(self.style.SUCCESS("Created superuser: admin/admin"))
         else:

@@ -324,12 +324,12 @@ pytest -m accessibility
 
 Check code with ruff:
 ```bash
-ruff check .
+uv run ruff check .
 ```
 
 Format with ruff:
 ```bash
-ruff format .
+uv run ruff format .
 ```
 
 ## Release

@@ -28,6 +28,7 @@
   environments and tested in CI: Django 5.2/6.0/6.1 against Wagtail
   7.0/7.4/8.0 on Python 3.10 through 3.14.
 - `dev` now installs the `test` extra plus a pinned `ruff`.
+- We now define `ruff` (lint) rules specifically, and upgrade `ruff` version.
 
 ### Fixed
 
