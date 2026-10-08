@@ -1,8 +1,8 @@
 # Core dependencies
-Django>=4.2,<5.1
-Wagtail>=5.2,<7.0
-wagtail-localize>=1.8
-django-debug-toolbar==6.1.0
+Django>=5.2,<7.0
+Wagtail>=7.0,<9.0
+wagtail-localize>=1.14
+django-debug-toolbar==8.0.0
 django-extensions==4.1
 
 # The library we're demonstrating
