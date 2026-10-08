@@ -29,6 +29,7 @@
   7.0/7.4/8.0 on Python 3.10 through 3.14.
 - `dev` now installs the `test` extra plus a pinned `ruff`.
 - We now define `ruff` (lint) rules specifically, and upgrade `ruff` version.
+- Pre-commit hooks for linting, and a `pre-commit` CI workflow.
 
 ### Fixed
 
@@ -42,7 +43,7 @@
 
 ### Deprecated
 
-- `get_translation_percentages` deprecated in favor of 
+- `get_translation_percentages` deprecated in favor of
   `get_translation_progress`.
 
 ### Upgrading
