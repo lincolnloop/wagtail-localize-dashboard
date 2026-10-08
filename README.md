@@ -269,9 +269,11 @@ django-admin compilemessages
 ## Requirements
 
 - Python 3.10+
-- Django 4.2+
-- Wagtail 5.2+
-- wagtail-localize 1.8+
+- Django 5.2+
+- Wagtail 7.0+
+- wagtail-localize 1.14+
+
+These track what `wagtail-localize` itself supports.
 
 ## Contributing
 
@@ -294,26 +296,33 @@ pip install -e ".[dev]"
 
 This installs the package in editable mode along with testing tools.
 
+3. (optional) Install the dependencies for accessibility tests. This is optional, and also requires installing a browser such as Chrome (Selenium manages the driver itself), but CI will run accessibility tests, so it's probably a good idea to run them locally too:
+```bash
+pip install -e ".[accessibility]"
+```
+
 ### Running Tests
 
 Run the test suite with pytest:
 ```bash
+pip install -e ".[dev]"
 pytest
+pytest --cov=wagtail_localize_dashboard   # with coverage
+pytest tests/test_utils.py                # one file
 ```
 
-Run tests with coverage:
+To run a specific supported combination of dependencies, use the hatch matrix
+declared in `pyproject.toml`. This needs no installation beyond `uv`:
+
 ```bash
-pytest --cov=wagtail_localize_dashboard
+uvx hatch==1.18.1 env show                        # list the combinations
+uvx hatch==1.18.1 run test.py3.12-django6.0-wagtail7.4:run
+uvx hatch==1.18.1 run +py=3.12 test:run           # by interpreter instead
 ```
 
-Run specific test files:
+Run accessibility tests:
 ```bash
-pytest tests/test_utils.py
-pytest tests/test_views.py
-```
-
-Run accessibility tests (requires `pip install -e ".[test,accessibility]"`):
-```bash
+pip install -e ".[accessibility]"
 pytest -m accessibility
 ```
 

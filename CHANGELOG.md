@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Removed
+
+- Support for Django 4.2-5.1 and Wagtail 5.2-6.x. Those versions are not
+  supported by the current `wagtail-localize`, so we don't (explicitly) support
+  them here.
+- The unused `docs` extra (mkdocs, mkdocs-material, mkdocstrings), and the
+  unused `black`, `flake8`, `isort` and `mypy` entries in the `dev` extra.
+
 ### Added
 
 - Translation rows now show how much of a translation is actually live, not
@@ -17,6 +25,14 @@
   save alters neither the text nor the error state. This behavior exists to
   avoid lowering the translated percentage when a user updates a segment without
   making any changes to the segment.
+- A segment re-saved without changes counts as unpublished until the next
+  push: upstream records no per-segment push provenance, so an identical
+  re-save still bumps `updated_at` and drops the segment from the published
+  count.
+- A supported matrix is now declared in `pyproject.toml` as hatch
+  environments and tested in CI: Django 5.2/6.0/6.1 against Wagtail
+  7.0/7.4/8.0 on Python 3.10 through 3.14.
+- `dev` now installs the `test` extra plus a pinned `ruff`.
 
 ### Fixed
 
@@ -27,6 +43,8 @@
   `MultipleObjectsReturned` into a bare `except`.
 - The amber status color (`#faa500`) failed WCAG AA against white text at
   2.01:1 and is now `#a06400` at 4.86:1.
+- A few color contrast issues (white text on amber in the 80-99% translation
+  badge, grey text in the "No translations" message)
 
 ### Deprecated
 

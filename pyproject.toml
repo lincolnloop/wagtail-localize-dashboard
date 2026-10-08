@@ -17,11 +17,12 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",
     "Framework :: Django",
-    "Framework :: Django :: 4.2",
-    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
+    "Framework :: Django :: 6.1",
     "Framework :: Wagtail",
-    "Framework :: Wagtail :: 5",
-    "Framework :: Wagtail :: 6",
+    "Framework :: Wagtail :: 7",
+    "Framework :: Wagtail :: 8",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -38,9 +39,9 @@ classifiers = [
     "Topic :: Software Development :: Localization",
 ]
 dependencies = [
-    "Django>=4.2",
-    "Wagtail>=5.2",
-    "wagtail-localize>=1.8",
+    "Django>=5.2",
+    "Wagtail>=7.0",
+    "wagtail-localize>=1.14",
 ]
 
 [project.optional-dependencies]
@@ -54,20 +55,10 @@ accessibility = [
     "selenium-axe-python>=2.1",
 ]
 dev = [
-    "pytest>=7.0",
-    "pytest-django>=4.5",
-    "pytest-cov>=4.0",
-    "black>=23.0",
-    "flake8>=6.0",
-    "isort>=5.12",
-    "mypy>=1.0",
-    "selenium>=4.0",
-    "selenium-axe-python>=2.1",
-]
-docs = [
-    "mkdocs>=1.5",
-    "mkdocs-material>=9.0",
-    "mkdocstrings[python]>=0.24",
+    # Everything the tests need, declared once in `test` above.
+    "wagtail-localize-dashboard[test]",
+    # Pinned exactly, and must match [tool.hatch.envs.lint] below.
+    "ruff==0.15.12",
 ]
 
 [project.urls]
@@ -88,14 +79,60 @@ wagtail_localize_dashboard = [
     "locale/**/*",
 ]
 
-[tool.black]
-line-length = 100
-target-version = ["py39", "py310", "py311", "py312", "py313", "py314"]
-include = "\\.pyi?$"
+# Make sure that hatch (locally or in CI) uses this version of uv, rather than
+# its own uv.
+[tool.hatch.envs.hatch-uv]
+dependencies = ["uv==0.12.21"]
 
-[tool.isort]
-profile = "black"
-line_length = 100
+# ruff does not need Django, Wagtail or project install (so it's detached).
+[tool.hatch.envs.lint]
+detached = true
+installer = "uv"
+dependencies = ["ruff==0.15.12"]
+
+[tool.hatch.envs.lint.scripts]
+check = ["ruff check {args:.}", "ruff format --check {args:.}"]
+fix = ["ruff check --fix {args:.}", "ruff format {args:.}"]
+
+# The support matrix lives only here. Any job can be run locally by name:
+#   uvx hatch==1.18.1 run test.py3.12-django6.0-wagtail7.4:cov
+[tool.hatch.envs.test]
+features = ["test"]
+installer = "uv"
+matrix-name-format = "{variable}{value}"
+# This is the library this package wraps.
+dependencies = ["wagtail-localize~=1.14.0"]
+
+[tool.hatch.envs.test.scripts]
+run = "pytest -m 'not accessibility' {args}"
+cov = "pytest --cov=wagtail_localize_dashboard -m 'not accessibility' {args}"
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.10", "3.11"]
+django = ["5.2"]
+wagtail = ["7.0"]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.12"]
+django = ["6.0"]
+wagtail = ["7.4"]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.13", "3.14"]
+django = ["6.1"]
+wagtail = ["8.0"]
+
+[tool.hatch.envs.test.overrides]
+matrix.django.dependencies = [
+    { value = "django~=5.2.0", if = ["5.2"] },
+    { value = "django~=6.0.0", if = ["6.0"] },
+    { value = "django~=6.1.0", if = ["6.1"] },
+]
+matrix.wagtail.dependencies = [
+    { value = "wagtail~=7.0.0", if = ["7.0"] },
+    { value = "wagtail~=7.4.0", if = ["7.4"] },
+    { value = "wagtail~=8.0.0", if = ["8.0"] },
+]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "test_settings"
