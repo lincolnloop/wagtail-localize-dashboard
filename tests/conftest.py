@@ -5,11 +5,11 @@ These fixtures provide reusable test setup for all test files.
 """
 
 import pytest
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from wagtail.models import Locale, Page, Site
+from wagtail.models import Locale, Page
 
+from tests.helpers import ensure_home_page, ensure_root_page
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import SnippetTranslationProgress
 
@@ -19,50 +19,13 @@ User = get_user_model()
 @pytest.fixture
 def root_page(db):
     """Create and return the Wagtail root page."""
-    try:
-        return Page.objects.get(depth=1)
-    except Page.DoesNotExist:
-        # Make sure a Locale exists before creating a the root page, to avoid a
-        # Locale.DoesNotExist error.
-        Locale.objects.get_or_create(language_code=settings.LANGUAGE_CODE.split("-")[0])
-        root = Page(
-            title="Root",
-            slug="root",
-            content_type=ContentType.objects.get_for_model(Page),
-            path="0001",
-            depth=1,
-            numchild=0,
-            url_path="/",
-        )
-        root.save()
-        return root
+    return ensure_root_page()
 
 
 @pytest.fixture
 def home_page(db, root_page):
-    """Create and return a home page."""
-    try:
-        return Page.objects.get(slug="home", depth=2)
-    except Page.DoesNotExist:
-        home = Page(
-            title="Home",
-            slug="home",
-            content_type=ContentType.objects.get_for_model(Page),
-            locale=Locale.objects.get_or_create(language_code="en")[0],
-        )
-        root_page.add_child(instance=home)
-
-        # Create default site if it doesn't exist
-        if not Site.objects.filter(is_default_site=True).exists():
-            Site.objects.create(
-                hostname="localhost",
-                port=80,
-                site_name="Test Site",
-                root_page=home,
-                is_default_site=True,
-            )
-
-        return home
+    """Create and return a home page, with the default Site."""
+    return ensure_home_page()
 
 
 @pytest.fixture
