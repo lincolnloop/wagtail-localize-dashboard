@@ -179,6 +179,14 @@ locale_de = Locale.objects.get(language_code="de")
 progress = get_translation_progress(source_object, locale_de, translated_object)
 percent_translated, percent_published, has_unpublished_translations = progress
 
+# Rebuild the stored progress for one object. Pass only_locale to rebuild a
+# single target locale; omit it to rebuild every locale.
+create_page_translation_progress(source_page)  # all Locales
+create_page_translation_progress(source_page, only_locale=locale_de)  # only 1 locale
+create_snippet_translation_progress(
+    source_snippet, only_locale=locale_de
+)  # only 1 locale
+
 # Rebuild progress selectively
 page_stats = rebuild_all_progress_for_pages()
 snippet_stats = rebuild_all_snippet_progress()
