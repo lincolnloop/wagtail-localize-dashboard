@@ -11,7 +11,8 @@ A translation dashboard for Wagtail sites using [wagtail-localize](https://githu
 - **Auto-Updates**: Signals automatically update percentages when translations change
 - **Performance**: Translation percentages are stored in the database, for fast loading
 - **Filtering**: Search by title, filter by language, translation key, or language group
-- **Color-Coded Status**: Green (100%), Yellow (80-99%), Red (<80%)
+- **Color-Coded Status**: Green (100% translated), Amber (80-99%), Red (<80%)
+- **Publish Tracking**: Indicators with a `(N% live)` badge mark translations saved but not yet published to the live page or snippet
 - **Admin Integration**: Adds menu item to Wagtail admin
 - **Configurable**: Enable/disable features via Django settings
 
@@ -157,7 +158,7 @@ Use the targeted commands when you know only one type of content has changed, to
 
 ```python
 from wagtail_localize_dashboard.utils import (
-    get_translation_percentages,
+    get_translation_progress,
     create_page_translation_progress,
     create_snippet_translation_progress,
     rebuild_all_progress,
@@ -165,11 +166,12 @@ from wagtail_localize_dashboard.utils import (
     rebuild_all_snippet_progress,
 )
 
-# Get translation percentage for a specific locale (works for pages and snippets)
+# Get translation progress for a specific locale (works for pages and snippets)
 from wagtail.models import Locale
 
 locale_de = Locale.objects.get(language_code="de")
-percent = get_translation_percentages(source_object, locale_de)
+progress = get_translation_progress(source_object, locale_de, translated_object)
+percent_translated, percent_published, has_unpublished_translations = progress
 
 # Rebuild progress selectively
 page_stats = rebuild_all_progress_for_pages()
@@ -303,7 +305,7 @@ pytest --cov=wagtail_localize_dashboard   # with coverage
 pytest tests/test_utils.py                # one file
 ```
 
-To run a specific supported combination of dependecies, use the hatch matrix
+To run a specific supported combination of dependencies, use the hatch matrix
 declared in `pyproject.toml`. This needs no installation beyond `uv`:
 
 ```bash

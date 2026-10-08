@@ -31,6 +31,8 @@ class TestTranslationProgress:
         assert progress.source_page_id == test_page.id
         assert progress.translated_page_id == de_page.id
         assert progress.percent_translated == 50
+        assert progress.percent_published is None
+        assert progress.has_unpublished_translations is False
 
     def test_to_dict(self, test_page, locale_de):
         """Test the to_dict method."""
@@ -42,6 +44,8 @@ class TestTranslationProgress:
             source_page=test_page,
             translated_page=de_page,
             percent_translated=75,
+            percent_published=25,
+            has_unpublished_translations=True,
         )
 
         result = progress.to_dict()
@@ -49,6 +53,8 @@ class TestTranslationProgress:
         assert isinstance(result, dict)
         assert result["locale"] == "de"
         assert result["percent_translated"] == 75
+        assert result["percent_published"] == 25
+        assert result["has_unpublished_translations"] is True
         assert result["edit_url"] == reverse(
             "wagtailadmin_pages:edit", args=[de_page.id]
         )
@@ -196,6 +202,8 @@ class TestSnippetTranslationProgress:
             translated_object_id=translated.pk,
             translated_locale=locale_de,
             percent_translated=50,
+            percent_published=25,
+            has_unpublished_translations=True,
         )
         progress = (
             SnippetTranslationProgress.objects.select_related(
@@ -209,6 +217,8 @@ class TestSnippetTranslationProgress:
 
         assert result["locale"] == "de"
         assert result["percent_translated"] == 50
+        assert result["percent_published"] == 25
+        assert result["has_unpublished_translations"] is True
         assert result["live"] is None
         assert result["has_unpublished_changes"] is None
 
@@ -241,6 +251,8 @@ class TestSnippetTranslationProgress:
 
         assert result["locale"] == "de"
         assert result["percent_translated"] == 75
+        assert result["percent_published"] is None
+        assert result["has_unpublished_translations"] is False
         assert result["live"] is True
         assert result["has_unpublished_changes"] is False
 
