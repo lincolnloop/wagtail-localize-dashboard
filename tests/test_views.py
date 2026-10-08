@@ -512,3 +512,93 @@ class TestDashboardView:
             page_a,
             page_z,
         ]
+
+
+@pytest.mark.django_db
+class TestPublishedPercentageRendering:
+    """The dashboard shows the publish gap."""
+
+    def _progress(
+        self, test_page, locale_de, translated_pct, published_pct, has_gap=None
+    ):
+        if has_gap is None:
+            has_gap = published_pct is not None and published_pct < translated_pct
+        translated = test_page.copy_for_translation(locale_de, copy_parents=True)
+        translated.save()
+        return TranslationProgress.objects.create(
+            source_page=test_page,
+            translated_page=translated,
+            percent_translated=translated_pct,
+            percent_published=published_pct,
+            has_unpublished_translations=has_gap,
+        )
+
+    def _content(self, admin_client):
+        return admin_client.get(
+            reverse("wagtail_localize_dashboard:dashboard")
+        ).content.decode()
+
+    def test_gap_is_flagged(self, admin_client, test_page, locale_de):
+        progress = self._progress(test_page, locale_de, 40, 20)
+        content = self._content(admin_client)
+
+        assert "has-unpublished" in content
+        assert "icon-upload" in content
+        assert "In progress, awaiting publish:" in content
+        assert f"{progress.percent_published}% live" in content
+
+    def test_a_complete_but_unpublished_row_stays_green(
+        self, admin_client, test_page, locale_de
+    ):
+        """100% translated is still 100% translated; the gap shows separately."""
+        self._progress(test_page, locale_de, 100, 0)
+        content = self._content(admin_client)
+
+        assert "btn-success" in content
+        assert "has-unpublished" in content
+        assert "0% live" in content
+        assert "Complete, awaiting publish:" in content
+
+    def test_no_gap_is_not_flagged(self, admin_client, test_page, locale_de):
+        self._progress(test_page, locale_de, 100, 100)
+        content = self._content(admin_client)
+
+        assert "icon-circle-check" in content
+        assert "has-unpublished" not in content
+        assert "awaiting publish:" not in content
+
+    def test_uncomputed_rows_are_not_flagged(self, admin_client, test_page, locale_de):
+        """Rows predating the migration must not claim 0% live."""
+        progress = self._progress(test_page, locale_de, 100, None)
+        assert progress.percent_published is None
+
+        content = self._content(admin_client)
+        assert "awaiting publish:" not in content
+        assert "% live" not in content
+        assert "has-unpublished" not in content
+        assert "icon-circle-check" in content
+
+    def test_reported_gap_without_percentage_is_not_flagged(
+        self, admin_client, test_page, locale_de
+    ):
+        """A misconfigured row claiming a gap without published percentage should not
+        show "None% live"."""
+        progress = self._progress(test_page, locale_de, 100, None, has_gap=True)
+        assert progress.percent_published is None
+
+        content = self._content(admin_client)
+        assert "awaiting publish:" not in content
+        assert "% live" not in content
+        assert "has-unpublished" not in content
+        assert "icon-circle-check" in content
+
+    def test_equal_percentages_still_render_the_gap(
+        self, admin_client, test_page, locale_de
+    ):
+        """The gap flag is read from the stored column, not re-derived from
+        percentages that can collide after int() truncation."""
+        progress = self._progress(test_page, locale_de, 99, 99, has_gap=True)
+        content = self._content(admin_client)
+
+        assert "has-unpublished" in content
+        assert f"{progress.percent_published}% live" in content

@@ -22,6 +22,7 @@ from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import Client, override_settings
 from django.urls import reverse
 from wagtail.models import Locale, Page
+from wagtail.users.models import UserProfile
 
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import (
@@ -84,6 +85,15 @@ class DashboardAccessibilityMixin:
             "unstyled markup and tell us nothing about what users see."
         )
 
+        # Make sure the theme we asked for is the theme being used.
+        html_class = self.driver.execute_script(
+            "return document.documentElement.className"
+        )
+        assert f"w-theme-{self.theme}" in html_class, (
+            f"Expected the admin to render in the {self.theme} theme, but "
+            f"<html> carries {html_class!r}."
+        )
+
     # ------------------------------------------------------------------
     # Tests
     # ------------------------------------------------------------------
@@ -107,8 +117,8 @@ class DashboardAccessibilityMixin:
                 f"Found {len(critical)} critical accessibility violations:\n{details}"
             )
 
-    def test_wcag_aa_compliance(self):
-        """Dashboard meets WCAG 2.1 Level AA standards."""
+    def _test_wcag_aa_compliance(self):
+        """Test that the dashboard meets WCAG 2.1 Level AA standards."""
         self._open()
 
         results = self._run_axe(
@@ -127,6 +137,16 @@ class DashboardAccessibilityMixin:
                 for v in violations
             )
             self.fail(f"WCAG 2.1 AA violations found:\n{summary}")
+
+    def test_wcag_aa_compliance_dark_theme(self):
+        """Test WCAG compliance in a dark theme."""
+        self._set_theme("dark")
+        self._test_wcag_aa_compliance()
+
+    def test_wcag_aa_compliance_light_theme(self):
+        """Test WCAG compliance in a light theme."""
+        self._set_theme("light")
+        self._test_wcag_aa_compliance()
 
     def test_wcag_aaa_best_effort(self):
         """WCAG 2.1 Level AAA — informational only, does not fail the suite."""
@@ -178,8 +198,8 @@ class DashboardAccessibilityMixin:
             details = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
             self.fail(f"Screen reader compatibility issues found:\n{details}")
 
-    def test_color_contrast(self):
-        """Text and UI elements have sufficient colour contrast."""
+    def _test_color_contrast(self):
+        """Text and UI elements have sufficient color contrast."""
         self._open()
 
         results = self._run_axe(
@@ -196,6 +216,16 @@ class DashboardAccessibilityMixin:
                 for v in violations
             )
             self.fail(f"Color contrast violations:\n{issues}")
+
+    def test_color_contrast_dark_theme(self):
+        """Test contrast in a dark theme."""
+        self._set_theme("dark")
+        self._test_color_contrast()
+
+    def test_color_contrast_light_theme(self):
+        """Test contrast in a light theme."""
+        self._set_theme("light")
+        self._test_color_contrast()
 
     def test_table_accessibility(self):
         """The dashboard table is accessible."""
@@ -278,9 +308,16 @@ class DashboardAccessibilityMixin:
 class BaseDashboardAccessibility(StaticLiveServerTestCase):
     """WebDriver setup/teardown and shared test helpers."""
 
-    # Percentages chosen to render every badge state the templates
-    # can produce: 100 -> btn-success, 80-99 -> btn-warning, <80 -> btn-danger.
-    BADGE_STATES = ((100, "fr"), (85, "es"), (75, "de"))
+    # One translation per locale, covering every visual state the templates can
+    # produce. percent_translated picks the badge color (100 -> btn-success,
+    # 80-99 -> btn-warning, below 80 -> btn-danger), and
+    BADGE_STATES = (
+        # percent_translated, percent_published, has_unpublished_translations, language_code
+        (100, 100, False, "fr"),
+        (85, 85, False, "es"),
+        (75, 75, False, "de"),
+        (100, 60, True, "it"),
+    )
 
     @classmethod
     def setUpClass(cls):
@@ -312,6 +349,16 @@ class BaseDashboardAccessibility(StaticLiveServerTestCase):
         self.locale_de, _ = Locale.objects.get_or_create(language_code="de")
         self.locale_es, _ = Locale.objects.get_or_create(language_code="es")
         self.locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
+        self.locale_it, _ = Locale.objects.get_or_create(language_code="it")
+
+        self._set_theme("light")
+
+    def _set_theme(self, theme):
+        """Set the color theme (dark or light). Wagtail determines it from the admin user's profile."""
+        self.theme = theme
+        profile = UserProfile.get_for_user(self.user)
+        profile.theme = theme
+        profile.save()
 
     def _login(self):
         """Authenticate by handing the browser a ready-made session cookie."""
@@ -363,34 +410,52 @@ class TestPageDashboardAccessibility(
             root_page.save()
 
         # The dashboard lists pages at depth > 2, which skips the root and the
-        # site's home page. We attach the test page to a home page, so make sure
+        # site's home page. We attach the test page to a home page, to make sure
         # that the dashboard does not render an empty table.
-        home_page = Page(title="Home", slug="home-a11y", locale=self.locale_en)
-        root_page.add_child(instance=home_page)
+        self.parent_page = Page(
+            title="Axe Home", slug="axe-home", locale=self.locale_en
+        )
+        root_page.add_child(instance=self.parent_page)
 
         self.test_page = Page(
             title="Test Page", slug="test-page", locale=self.locale_en
         )
-        home_page.add_child(instance=self.test_page)
+        self.parent_page.add_child(instance=self.test_page)
 
-        # Make sure there is a badge of each color.
+        # Make sure there is a badge of each state.
         translations = []
-        for percent, language_code in self.BADGE_STATES:
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            language_code,
+        ) in self.BADGE_STATES:
             locale = Locale.objects.get(language_code=language_code)
             translated_page = self.test_page.copy_for_translation(
                 locale, copy_parents=True
             )
             translated_page.save()
-            translations.append((percent, translated_page))
+            translations.append(
+                (translated, published, has_unpublished_translations, translated_page)
+            )
 
         # Note: since there aren't actually translated strings for these pages,
         # make sure that the page doesn't get saved after this point, or the
         # signals will recompute this percentage.
-        for percent, translated_page in translations:
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            translated_page,
+        ) in translations:
             TranslationProgress.objects.update_or_create(
                 source_page=self.test_page,
                 translated_page=translated_page,
-                defaults={"percent_translated": percent},
+                defaults={
+                    "percent_translated": translated,
+                    "percent_published": published,
+                    "has_unpublished_translations": has_unpublished_translations,
+                },
             )
 
     def _clear_progress_records(self):
@@ -430,22 +495,45 @@ class TestSnippetDashboardAccessibility(
         )
         ct = ContentType.objects.get_for_model(SampleSnippet)
 
-        # Make sure there is a badge of each color.
+        # Make sure there is a badge of each state.
         # Same two passes as the page fixture, and for the same reason.
         translations = []
-        for percent, language_code in self.BADGE_STATES:
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            language_code,
+        ) in self.BADGE_STATES:
             locale = Locale.objects.get(language_code=language_code)
             translated_snippet = self.source_snippet.copy_for_translation(locale)
             translated_snippet.save()
-            translations.append((percent, locale, translated_snippet))
+            translations.append(
+                (
+                    translated,
+                    published,
+                    has_unpublished_translations,
+                    locale,
+                    translated_snippet,
+                )
+            )
 
-        for percent, locale, translated_snippet in translations:
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            locale,
+            translated_snippet,
+        ) in translations:
             SnippetTranslationProgress.objects.update_or_create(
                 content_type=ct,
                 source_object_id=self.source_snippet.pk,
                 translated_object_id=translated_snippet.pk,
                 translated_locale=locale,
-                defaults={"percent_translated": percent},
+                defaults={
+                    "percent_translated": translated,
+                    "percent_published": published,
+                    "has_unpublished_translations": has_unpublished_translations,
+                },
             )
 
         # A snippet with no translations, to exercise the "No translations" row state.
