@@ -5,6 +5,7 @@ These fixtures provide reusable test setup for all test files.
 """
 
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from wagtail.models import Locale, Page, Site
@@ -21,6 +22,9 @@ def root_page(db):
     try:
         return Page.objects.get(depth=1)
     except Page.DoesNotExist:
+        # Make sure a Locale exists before creating a the root page, to avoid a
+        # Locale.DoesNotExist error.
+        Locale.objects.get_or_create(language_code=settings.LANGUAGE_CODE.split("-")[0])
         root = Page(
             title="Root",
             slug="root",

@@ -11,12 +11,18 @@ To run these tests:
 Note: These tests require a web browser (Chrome/Firefox) to be available.
 """
 
+import json
+from urllib.parse import urlparse
+
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from django.test import LiveServerTestCase, override_settings
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.test import Client, override_settings
 from django.urls import reverse
 from wagtail.models import Locale, Page
+from wagtail.users.models import UserProfile
 
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import (
@@ -54,14 +60,47 @@ class DashboardAccessibilityMixin:
             path = f"{path}?{params}"
         return f"{self.live_server_url}{path}"
 
+    def _open(self, params=""):
+        """Log in, open the dashboard, and refuse to audit anything else."""
+        self._login()
+        self.driver.get(self._url(params))
+
+        # Make sure that the test is on the dashboard, rather than a login form,
+        # a 404 page, etc.
+        expected = reverse(self.DASHBOARD_URL_NAME)
+        actual = urlparse(self.driver.current_url).path
+        assert actual == expected, (
+            f"Expected to audit {expected}, but the browser is on {actual}. "
+            "Auditing that page would pass vacuously."
+        )
+
+        # Make sure the dashboard stylesheet was actually applied.
+        rules = self.driver.execute_script(
+            "const s = [...document.styleSheets]"
+            "  .find(s => (s.href || '').includes('dashboard.css'));"
+            "try { return s ? s.cssRules.length : 0 } catch (e) { return 0 }"
+        )
+        assert rules > 0, (
+            "dashboard.css did not load, so the audit would run against "
+            "unstyled markup and tell us nothing about what users see."
+        )
+
+        # Make sure the theme we asked for is the theme being used.
+        html_class = self.driver.execute_script(
+            "return document.documentElement.className"
+        )
+        assert f"w-theme-{self.theme}" in html_class, (
+            f"Expected the admin to render in the {self.theme} theme, but "
+            f"<html> carries {html_class!r}."
+        )
+
     # ------------------------------------------------------------------
     # Tests
     # ------------------------------------------------------------------
 
     def test_no_critical_violations(self):
         """Dashboard has no critical or serious axe violations."""
-        self._login()
-        self.driver.get(self._url())
+        self._open()
 
         violations = self._run_axe()["violations"]
         critical = [v for v in violations if v["impact"] in ("critical", "serious")]
@@ -78,10 +117,9 @@ class DashboardAccessibilityMixin:
                 f"Found {len(critical)} critical accessibility violations:\n{details}"
             )
 
-    def test_wcag_aa_compliance(self):
-        """Dashboard meets WCAG 2.1 Level AA standards."""
-        self._login()
-        self.driver.get(self._url())
+    def _test_wcag_aa_compliance(self):
+        """Test that the dashboard meets WCAG 2.1 Level AA standards."""
+        self._open()
 
         results = self._run_axe(
             options={
@@ -100,10 +138,19 @@ class DashboardAccessibilityMixin:
             )
             self.fail(f"WCAG 2.1 AA violations found:\n{summary}")
 
+    def test_wcag_aa_compliance_dark_theme(self):
+        """Test WCAG compliance in a dark theme."""
+        self._set_theme("dark")
+        self._test_wcag_aa_compliance()
+
+    def test_wcag_aa_compliance_light_theme(self):
+        """Test WCAG compliance in a light theme."""
+        self._set_theme("light")
+        self._test_wcag_aa_compliance()
+
     def test_wcag_aaa_best_effort(self):
         """WCAG 2.1 Level AAA — informational only, does not fail the suite."""
-        self._login()
-        self.driver.get(self._url())
+        self._open()
 
         results = self._run_axe(
             options={
@@ -121,8 +168,7 @@ class DashboardAccessibilityMixin:
 
     def test_keyboard_accessibility(self):
         """All interactive elements are keyboard accessible."""
-        self._login()
-        self.driver.get(self._url())
+        self._open()
 
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["keyboard"]}}
@@ -134,8 +180,7 @@ class DashboardAccessibilityMixin:
 
     def test_screen_reader_compatibility(self):
         """Dashboard has no critical/serious screen-reader compatibility issues."""
-        self._login()
-        self.driver.get(self._url())
+        self._open()
 
         results = self._run_axe(
             options={
@@ -153,13 +198,15 @@ class DashboardAccessibilityMixin:
             details = "\n".join(f"- {v['id']}: {v['description']}" for v in violations)
             self.fail(f"Screen reader compatibility issues found:\n{details}")
 
-    def test_color_contrast(self):
-        """Text and UI elements have sufficient colour contrast."""
-        self._login()
-        self.driver.get(self._url())
+    def _test_color_contrast(self):
+        """Text and UI elements have sufficient color contrast."""
+        self._open()
 
         results = self._run_axe(
-            options={"runOnly": {"type": "tag", "values": ["cat.color"]}}
+            options={
+                "runOnly": {"type": "tag", "values": ["cat.color"]},
+                "rules": {"color-contrast-enhanced": {"enabled": False}},
+            }
         )
 
         violations = results["violations"]
@@ -170,10 +217,19 @@ class DashboardAccessibilityMixin:
             )
             self.fail(f"Color contrast violations:\n{issues}")
 
+    def test_color_contrast_dark_theme(self):
+        """Test contrast in a dark theme."""
+        self._set_theme("dark")
+        self._test_color_contrast()
+
+    def test_color_contrast_light_theme(self):
+        """Test contrast in a light theme."""
+        self._set_theme("light")
+        self._test_color_contrast()
+
     def test_table_accessibility(self):
         """The dashboard table is accessible."""
-        self._login()
-        self.driver.get(self._url())
+        self._open()
 
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["tables"]}}
@@ -186,8 +242,7 @@ class DashboardAccessibilityMixin:
 
     def test_form_accessibility(self):
         """Filter form controls have no critical/serious accessibility issues."""
-        self._login()
-        self.driver.get(self._url())
+        self._open()
 
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["forms"]}}
@@ -202,8 +257,7 @@ class DashboardAccessibilityMixin:
 
     def test_landmarks_and_regions(self):
         """Page has proper landmark regions for navigation."""
-        self._login()
-        self.driver.get(self._url())
+        self._open()
 
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["region"]}}
@@ -216,8 +270,7 @@ class DashboardAccessibilityMixin:
 
     def test_language_attributes(self):
         """HTML language attributes are properly set."""
-        self._login()
-        self.driver.get(self._url())
+        self._open()
 
         results = self._run_axe(
             options={"runOnly": {"type": "tag", "values": ["language"]}}
@@ -231,8 +284,7 @@ class DashboardAccessibilityMixin:
         """Dashboard has no critical/serious violations in the empty state."""
         self._clear_progress_records()
 
-        self._login()
-        self.driver.get(self._url())
+        self._open()
 
         results = self._run_axe()
         violations = [
@@ -253,8 +305,19 @@ class DashboardAccessibilityMixin:
         )
 
 
-class BaseDashboardAccessibility(LiveServerTestCase):
+class BaseDashboardAccessibility(StaticLiveServerTestCase):
     """WebDriver setup/teardown and shared test helpers."""
+
+    # One translation per locale, covering every visual state the templates can
+    # produce. percent_translated picks the badge color (100 -> btn-success,
+    # 80-99 -> btn-warning, below 80 -> btn-danger), and
+    BADGE_STATES = (
+        # percent_translated, percent_published, has_unpublished_translations, language_code
+        (100, 100, False, "fr"),
+        (85, 85, False, "es"),
+        (75, 75, False, "de"),
+        (100, 60, True, "it"),
+    )
 
     @classmethod
     def setUpClass(cls):
@@ -285,16 +348,38 @@ class BaseDashboardAccessibility(LiveServerTestCase):
         self.locale_en, _ = Locale.objects.get_or_create(language_code="en")
         self.locale_de, _ = Locale.objects.get_or_create(language_code="de")
         self.locale_es, _ = Locale.objects.get_or_create(language_code="es")
+        self.locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
+        self.locale_it, _ = Locale.objects.get_or_create(language_code="it")
+
+        self._set_theme("light")
+
+    def _set_theme(self, theme):
+        """Set the color theme (dark or light). Wagtail determines it from the admin user's profile."""
+        self.theme = theme
+        profile = UserProfile.get_for_user(self.user)
+        profile.theme = theme
+        profile.save()
 
     def _login(self):
+        """Authenticate by handing the browser a ready-made session cookie."""
+        client = Client()
+        client.force_login(self.user)
+
         self.driver.get(f"{self.live_server_url}/admin/login/")
-        self.driver.find_element("id", "id_username").send_keys("testadmin")
-        self.driver.find_element("id", "id_password").send_keys("testpass123")
-        self.driver.find_element("css selector", "button[type='submit']").click()
+        self.driver.add_cookie(
+            {
+                "name": settings.SESSION_COOKIE_NAME,
+                "value": client.cookies[settings.SESSION_COOKIE_NAME].value,
+                "path": "/",
+            }
+        )
 
     def _run_axe(self, options=None):
         axe = Axe(self.driver)
         axe.inject()
+        # Make sure we turn "options" into JSON before sending to axe.run().
+        if options is not None:
+            options = json.dumps(options)
         return axe.run(options=options)
 
 
@@ -324,6 +409,9 @@ class TestPageDashboardAccessibility(
             )
             root_page.save()
 
+        # The dashboard lists pages at depth > 2, which skips the root and the
+        # site's home page. We attach the test page to a home page, to make sure
+        # that the dashboard does not render an empty table.
         self.parent_page = Page(
             title="Axe Home", slug="axe-home", locale=self.locale_en
         )
@@ -334,53 +422,48 @@ class TestPageDashboardAccessibility(
         )
         self.parent_page.add_child(instance=self.test_page)
 
-        self.translated_page = self.test_page.copy_for_translation(
-            self.locale_de, copy_parents=True
-        )
-        self.translated_page.save()
+        # Make sure there is a badge of each state.
+        translations = []
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            language_code,
+        ) in self.BADGE_STATES:
+            locale = Locale.objects.get(language_code=language_code)
+            translated_page = self.test_page.copy_for_translation(
+                locale, copy_parents=True
+            )
+            translated_page.save()
+            translations.append(
+                (translated, published, has_unpublished_translations, translated_page)
+            )
 
-        TranslationProgress.objects.update_or_create(
-            source_page=self.test_page,
-            translated_page=self.translated_page,
-            defaults={"percent_translated": 75},
-        )
-
-        self.warning_page = self.test_page.copy_for_translation(
-            self.locale_es, copy_parents=True
-        )
-        self.warning_page.save()
-        TranslationProgress.objects.update_or_create(
-            source_page=self.test_page,
-            translated_page=self.warning_page,
-            defaults={
-                "percent_translated": 85,
-                "percent_published": 85,
-                "has_unpublished_translations": False,
-            },
-        )
-
-        self.locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
-        self.gap_page = self.test_page.copy_for_translation(
-            self.locale_fr, copy_parents=True
-        )
-        self.gap_page.save()
-        TranslationProgress.objects.update_or_create(
-            source_page=self.test_page,
-            translated_page=self.gap_page,
-            defaults={
-                "percent_translated": 100,
-                "percent_published": 60,
-                "has_unpublished_translations": True,
-            },
-        )
+        # Note: since there aren't actually translated strings for these pages,
+        # make sure that the page doesn't get saved after this point, or the
+        # signals will recompute this percentage.
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            translated_page,
+        ) in translations:
+            TranslationProgress.objects.update_or_create(
+                source_page=self.test_page,
+                translated_page=translated_page,
+                defaults={
+                    "percent_translated": translated,
+                    "percent_published": published,
+                    "has_unpublished_translations": has_unpublished_translations,
+                },
+            )
 
     def _clear_progress_records(self):
         TranslationProgress.objects.all().delete()
 
     def test_filtered_dashboard_accessibility(self):
         """Pages dashboard has no critical/serious violations when search and language filters are applied."""
-        self._login()
-        self.driver.get(self._url("search=test&original_language=en"))
+        self._open("search=test&original_language=en")
 
         results = self._run_axe()
         violations = [
@@ -410,48 +493,48 @@ class TestSnippetDashboardAccessibility(
         self.source_snippet = SampleSnippet.objects.create(
             locale=self.locale_en, heading="Test Snippet"
         )
-        self.translated_snippet = self.source_snippet.copy_for_translation(
-            self.locale_de
-        )
-        self.translated_snippet.save()
-
         ct = ContentType.objects.get_for_model(SampleSnippet)
-        SnippetTranslationProgress.objects.update_or_create(
-            content_type=ct,
-            source_object_id=self.source_snippet.pk,
-            translated_object_id=self.translated_snippet.pk,
-            translated_locale=self.locale_de,
-            defaults={"percent_translated": 75},
-        )
 
-        warning_snippet = self.source_snippet.copy_for_translation(self.locale_es)
-        warning_snippet.save()
-        SnippetTranslationProgress.objects.update_or_create(
-            content_type=ct,
-            source_object_id=self.source_snippet.pk,
-            translated_object_id=warning_snippet.pk,
-            translated_locale=self.locale_es,
-            defaults={
-                "percent_translated": 85,
-                "percent_published": 85,
-                "has_unpublished_translations": False,
-            },
-        )
+        # Make sure there is a badge of each state.
+        # Same two passes as the page fixture, and for the same reason.
+        translations = []
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            language_code,
+        ) in self.BADGE_STATES:
+            locale = Locale.objects.get(language_code=language_code)
+            translated_snippet = self.source_snippet.copy_for_translation(locale)
+            translated_snippet.save()
+            translations.append(
+                (
+                    translated,
+                    published,
+                    has_unpublished_translations,
+                    locale,
+                    translated_snippet,
+                )
+            )
 
-        locale_fr, _ = Locale.objects.get_or_create(language_code="fr")
-        gap_snippet = self.source_snippet.copy_for_translation(locale_fr)
-        gap_snippet.save()
-        SnippetTranslationProgress.objects.update_or_create(
-            content_type=ct,
-            source_object_id=self.source_snippet.pk,
-            translated_object_id=gap_snippet.pk,
-            translated_locale=locale_fr,
-            defaults={
-                "percent_translated": 100,
-                "percent_published": 60,
-                "has_unpublished_translations": True,
-            },
-        )
+        for (
+            translated,
+            published,
+            has_unpublished_translations,
+            locale,
+            translated_snippet,
+        ) in translations:
+            SnippetTranslationProgress.objects.update_or_create(
+                content_type=ct,
+                source_object_id=self.source_snippet.pk,
+                translated_object_id=translated_snippet.pk,
+                translated_locale=locale,
+                defaults={
+                    "percent_translated": translated,
+                    "percent_published": published,
+                    "has_unpublished_translations": has_unpublished_translations,
+                },
+            )
 
         # A snippet with no translations, to exercise the "No translations" row state.
         SampleSnippet.objects.create(
@@ -463,8 +546,7 @@ class TestSnippetDashboardAccessibility(
 
     def test_filtered_dashboard_accessibility(self):
         """Snippet dashboard has no critical/serious violations when a language filter is applied."""
-        self._login()
-        self.driver.get(self._url("original_language=en"))
+        self._open("original_language=en")
 
         results = self._run_axe()
         violations = [

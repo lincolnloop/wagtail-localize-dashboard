@@ -49,13 +49,13 @@
 
 /* No translations message */
 .no-translations {
-    color: #595959;
+    color: var(--w-color-text-meta, #595959);
     font-style: italic;
 }
 
 /* Page slug styling */
 .page-slug {
-    color: #666;
+    color: var(--w-color-text-meta, #595959);
     font-size: 0.9em;
     margin-top: 4px;
 }
@@ -114,23 +114,12 @@
     margin-right: -1rem;
 }
 
-/* Draft: full white icon, turns gray on hover */
 .status-icon--draft .icon {
-    color: white;
+    color: currentColor;
 }
 
-.button:hover .status-icon--draft .icon {
-    color: #999;
-}
-
-/* Live + Draft: half-opacity white icon, turns half-opacity gray on hover */
 .status-icon--live-draft .icon {
-    color: white;
-    opacity: 0.5;
-}
-
-.button:hover .status-icon--live-draft .icon {
-    color: #999;
+    color: currentColor;
     opacity: 0.5;
 }
 

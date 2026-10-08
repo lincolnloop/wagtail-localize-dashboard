@@ -36,6 +36,8 @@
   `MultipleObjectsReturned` into a bare `except`.
 - The amber status color (`#faa500`) failed WCAG AA against white text at
   2.01:1 and is now `#a06400` at 4.86:1.
+- A few color contrast issues (white text on amber in the 80-99% translation
+  badge, grey text in the "No translations" message)
 
 ### Deprecated
 
