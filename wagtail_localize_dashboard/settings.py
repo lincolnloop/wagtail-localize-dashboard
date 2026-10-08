@@ -76,12 +76,12 @@ def get_tracked_snippet_models() -> list[type[models.Model]]:
     for entry in tracked:
         try:
             model = apps.get_model(entry)
-        except (LookupError, ValueError):
+        except (LookupError, ValueError) as err:
             raise ImproperlyConfigured(
                 f"WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS contains "
                 f"'{entry}', which could not be resolved to a model. "
                 f"Use the 'app_label.ModelName' format."
-            )
+            ) from err
         if not issubclass(model, TranslatableMixin):
             raise ImproperlyConfigured(
                 f"WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS contains "

@@ -330,12 +330,32 @@ pytest -m accessibility
 
 Check code with ruff:
 ```bash
-ruff check .
+uv run ruff check .
 ```
 
 Format with ruff:
 ```bash
-ruff format .
+uv run ruff format .
+```
+
+### Pre-commit hooks
+
+The hooks catch all of the above at commit time. Install pre-commit:
+
+```bash
+uv tool install pre-commit --with pre-commit-uv
+```
+
+Then install the git hook:
+
+```bash
+pre-commit install
+```
+
+To run every hook against the whole repo:
+
+```bash
+pre-commit run --all-files
 ```
 
 ## Release

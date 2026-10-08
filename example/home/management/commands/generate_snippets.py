@@ -197,7 +197,7 @@ class Command(BaseCommand):
         start_time = time.time()
 
         self.stdout.write(
-            f"  Total to create: {len(source_snippets)} snippets × {len(target_locales)} locales "
+            f"  Total to create: {len(source_snippets)} snippets × {len(target_locales)} locales "  # noqa: RUF001
             f"= {total_to_create:,} translations"
         )
         sys.stdout.flush()

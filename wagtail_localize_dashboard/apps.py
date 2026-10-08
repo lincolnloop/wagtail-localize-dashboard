@@ -22,10 +22,10 @@ class DashboardConfig(AppConfig):
         # Check dependencies
         try:
             import wagtail_localize  # noqa
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "wagtail-localize must be installed to use wagtail-localize-dashboard. Install it with: pip install wagtail-localize"
-            )
+            ) from err
 
         # Import signal handlers (registers them)
         from . import signals  # noqa
