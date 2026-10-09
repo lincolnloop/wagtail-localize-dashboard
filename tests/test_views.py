@@ -32,7 +32,8 @@ class TestDashboardView:
 
         # Should redirect to login
         assert response.status_code == 302
-        assert response.url == f"/django-admin/login/?next={url}"
+        wagtail_login = reverse("wagtailadmin_login")
+        assert response.url == f"{wagtail_login}?next={url}"
 
     def test_dashboard_accessible_by_admin(self, admin_client, home_page):
         """Test that admin users can access dashboard."""
@@ -45,10 +46,10 @@ class TestDashboardView:
             or b"Translations" in response.content
         )
 
-    def test_dashboard_accessible_by_staff(self, staff_client, home_page):
-        """Test that staff users can access dashboard."""
+    def test_dashboard_accessible_to_wagtail_users(self, wagtail_client, home_page):
+        """Test that wagtail admin users can access dashboard."""
         url = reverse("wagtail_localize_dashboard:dashboard")
-        response = staff_client.get(url)
+        response = wagtail_client.get(url)
 
         assert response.status_code == 200
 

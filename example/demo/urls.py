@@ -13,8 +13,6 @@ from wagtail.documents import urls as wagtaildocs_urls
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
-    # Translation dashboard - MUST come before admin/ to avoid being caught by Wagtail's catchall
-    path("admin/translations/", include("wagtail_localize_dashboard.urls")),
     path("admin/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
 ]

@@ -7,6 +7,7 @@ These fixtures provide reusable test setup for all test files.
 import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from wagtail.models import Locale, Page, Site
 
@@ -146,14 +147,18 @@ def admin_user(db):
 
 
 @pytest.fixture
-def staff_user(db):
-    """Create and return a staff user (non-superuser)."""
-    return User.objects.create_user(
-        username="staff",
-        email="staff@example.com",
+def wagtail_user(db):
+    """Create and return a user with access to the Wagtail admin (non-superuser)."""
+    user = User.objects.create_user(
+        username="wagtail",
+        email="wagtail@example.com",
         password="password123",
-        is_staff=True,
     )
+    wagtail_admin_access_perm = Permission.objects.get(
+        content_type__app_label="wagtailadmin", codename="access_admin"
+    )
+    user.user_permissions.add(wagtail_admin_access_perm)
+    return user
 
 
 @pytest.fixture
@@ -174,9 +179,9 @@ def admin_client(client, admin_user):
 
 
 @pytest.fixture
-def staff_client(client, staff_user):
-    """Return a client logged in as staff user."""
-    client.force_login(staff_user)
+def wagtail_client(client, wagtail_user):
+    """Return a client logged in as a user with Wagtail admin access."""
+    client.force_login(wagtail_user)
     return client
 
 
