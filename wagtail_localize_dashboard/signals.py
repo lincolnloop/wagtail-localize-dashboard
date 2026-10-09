@@ -168,38 +168,34 @@ def translation_saved_handler(
     if not should_auto_update():
         return
 
-    def update_after_commit() -> None:
-        try:
-            source_instance = instance.source.get_source_instance()
+    try:
+        source_instance = instance.source.get_source_instance()
 
-            if isinstance(source_instance, Page):
-                if not get_setting("TRACK_PAGES"):
-                    return
-                if hasattr(source_instance, "translation_key"):
-                    original_page = (
-                        Page.objects.filter(
-                            translation_key=source_instance.translation_key
-                        )
-                        .order_by("id")
-                        .first()
+        if isinstance(source_instance, Page):
+            if not get_setting("TRACK_PAGES"):
+                return
+            # Rebuild progress for this Translation's locale.
+            _queue_page_translation_progress_rebuild(
+                source_instance.translation_key, instance.target_locale_id
+            )
+
+        elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
+            original = (
+                type(source_instance)
+                .objects.filter(translation_key=source_instance.translation_key)
+                .order_by("id")
+                .first()
+            )
+            if original:
+                locale_id = instance.target_locale_id
+                transaction.on_commit(
+                    lambda: create_snippet_translation_progress(
+                        original, only_locale=locale_id
                     )
-                    if original_page:
-                        create_page_translation_progress(original_page)
-
-            elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
-                original = (
-                    type(source_instance)
-                    .objects.filter(translation_key=source_instance.translation_key)
-                    .order_by("id")
-                    .first()
                 )
-                if original:
-                    create_snippet_translation_progress(original)
 
-        except Exception:
-            logger.exception("Error in translation_saved_handler")
-
-    transaction.on_commit(update_after_commit)
+    except Exception:
+        logger.exception("Error in translation_saved_handler")
 
 
 @receiver(post_save, sender=StringTranslation)
@@ -210,59 +206,11 @@ def string_translation_saved_handler(
     if not should_auto_update():
         return
 
-    def update_after_commit() -> None:
-        try:
-            # StringTranslation -> StringSegment -> TranslationSource -> instance
-            segment = (
-                StringSegment.objects.filter(
-                    context=instance.context, string=instance.translation_of
-                )
-                .order_by("order")
-                .first()
-            )
-            if segment is None:
-                return
-            source_instance = segment.source.get_source_instance()
-
-            if isinstance(source_instance, Page):
-                if not get_setting("TRACK_PAGES"):
-                    return
-                if hasattr(source_instance, "translation_key"):
-                    original_page = (
-                        Page.objects.filter(
-                            translation_key=source_instance.translation_key
-                        )
-                        .order_by("id")
-                        .first()
-                    )
-                    if original_page:
-                        create_page_translation_progress(original_page)
-
-            elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
-                original = (
-                    type(source_instance)
-                    .objects.filter(translation_key=source_instance.translation_key)
-                    .order_by("id")
-                    .first()
-                )
-                if original:
-                    create_snippet_translation_progress(original)
-
-        except Exception:
-            logger.exception("Error in string_translation_saved_handler")
-
-    transaction.on_commit(update_after_commit)
-
-
-@receiver(pre_delete, sender=StringTranslation)
-def string_translation_deleted_handler(
-    sender: type, instance: StringTranslation, **kwargs: Any
-) -> None:
-    """Update progress when a StringTranslation is deleted."""
-    if not should_auto_update():
-        return
-
     try:
+        # StringTranslation -> StringSegment -> TranslationSource -> instance
+        # We use filter().first() rather than get(), since a rich text field
+        # that repeats a phrase produces two segments sharing a
+        # (string, context) pair.
         segment = (
             StringSegment.objects.filter(
                 context=instance.context, string=instance.translation_of
@@ -277,21 +225,10 @@ def string_translation_deleted_handler(
         if isinstance(source_instance, Page):
             if not get_setting("TRACK_PAGES"):
                 return
-            if hasattr(source_instance, "translation_key"):
-                original_page = (
-                    Page.objects.filter(translation_key=source_instance.translation_key)
-                    .order_by("id")
-                    .first()
-                )
-
-                def update_after_commit() -> None:
-                    try:
-                        if original_page:
-                            create_page_translation_progress(original_page)
-                    except Exception:
-                        logger.exception("Error in update_after_commit")
-
-                transaction.on_commit(update_after_commit)
+                # Rebuild progress for this StringTranslation's locale.
+            _queue_page_translation_progress_rebuild(
+                source_instance.translation_key, instance.locale_id
+            )
 
         elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
             original = (
@@ -300,15 +237,65 @@ def string_translation_deleted_handler(
                 .order_by("id")
                 .first()
             )
+            if original:
+                locale_id = instance.locale_id
+                transaction.on_commit(
+                    lambda: create_snippet_translation_progress(
+                        original, only_locale=locale_id
+                    )
+                )
 
-            def update_snippet_after_commit() -> None:
-                try:
-                    if original:
-                        create_snippet_translation_progress(original)
-                except Exception:
-                    logger.exception("Error in update_snippet_after_commit")
+    except Exception:
+        logger.exception("Error in string_translation_saved_handler")
 
-            transaction.on_commit(update_snippet_after_commit)
+
+@receiver(pre_delete, sender=StringTranslation)
+def string_translation_deleted_handler(
+    sender: type, instance: StringTranslation, **kwargs: Any
+) -> None:
+    """Update progress when a StringTranslation is deleted."""
+    if not should_auto_update():
+        return
+
+    try:
+        # We use filter().first(), rather than get(), since a rich text field
+        # that repeats a phrase produces two segments sharing a
+        # (string, context) pair.
+        segment = (
+            StringSegment.objects.filter(
+                context=instance.context, string=instance.translation_of
+            )
+            .order_by("order")
+            .first()
+        )
+        if segment is None:
+            return
+        source_instance = segment.source.get_source_instance()
+
+        # Get the locale here, not after the commit, because after the commit
+        # this row no longer exists.
+        locale_id = instance.locale_id
+
+        if isinstance(source_instance, Page):
+            if not get_setting("TRACK_PAGES"):
+                return
+            _queue_page_translation_progress_rebuild(
+                source_instance.translation_key, locale_id
+            )
+
+        elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
+            original = (
+                type(source_instance)
+                .objects.filter(translation_key=source_instance.translation_key)
+                .order_by("id")
+                .first()
+            )
+            if original:
+                transaction.on_commit(
+                    lambda: create_snippet_translation_progress(
+                        original, only_locale=locale_id
+                    )
+                )
 
     except Exception:
         logger.exception("Error in string_translation_deleted_handler")
@@ -328,38 +315,34 @@ def translation_log_saved_handler(
     if not should_auto_update():
         return
 
-    def update_after_commit() -> None:
-        try:
-            source_instance = instance.source.get_source_instance()
+    try:
+        source_instance = instance.source.get_source_instance()
 
-            if isinstance(source_instance, Page):
-                if not get_setting("TRACK_PAGES"):
-                    return
-                if hasattr(source_instance, "translation_key"):
-                    original_page = (
-                        Page.objects.filter(
-                            translation_key=source_instance.translation_key
-                        )
-                        .order_by("id")
-                        .first()
+        if isinstance(source_instance, Page):
+            if not get_setting("TRACK_PAGES"):
+                return
+            # Rebuild progress for this TranslationLog's locale.
+            _queue_page_translation_progress_rebuild(
+                source_instance.translation_key, instance.locale_id
+            )
+
+        elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
+            original = (
+                type(source_instance)
+                .objects.filter(translation_key=source_instance.translation_key)
+                .order_by("id")
+                .first()
+            )
+            if original:
+                locale_id = instance.locale_id
+                transaction.on_commit(
+                    lambda: create_snippet_translation_progress(
+                        original, only_locale=locale_id
                     )
-                    if original_page:
-                        create_page_translation_progress(original_page)
-
-            elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
-                original = (
-                    type(source_instance)
-                    .objects.filter(translation_key=source_instance.translation_key)
-                    .order_by("id")
-                    .first()
                 )
-                if original:
-                    create_snippet_translation_progress(original)
 
-        except Exception:
-            logger.exception("Error in translation_log_saved_handler")
-
-    transaction.on_commit(update_after_commit)
+    except Exception:
+        logger.exception("Error in translation_log_saved_handler")
 
 
 @receiver(post_save, sender=TranslationSource)
@@ -370,38 +353,31 @@ def translation_source_saved_handler(
     if not should_auto_update():
         return
 
-    def update_after_commit() -> None:
-        try:
-            source_instance = instance.get_source_instance()
+    try:
+        source_instance = instance.get_source_instance()
 
-            if isinstance(source_instance, Page):
-                if not get_setting("TRACK_PAGES"):
-                    return
-                if hasattr(source_instance, "translation_key"):
-                    original_page = (
-                        Page.objects.filter(
-                            translation_key=source_instance.translation_key
-                        )
-                        .order_by("id")
-                        .first()
-                    )
-                    if original_page:
-                        create_page_translation_progress(original_page)
+        if isinstance(source_instance, Page):
+            if not get_setting("TRACK_PAGES"):
+                return
+            # An update to a source triggers rebuilding the progress for each locale.
+            _queue_page_translation_progress_rebuild(
+                source_instance.translation_key, None
+            )
 
-            elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
-                original = (
-                    type(source_instance)
-                    .objects.filter(translation_key=source_instance.translation_key)
-                    .order_by("id")
-                    .first()
+        elif isinstance(source_instance, tuple(get_tracked_snippet_models())):
+            original = (
+                type(source_instance)
+                .objects.filter(translation_key=source_instance.translation_key)
+                .order_by("id")
+                .first()
+            )
+            if original:
+                transaction.on_commit(
+                    lambda: create_snippet_translation_progress(original)
                 )
-                if original:
-                    create_snippet_translation_progress(original)
 
-        except Exception:
-            logger.exception("Error in translation_source_saved_handler")
-
-    transaction.on_commit(update_after_commit)
+    except Exception:
+        logger.exception("Error in translation_source_saved_handler")
 
 
 @receiver(post_save)

@@ -18,6 +18,7 @@ from wagtail_localize.models import (
     StringSegment,
     StringTranslation,
     Translation,
+    TranslationLog,
     TranslationSource,
 )
 
@@ -775,7 +776,7 @@ def test_tracked_snippet_translation_calls_create_snippet_translation_progress(
     )
 
     # Called by both translation_source_saved_handler and translation_saved_handler
-    mock_create_snippet_progress.assert_called_with(snippet)
+    mock_create_snippet_progress.assert_called_with(snippet, only_locale=locale_fr.pk)
     assert mock_create_snippet_progress.call_count == 2
 
 
@@ -808,7 +809,9 @@ def test_tracked_snippet_string_translation_calls_create_snippet_translation_pro
         data="French translation",
     )
 
-    mock_create_snippet_progress.assert_called_once_with(snippet)
+    mock_create_snippet_progress.assert_called_once_with(
+        snippet, only_locale=locale_fr.pk
+    )
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
@@ -905,7 +908,9 @@ def test_tracked_snippet_string_translation_deletion_calls_create_snippet_progre
 
     string_translation.delete()
 
-    mock_create_snippet_progress.assert_called_once_with(snippet)
+    mock_create_snippet_progress.assert_called_once_with(
+        snippet, only_locale=locale_fr.pk
+    )
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
@@ -1103,3 +1108,172 @@ def test_autocommit_saves_still_rebuild(home_page):
         page.save()
 
     assert translation_progress_calls["n"] >= 1
+
+
+@pytest.mark.parametrize(
+    "handler_name",
+    [
+        "translation_saved_handler",
+        "string_translation_saved_handler",
+        "translation_log_saved_handler",
+    ],
+)
+@run_on_commit
+def test_translation_handlers_narrow_to_their_locale(
+    _mock_on_commit, handler_name, test_page, locale_de, locale_es
+):
+    """Each handler rebuilds only the locale its signal carried."""
+    import wagtail_localize_dashboard.signals as dashboard_signals
+
+    for locale in (locale_de, locale_es):
+        test_page.copy_for_translation(locale, copy_parents=True).save()
+
+    source, __ = TranslationSource.get_or_create_from_instance(test_page)
+
+    create_page_translation_progress_calls_kws = []
+
+    def record_call(page, **kwargs):
+        create_page_translation_progress_calls_kws.append(kwargs)
+
+    with patch.object(
+        dashboard_signals, "create_page_translation_progress", record_call
+    ):
+        if handler_name == "translation_saved_handler":
+            Translation.objects.get_or_create(source=source, target_locale=locale_de)
+        elif handler_name == "string_translation_saved_handler":
+            Translation.objects.get_or_create(source=source, target_locale=locale_de)
+            segment = (
+                StringSegment.objects.filter(source=source).order_by("order").first()
+            )
+            # Only the StringTranslation save is under test; the Translation
+            # above had to exist first.
+            create_page_translation_progress_calls_kws.clear()
+            StringTranslation.objects.update_or_create(
+                translation_of=segment.string,
+                context=segment.context,
+                locale=locale_de,
+                defaults={"data": "DE text"},
+            )
+        elif handler_name == "translation_log_saved_handler":
+            Translation.objects.get_or_create(source=source, target_locale=locale_de)
+            create_page_translation_progress_calls_kws.clear()
+            TranslationLog.objects.create(source=source, locale=locale_de)
+
+    assert create_page_translation_progress_calls_kws, f"{handler_name} queued nothing"
+    assert all(
+        kw.get("only_locale") == locale_de.pk
+        for kw in create_page_translation_progress_calls_kws
+    ), (
+        f"{handler_name} rebuilt {create_page_translation_progress_calls_kws}, "
+        f"expected only_locale={locale_de.pk}"
+    )
+
+
+@run_on_commit
+def test_deleting_a_string_translation_narrows_to_its_locale(
+    _mock_on_commit, test_page, locale_de, locale_es
+):
+    """pre_delete must only rebuild for the deleted translation's locale."""
+    import wagtail_localize_dashboard.signals as dashboard_signals
+
+    for locale in (locale_de, locale_es):
+        test_page.copy_for_translation(locale, copy_parents=True).save()
+
+    source, __ = TranslationSource.get_or_create_from_instance(test_page)
+    Translation.objects.get_or_create(source=source, target_locale=locale_de)
+    segment = StringSegment.objects.filter(source=source).order_by("order").first()
+    string_translation, __ = StringTranslation.objects.update_or_create(
+        translation_of=segment.string,
+        context=segment.context,
+        locale=locale_de,
+        defaults={"data": "DE text"},
+    )
+
+    create_page_translation_progress_calls_kws = []
+
+    def record_call(page, **kwargs):
+        create_page_translation_progress_calls_kws.append(kwargs)
+
+    with patch.object(
+        dashboard_signals, "create_page_translation_progress", record_call
+    ):
+        string_translation.delete()
+
+    assert create_page_translation_progress_calls_kws, (
+        "deleting a StringTranslation queued nothing"
+    )
+    assert all(
+        kw.get("only_locale") == locale_de.pk
+        for kw in create_page_translation_progress_calls_kws
+    ), create_page_translation_progress_calls_kws
+
+
+@override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"])
+@run_on_commit
+def test_snippet_handlers_narrow_to_their_locale(
+    _mock_on_commit, sample_snippet, sample_snippet_de, locale_de
+):
+    """Snippet handlers branch must pass only_locale when non-source objects are updated."""
+    import wagtail_localize_dashboard.signals as dashboard_signals
+
+    source, __ = TranslationSource.get_or_create_from_instance(sample_snippet)
+    Translation.objects.get_or_create(source=source, target_locale=locale_de)
+    segment = StringSegment.objects.filter(source=source).order_by("order").first()
+    assert segment is not None, "the snippet must have a translatable segment"
+
+    create_snippet_translation_progress_calls_kws = []
+
+    def record_call(snippet, **kwargs):
+        create_snippet_translation_progress_calls_kws.append(kwargs)
+
+    with patch.object(
+        dashboard_signals, "create_snippet_translation_progress", record_call
+    ):
+        StringTranslation.objects.update_or_create(
+            translation_of=segment.string,
+            context=segment.context,
+            locale=locale_de,
+            defaults={"data": "DE snippet text"},
+        )
+
+    assert create_snippet_translation_progress_calls_kws, (
+        "saving a snippet StringTranslation queued nothing"
+    )
+    assert all(
+        kw.get("only_locale") == locale_de.pk
+        for kw in create_snippet_translation_progress_calls_kws
+    ), create_snippet_translation_progress_calls_kws
+
+
+@run_on_commit
+def test_saving_a_translation_source_rebuilds_every_locale(
+    _mock_on_commit, test_page, locale_de, locale_es
+):
+    import wagtail_localize_dashboard.signals as dashboard_signals
+
+    for locale in (locale_de, locale_es):
+        test_page.copy_for_translation(locale, copy_parents=True).save()
+
+    source, __ = TranslationSource.get_or_create_from_instance(test_page)
+
+    create_page_translation_progress_calls_kws = []
+
+    def record_call(page, **kwargs):
+        create_page_translation_progress_calls_kws.append(kwargs)
+
+    with patch.object(
+        dashboard_signals, "create_page_translation_progress", record_call
+    ):
+        source.save()
+
+    assert create_page_translation_progress_calls_kws, (
+        "saving a TranslationSource queued nothing"
+    )
+    assert all(
+        kw.get("only_locale") is None
+        for kw in create_page_translation_progress_calls_kws
+    ), (
+        "translation_source_saved_handler narrowed to "
+        f"{create_page_translation_progress_calls_kws}; a source revision "
+        "changes what every locale is compared against"
+    )
