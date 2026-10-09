@@ -111,6 +111,55 @@ def restore_updated_stringtranslation_at_on_noop(
     )
 
 
+class _PageTranslationProgressRebuild:
+    """One pending rebuild of a page's progress, queued until commit."""
+
+    __slots__ = ("locale_id", "saved_pk", "translation_key")
+
+    def __init__(
+        self,
+        translation_key: Any,
+        locale_id: int | None,
+        saved_pk: int | None = None,
+    ) -> None:
+        self.translation_key = translation_key
+        self.locale_id = locale_id
+        self.saved_pk = saved_pk
+
+    @property
+    def key(self) -> tuple[Any, int | None, int | None]:
+        return (self.translation_key, self.locale_id, self.saved_pk)
+
+    def __call__(self) -> None:
+        try:
+            original_page = (
+                Page.objects.filter(translation_key=self.translation_key)
+                .order_by("id")
+                .first()
+            )
+            if original_page is None:
+                return
+
+            only_locale = self.locale_id
+            # If the saved_pk is the original_page's pk, then we set only_locale
+            # to None, so all translations' progress percentages get computed.
+            if self.saved_pk is not None and original_page.pk == self.saved_pk:
+                only_locale = None
+
+            create_page_translation_progress(original_page, only_locale=only_locale)
+        except Exception:
+            logger.exception("Error in _PageTranslationProgressRebuild %r", (self.key,))
+
+
+def _queue_page_translation_progress_rebuild(
+    translation_key: Any, locale_id: int | None, saved_pk: int | None = None
+) -> None:
+    """Queue a page rebuild to run when the current transaction commits."""
+    transaction.on_commit(
+        _PageTranslationProgressRebuild(translation_key, locale_id, saved_pk)
+    )
+
+
 @receiver(post_save, sender=Translation)
 def translation_saved_handler(
     sender: type, instance: Translation, created: bool, **kwargs: Any
@@ -374,20 +423,9 @@ def page_saved_handler(
     if not get_setting("TRACK_PAGES"):
         return
 
-    def update_after_commit() -> None:
-        try:
-            # Get the original page
-            original_page = (
-                Page.objects.filter(translation_key=instance.translation_key)
-                .order_by("id")
-                .first()
-            )
-            if original_page:
-                create_page_translation_progress(original_page)
-        except Exception:
-            logger.exception("Error in page_saved_handler")
-
-    transaction.on_commit(update_after_commit)
+    _queue_page_translation_progress_rebuild(
+        instance.translation_key, instance.locale_id, saved_pk=instance.pk
+    )
 
 
 def snippet_saved_handler(

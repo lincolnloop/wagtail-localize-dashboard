@@ -21,6 +21,11 @@ from wagtail_localize.models import (
     TranslationSource,
 )
 
+from tests.helpers import (
+    count_translation_progress_calls,
+    create_or_replace_page,
+    run_on_commit,
+)
 from tests.models import RichTextSnippet, SampleSnippet
 from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
@@ -988,3 +993,113 @@ def test_repeated_rich_text_does_not_break_the_handler(
     assert SnippetTranslationProgress.objects.filter(
         source_object_id=snippet.pk, translated_locale=locale_de
     ).exists()
+
+
+@run_on_commit
+def test_saving_a_target_rebuilds_only_that_locale_progress(
+    _mock_on_commit, test_page, locale_de, locale_es
+):
+    import wagtail_localize_dashboard.signals as dashboard_signals
+
+    for locale in (locale_de, locale_es):
+        test_page.copy_for_translation(locale, copy_parents=True).save()
+    de_page = Page.objects.get(
+        translation_key=test_page.translation_key, locale=locale_de
+    )
+
+    # Saving the de_page must recalculate the de_locale's percentages for the test_page.
+    create_page_translation_progress_calls_pages = []
+    create_page_translation_progress_calls_kws = []
+
+    def record_call(page, **kwargs):
+        create_page_translation_progress_calls_pages.append(page)
+        create_page_translation_progress_calls_kws.append(kwargs)
+
+    with patch.object(
+        dashboard_signals, "create_page_translation_progress", record_call
+    ):
+        de_page.title = "Geaenderter Titel"
+        de_page.save()
+
+    assert create_page_translation_progress_calls_pages, (
+        "saving a target must call create_page_translation_progress()"
+    )
+    assert create_page_translation_progress_calls_pages == [test_page], (
+        "saving a target must rebuild the progress for the relevant page"
+    )
+    assert create_page_translation_progress_calls_kws, (
+        "saving a target must call create_page_translation_progress()"
+    )
+    assert create_page_translation_progress_calls_kws == [
+        {"only_locale": locale_de.pk}
+    ], "saving a target must rebuild only that target's progress"
+
+
+@run_on_commit
+def test_saving_the_source_rebuilds_every_locale_progress(
+    _mock_on_commit, test_page, locale_de, locale_es
+):
+    import wagtail_localize_dashboard.signals as dashboard_signals
+
+    for locale in (locale_de, locale_es):
+        test_page.copy_for_translation(locale, copy_parents=True).save()
+
+    create_page_translation_progress_calls_kws = []
+
+    def record_call(page, **kwargs):
+        create_page_translation_progress_calls_kws.append(kwargs)
+
+    with patch.object(
+        dashboard_signals, "create_page_translation_progress", record_call
+    ):
+        test_page.title = "Changed title"
+        test_page.save()
+
+    assert create_page_translation_progress_calls_kws, (
+        "saving a source must call create_page_translation_progress()"
+    )
+    # only_locale=None is how the builder is asked for every locale; naming the
+    # locales instead would only rebuild the ones named here.
+    assert create_page_translation_progress_calls_kws == [{"only_locale": None}], (
+        "saving a source page must rebuild progress for all translations"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_rollback_leaves_nothing_queued(home_page):
+    """A rolled-back transaction must leak nothing into the next one."""
+    from django.db import transaction as db_transaction
+
+    page = create_or_replace_page(home_page, "rollback-me")
+
+    with count_translation_progress_calls() as translation_progress_calls:
+        with db_transaction.atomic():
+            page.title = "This translation is being rolled back"
+            page.save()
+            db_transaction.set_rollback(True)
+
+        assert translation_progress_calls["n"] == 0, (
+            "a rolled-back save must not rebuild"
+        )
+
+        with db_transaction.atomic():
+            page.title = "Committed"
+            page.save()
+
+    assert translation_progress_calls["n"] == 1, (
+        f"the transaction after a rollback did {translation_progress_calls['n']} rebuilds, expected "
+        "exactly 1; anything more means the rolled-back transaction left work "
+        "behind, anything less means it left something that suppressed this one"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_autocommit_saves_still_rebuild(home_page):
+    """on_commit fires immediately outside an atomic block."""
+    page = create_or_replace_page(home_page, "autocommit-me")
+
+    with count_translation_progress_calls() as translation_progress_calls:
+        page.title = "Saved outside atomic"
+        page.save()
+
+    assert translation_progress_calls["n"] >= 1
