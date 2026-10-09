@@ -48,6 +48,12 @@
 - A few color contrast issues (white text on amber in the 80-99% translation
   badge, grey text in the "No translations" message)
 
+### Changed
+
+- Submitting a page for translation now uses fewer function and database calls.
+- `create_page_translation_progress()` and `create_snippet_translation_progress()`
+  take an optional `only_locale` argument.
+
 ### Deprecated
 
 - `get_translation_percentages` deprecated in favor of
