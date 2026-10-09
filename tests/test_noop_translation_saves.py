@@ -288,7 +288,7 @@ def test_the_stash_cost_is_linear_in_rows_saved(_on_commit, test_page, locale_de
     """A PO import saves one row per changed segment and pays one SELECT each."""
     from wagtail_localize_dashboard.signals import remember_previous_stringtranslation
 
-    source, __ = translate_all_segments_and_publish(test_page, locale_de)
+    translate_all_segments_and_publish(test_page, locale_de)
     rows = list(StringTranslation.objects.filter(locale=locale_de))
     assert len(rows) > 1, "the fixture must have more than one segment to mean anything"
 
@@ -364,14 +364,16 @@ def test_a_failed_restore_reports_the_failure_and_changes_nothing(
     new_updated_at = timezone.now()
     stored.updated_at = new_updated_at
 
-    with caplog.at_level(logging.ERROR, logger="wagtail_localize_dashboard.signals"):
-        with patch(
+    with (
+        caplog.at_level(logging.ERROR, logger="wagtail_localize_dashboard.signals"),
+        patch(
             "wagtail_localize_dashboard.signals.StringTranslation.objects.using",
             side_effect=RuntimeError("database on fire"),
-        ):
-            restore_updated_stringtranslation_at_on_noop(
-                StringTranslation, stored, created=False
-            )
+        ),
+    ):
+        restore_updated_stringtranslation_at_on_noop(
+            StringTranslation, stored, created=False
+        )
 
     assert stored.updated_at == new_updated_at, (
         "a failed UPDATE must leave the instance's timestamp alone, so that it "
