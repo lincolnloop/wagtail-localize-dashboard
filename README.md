@@ -121,6 +121,12 @@ WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS = [
     "myapp.NavigationMenu",
     "myapp.SiteAlert",
 ]
+
+# Preserve StringTranslation.updated_at at its stored value when a save
+# changes neither the text nor the error state (default: True). If set to False,
+# a user who opens a segment and saves it without making any changes results in
+# a lower published percentage for the page.
+WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES = True
 ```
 
 When `WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS` is configured, a "Show languages" dropdown appears on the dashboard. Selecting a group limits the displayed language columns to the locales in that group. Rows are not hidden — pages with no translations in the selected group will still appear.
@@ -172,6 +178,14 @@ from wagtail.models import Locale
 locale_de = Locale.objects.get(language_code="de")
 progress = get_translation_progress(source_object, locale_de, translated_object)
 percent_translated, percent_published, has_unpublished_translations = progress
+
+# Rebuild the stored progress for one object. Pass only_locale to rebuild a
+# single target locale; omit it to rebuild every locale.
+create_page_translation_progress(source_page)  # all Locales
+create_page_translation_progress(source_page, only_locale=locale_de)  # only 1 locale
+create_snippet_translation_progress(
+    source_snippet, only_locale=locale_de
+)  # only 1 locale
 
 # Rebuild progress selectively
 page_stats = rebuild_all_progress_for_pages()

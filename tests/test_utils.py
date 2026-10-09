@@ -9,6 +9,7 @@ from django.test import override_settings
 from wagtail.models import Locale, Page
 from wagtail_localize.models import Translation, TranslationSource
 
+from tests.helpers import run_on_commit, translate_all_segments_and_publish
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
@@ -823,3 +824,137 @@ class TestRebuildAllSnippetProgress:
 
         assert stats["errors"] == 1
         assert stats["snippets"] == 1  # second snippet still processed
+
+
+@run_on_commit
+def test_create_page_progress_can_rebuild_one_locale(
+    _on_commit, test_page, locale_de, locale_es
+):
+    """only_locale must write that locale's row and leave the others alone."""
+    for locale in (locale_de, locale_es):
+        test_page.copy_for_translation(locale, copy_parents=True)
+    create_page_translation_progress(test_page)
+
+    locales = set(
+        TranslationProgress.objects.filter(source_page=test_page).values_list(
+            "translated_page__locale_id", flat=True
+        )
+    )
+    assert locales == {locale_de.pk, locale_es.pk}
+
+    TranslationProgress.objects.filter(source_page=test_page).delete()
+    create_page_translation_progress(test_page, only_locale=locale_de.pk)
+
+    rebuilt = set(
+        TranslationProgress.objects.filter(source_page=test_page).values_list(
+            "translated_page__locale_id", flat=True
+        )
+    )
+    assert rebuilt == {locale_de.pk}, (
+        f"only_locale={locale_de.pk} must touch one locale, got {rebuilt}"
+    )
+
+
+@run_on_commit
+def test_create_snippet_progress_can_rebuild_one_locale(
+    _on_commit, sample_snippet, sample_snippet_de, locale_es
+):
+    """only_locale must write that locale's row and leave the others alone."""
+    es_snippet = sample_snippet.copy_for_translation(locale_es)
+    es_snippet.save()
+    content_type = ContentType.objects.get_for_model(SampleSnippet)
+
+    def rebuilt_locales(**kwargs):
+        SnippetTranslationProgress.objects.filter(
+            content_type=content_type, source_object_id=sample_snippet.pk
+        ).delete()
+        create_snippet_translation_progress(sample_snippet, **kwargs)
+        return set(
+            SnippetTranslationProgress.objects.filter(
+                content_type=content_type, source_object_id=sample_snippet.pk
+            ).values_list("translated_locale_id", flat=True)
+        )
+
+    every = rebuilt_locales()
+    narrowed = rebuilt_locales(only_locale=locale_es.pk)
+
+    assert every == {sample_snippet_de.locale_id, locale_es.pk}, (
+        f"unnarrowed rebuild wrote {every}, expected both locales"
+    )
+    assert narrowed == {locale_es.pk}, (
+        f"only_locale={locale_es.pk} must touch one locale, got {narrowed}"
+    )
+
+
+@run_on_commit
+def test_create_page_progress_narrowed_rebuild_creates_a_missing_row(
+    _on_commit, test_page, locale_de, locale_es
+):
+    for locale in (locale_de, locale_es):
+        test_page.copy_for_translation(locale, copy_parents=True)
+    TranslationProgress.objects.filter(source_page=test_page).delete()
+
+    create_page_translation_progress(test_page, only_locale=locale_es.pk)
+
+    assert TranslationProgress.objects.filter(
+        source_page=test_page, translated_page__locale=locale_es
+    ).exists()
+    assert not TranslationProgress.objects.filter(
+        source_page=test_page, translated_page__locale=locale_de
+    ).exists()
+
+
+@run_on_commit
+def test_narrowing_does_not_shrink_the_fallback_sources(
+    _on_commit, test_page, locale_de, locale_es
+):
+    """A de->es chain must still resolve when only es is being rebuilt."""
+    de_page = test_page.copy_for_translation(locale_de, copy_parents=True)
+    de_page.save()
+    translate_all_segments_and_publish(de_page, locale_es)
+
+    def rebuild_and_read(**kwargs):
+        TranslationProgress.objects.filter(source_page=test_page).delete()
+        create_page_translation_progress(test_page, **kwargs)
+        row = TranslationProgress.objects.get(
+            source_page=test_page, translated_page__locale=locale_es
+        )
+        return row.percent_translated, row.percent_published
+
+    narrowed = rebuild_and_read(only_locale=locale_es.pk)
+    unnarrowed = rebuild_and_read()
+
+    # There is no Translation from test_page to Spanish, so these numbers can
+    # only come from the German page being used as the source instead.
+    assert narrowed[0] > 0, "the Spanish row was not resolved from the German page"
+    assert narrowed == unnarrowed, (
+        f"narrowed rebuild gave {narrowed}, unnarrowed gave {unnarrowed} - "
+        "narrowing shrank the candidate sources, not just the targets"
+    )
+
+
+@run_on_commit
+def test_only_locale_arguments(_on_commit, test_page, locale_de, locale_es):
+    """A Locale and its pk must behave identically; invalid values must raise an error."""
+    for locale in (locale_de, locale_es):
+        test_page.copy_for_translation(locale, copy_parents=True)
+
+    def rebuilt_locales(only_locale):
+        TranslationProgress.objects.filter(source_page=test_page).delete()
+        create_page_translation_progress(test_page, only_locale=only_locale)
+        return set(
+            TranslationProgress.objects.filter(source_page=test_page).values_list(
+                "translated_page__locale_id", flat=True
+            )
+        )
+
+    by_pk = rebuilt_locales(locale_de.pk)
+    by_instance = rebuilt_locales(locale_de)
+
+    assert by_instance == by_pk == {locale_de.pk}, (
+        f"Locale instance gave {by_instance}, pk gave {by_pk}"
+    )
+
+    for invalid_value in ["de", "", "German"]:
+        with pytest.raises(TypeError):
+            create_page_translation_progress(test_page, only_locale=invalid_value)

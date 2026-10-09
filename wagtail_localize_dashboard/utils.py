@@ -105,12 +105,8 @@ def _count_published(
     available proxy. StringTranslation.updated_at is auto_now=True, which gives
     the proxy two known errors:
 
-    - False gap. The edit_string_translation view does an unconditional
-      update_or_create, so re-saving a segment with BYTE-IDENTICAL text bumps
-      updated_at and drops that segment out of the published count. It errs
-      safe (it under-reports published, never over-reports), but a translator
-      who opens a segment and saves without editing will see a gap appear and
-      will report it as a bug.
+    - False gap, suppressed by default with the
+      WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES setting.
     - False publish. A segment removed from the source and re-added after a
       push keeps its old StringTranslation row, and therefore its old
       updated_at, so it counts as published even though it was never pushed.
@@ -221,7 +217,21 @@ def get_translation_progress(
     )
 
 
-def create_page_translation_progress(source_page: Page) -> None:
+def _get_locale_pk(locale_or_id: Locale | int | None) -> int | None:
+    """Return the pk of ``locale_or_id``, which may already be a pk."""
+    if locale_or_id is None or isinstance(locale_or_id, int):
+        return locale_or_id
+    if isinstance(locale_or_id, Locale):
+        return locale_or_id.pk
+    raise TypeError(
+        f"locale_or_id must be a Locale, a Locale pk, or None; "
+        f"got {type(locale_or_id).__name__}"
+    )
+
+
+def create_page_translation_progress(
+    source_page: Page, only_locale: Locale | int | None = None
+) -> None:
     """
     Calculate and store translation progress for a source page.
 
@@ -230,6 +240,7 @@ def create_page_translation_progress(source_page: Page) -> None:
 
     Args:
         source_page: The source Page object
+        only_locale: Locale (or its pk) to rebuild, or None for every locale
 
     Example:
         >>> page = Page.objects.get(id=123)
@@ -243,8 +254,15 @@ def create_page_translation_progress(source_page: Page) -> None:
         # Get all translations of this page
         translations = source_page.get_translations()
 
-        # Loop over all translations
-        for translated_page in translations:
+        # Determine the translations being updated.
+        translations_being_updated = translations
+        only_locale_pk = _get_locale_pk(only_locale)
+        if only_locale_pk is not None:
+            translations_being_updated = [
+                p for p in translations if p.locale_id == only_locale_pk
+            ]
+
+        for translated_page in translations_being_updated:
             # Skip if same as source
             if translated_page.id == source_page.id:
                 continue
@@ -329,7 +347,9 @@ def rebuild_all_progress_for_pages() -> dict[str, int]:
     return stats
 
 
-def create_snippet_translation_progress(source_snippet: Model) -> None:
+def create_snippet_translation_progress(
+    source_snippet: Model, only_locale: Locale | int | None = None
+) -> None:
     """
     Calculate and store translation progress for a source snippet.
 
@@ -338,12 +358,21 @@ def create_snippet_translation_progress(source_snippet: Model) -> None:
 
     Args:
         source_snippet: The source snippet instance (must be TranslatableMixin)
+        only_locale: Locale (or its pk) to rebuild, or None for every locale
     """
     try:
         content_type = ContentType.objects.get_for_model(source_snippet)
         translations = source_snippet.get_translations()
 
-        for translated_snippet in translations:
+        # Determine the translations being updated.
+        translations_being_updated = translations
+        only_locale_pk = _get_locale_pk(only_locale)
+        if only_locale_pk is not None:
+            translations_being_updated = [
+                s for s in translations if s.locale_id == only_locale_pk
+            ]
+
+        for translated_snippet in translations_being_updated:
             if translated_snippet.pk == source_snippet.pk:
                 continue
 
