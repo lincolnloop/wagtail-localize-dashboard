@@ -602,7 +602,7 @@ def test_uploading_po_file_updates_page_translation_data(
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
-@patch("wagtail_localize_dashboard.utils.create_page_translation_progress")
+@patch("wagtail_localize_dashboard.signals.create_page_translation_progress")
 def test_snippet_translation_does_not_call_create_page_translation_progress(
     _mock_create_page_translation_progress, _mock_on_commit, locale_en, locale_fr
 ):
@@ -630,7 +630,7 @@ def test_snippet_translation_does_not_call_create_page_translation_progress(
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
-@patch("wagtail_localize_dashboard.utils.create_page_translation_progress")
+@patch("wagtail_localize_dashboard.signals.create_page_translation_progress")
 def test_snippet_string_translation_does_not_call_create_page_translation_progress(
     _mock_create_page_translation_progress, _mock_on_commit, locale_en, locale_fr
 ):
@@ -675,7 +675,7 @@ def test_snippet_string_translation_does_not_call_create_page_translation_progre
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
-@patch("wagtail_localize_dashboard.utils.create_page_translation_progress")
+@patch("wagtail_localize_dashboard.signals.create_page_translation_progress")
 def test_snippet_string_translation_deletion_does_not_call_create_page_translation_progress(
     _mock_create_page_translation_progress, _mock_on_commit, locale_en, locale_fr
 ):
@@ -723,7 +723,7 @@ def test_snippet_string_translation_deletion_does_not_call_create_page_translati
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
-@patch("wagtail_localize_dashboard.utils.create_page_translation_progress")
+@patch("wagtail_localize_dashboard.signals.create_page_translation_progress")
 def test_snippet_translation_source_save_does_not_call_create_page_translation_progress(
     _mock_create_page_translation_progress, _mock_on_commit, locale_en
 ):
