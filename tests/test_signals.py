@@ -927,7 +927,8 @@ def test_tracked_snippet_translation_source_save_calls_create_snippet_progress(
 
     TranslationSource.get_or_create_from_instance(snippet)
 
-    mock_create_snippet_progress.assert_called_once_with(snippet)
+    # only_locale=None is used, because we rebuild translations for all locales.
+    mock_create_snippet_progress.assert_called_once_with(snippet, only_locale=None)
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
