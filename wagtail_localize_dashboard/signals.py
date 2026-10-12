@@ -59,7 +59,7 @@ def remember_previous_stringtranslation(
 
 
 @receiver(post_save, sender=StringTranslation)
-def restore_updated_stringtranslation_at_on_noop(
+def restore_stringtranslation_updated_at_on_noop(
     sender: type, instance: StringTranslation, created: bool, **kwargs: Any
 ) -> None:
     """
@@ -92,7 +92,7 @@ def restore_updated_stringtranslation_at_on_noop(
         ).update(updated_at=previous["updated_at"])
     except Exception:
         # Never let this package's bookkeeping break somebody else's save.
-        logger.exception("Error in restore_updated_stringtranslation_at_on_noop")
+        logger.exception("Error in restore_stringtranslation_updated_at_on_noop")
         return
 
     instance.updated_at = previous["updated_at"]

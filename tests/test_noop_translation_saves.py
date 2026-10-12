@@ -26,7 +26,7 @@ from tests.helpers import (
 from wagtail_localize_dashboard.models import TranslationProgress
 from wagtail_localize_dashboard.signals import (
     remember_previous_stringtranslation,
-    restore_updated_stringtranslation_at_on_noop,
+    restore_stringtranslation_updated_at_on_noop,
 )
 from wagtail_localize_dashboard.utils import get_translation_progress
 
@@ -187,12 +187,12 @@ def test_post_save_tolerates_a_missing_stash(_on_commit, test_page, locale_de):
     # but here we test the scenario that it did not, for whatever reason (for
     # example, a bulk save).
     assert not hasattr(stored, "_dashboard_previous_translation")
-    # No error is raised when restore_updated_stringtranslation_at_on_noop().
-    restore_updated_stringtranslation_at_on_noop(
+    # No error is raised when restore_stringtranslation_updated_at_on_noop().
+    restore_stringtranslation_updated_at_on_noop(
         StringTranslation, stored, created=False
     )
     # Since _dashboard_previous_translation was not added, updated_at is not
-    # updated in restore_updated_stringtranslation_at_on_noop(). In a real-world
+    # updated in restore_stringtranslation_updated_at_on_noop(). In a real-world
     # scenario, updated_at is updated, but by a different signal. See
     # test_a_broken_stash_does_not_break_the_save.
     assert (
@@ -202,12 +202,12 @@ def test_post_save_tolerates_a_missing_stash(_on_commit, test_page, locale_de):
 
     # An explicit None, as when the row was deleted between pre_save and save.
     stored._dashboard_previous_translation = None
-    # No error is raised when restore_updated_stringtranslation_at_on_noop().
-    restore_updated_stringtranslation_at_on_noop(
+    # No error is raised when restore_stringtranslation_updated_at_on_noop().
+    restore_stringtranslation_updated_at_on_noop(
         StringTranslation, stored, created=False
     )
     # Since _dashboard_previous_translation was not added, updated_at is not
-    # updated in restore_updated_stringtranslation_at_on_noop(). In a real-world
+    # updated in restore_stringtranslation_updated_at_on_noop(). In a real-world
     # scenario, updated_at is updated, but by a different signal. See
     # test_a_broken_stash_does_not_break_the_save.
     assert (
@@ -277,7 +277,7 @@ def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, loc
     stored.updated_at = timezone.now()
 
     with CaptureQueriesContext(connection) as restore:
-        restore_updated_stringtranslation_at_on_noop(
+        restore_stringtranslation_updated_at_on_noop(
             StringTranslation, stored, created=False
         )
     assert len(restore) == 1, "a no-op costs exactly one UPDATE"
@@ -287,7 +287,7 @@ def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, loc
     stored.data = "DE genuinely different"
     stored.updated_at = timezone.now()
     with CaptureQueriesContext(connection) as real:
-        restore_updated_stringtranslation_at_on_noop(
+        restore_stringtranslation_updated_at_on_noop(
             StringTranslation, stored, created=False
         )
     assert len(real) == 0, "a real edit writes nothing back"
@@ -360,7 +360,7 @@ def test_a_failed_restore_reports_the_failure_and_changes_nothing(
             side_effect=RuntimeError("database on fire"),
         ),
     ):
-        restore_updated_stringtranslation_at_on_noop(
+        restore_stringtranslation_updated_at_on_noop(
             StringTranslation, stored, created=False
         )
 
@@ -368,7 +368,7 @@ def test_a_failed_restore_reports_the_failure_and_changes_nothing(
         "a failed UPDATE must leave the instance's timestamp alone, so that it "
         "still matches what the database holds"
     )
-    assert "Error in restore_updated_stringtranslation_at_on_noop" in caplog.text, (
+    assert "Error in restore_stringtranslation_updated_at_on_noop" in caplog.text, (
         "a swallowed exception nobody can see is indistinguishable from the "
         f"feature silently not working: {[r.getMessage() for r in caplog.records]}"
     )
