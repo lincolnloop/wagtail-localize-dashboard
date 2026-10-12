@@ -34,8 +34,8 @@ DEFAULTS = {
     # Snippet models to track, e.g. ["myapp.NavigationMenu"]
     "TRACKED_SNIPPETS": [],
     # Preserve the StringTranslation.updated_at when a save doesn't update any
-    # of the translatation's text. True by default to avoid treating such saves
-    # as new translations (that drop the translated percentage).
+    # of the translation's text. True by default to avoid treating such saves
+    # as new translations (that drop the translation's published percentage).
     "PRESERVE_TIMESTAMP_ON_NOOP_SAVES": True,
 }
 

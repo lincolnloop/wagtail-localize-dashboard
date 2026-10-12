@@ -32,7 +32,8 @@ class TestSnippetProgressDashboardView:
 
         # Should redirect to login
         assert response.status_code == 302
-        assert response.url == f"/django-admin/login/?next={url}"
+        wagtail_login = reverse("wagtailadmin_login")
+        assert response.url == f"{wagtail_login}?next={url}"
 
     def test_accessible_to_admin(self, admin_client):
         """Admin users can access the snippet dashboard."""
@@ -44,25 +45,26 @@ class TestSnippetProgressDashboardView:
             or b"Translations" in response.content
         )
 
-    def test_accessible_to_staff(self, staff_client):
-        """Staff users can access the snippet dashboard."""
+    def test_accessible_to_wagtail_users(self, wagtail_client):
+        """Wagtail admin users can access the snippet dashboard."""
         url = reverse(SNIPPET_DASHBOARD_URL_NAME)
-        response = staff_client.get(url)
+        response = wagtail_client.get(url)
         assert response.status_code == 200
         assert (
             b"Translation Dashboard" in response.content
             or b"Translations" in response.content
         )
 
-    def test_non_staff_user_is_redirected(self, client, regular_user):
-        """Non-staff users are redirected to login."""
+    def test_non_wagtail_user_is_redirected(self, client, regular_user):
+        """Non-wagtail users are redirected to login."""
         client.force_login(regular_user)
         url = reverse(SNIPPET_DASHBOARD_URL_NAME)
         response = client.get(url)
 
         # Should redirect to login
         assert response.status_code == 302
-        assert response.url == f"/django-admin/login/?next={url}"
+        wagtail_login = reverse("wagtailadmin_login")
+        assert response.url == f"{wagtail_login}?next={url}"
 
     def test_returns_empty_list_without_tracked_snippets(self, admin_client):
         """Returns an empty snippet list when no models are tracked."""

@@ -23,8 +23,8 @@
 - `WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES` (default
   `True`) preserves `StringTranslation.updated_at` at its stored value when a
   save alters neither the text nor the error state. This behavior exists to
-  avoid lowering the translated percentage when a user updates a segment without
-  making any changes to the segment.
+  avoid lowering the published translated percentage when a user updates a
+  segment without making any changes to the segment.
 - A segment re-saved without changes counts as unpublished until the next
   push: upstream records no per-segment push provenance, so an identical
   re-save still bumps `updated_at` and drops the segment from the published
@@ -47,6 +47,7 @@
   2.01:1 and is now `#a06400` at 4.86:1.
 - A few color contrast issues (white text on amber in the 80-99% translation
   badge, grey text in the "No translations" message)
+- Wagtail's profile language setting is now applied to the dashboard views.
 
 ### Changed
 
@@ -61,8 +62,13 @@
 
 ### Upgrading
 
-Existing progress rows have no published percentage until they are recomputed,
-and render exactly as before until then. Rows refresh automatically when a page
-or snippet is edited. To populate them all at once:
+- Remove `wagtail_localize_dashboard.urls` from URL patterns since they are now
+  automatically registered. E.g. remove the following from your root `urls.py`:
 
-    python manage.py rebuild_translation_progress
+      path("translations/", include("wagtail_localize_dashboard.urls")),
+
+- Existing progress rows have no published percentage until they are recomputed,
+  and render exactly as before until then. Rows refresh automatically when a page
+  or snippet is edited. To populate them all at once:
+
+      python manage.py rebuild_translation_progress

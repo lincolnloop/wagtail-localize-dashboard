@@ -24,6 +24,10 @@ from tests.helpers import (
     translate_all_segments_and_publish,
 )
 from wagtail_localize_dashboard.models import TranslationProgress
+from wagtail_localize_dashboard.signals import (
+    remember_previous_stringtranslation,
+    restore_stringtranslation_updated_at_on_noop,
+)
 from wagtail_localize_dashboard.utils import get_translation_progress
 
 pytestmark = [pytest.mark.django_db]
@@ -175,35 +179,46 @@ def test_creating_a_translation_is_untouched(_on_commit, test_page, locale_de):
 @run_on_commit
 def test_post_save_tolerates_a_missing_stash(_on_commit, test_page, locale_de):
     """pre_save may not have run, or may have found no row to stash."""
-    from wagtail_localize_dashboard.signals import (
-        restore_updated_stringtranslation_at_on_noop,
-    )
-
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
+    original_updated_at = stored.updated_at
 
     # Normally, the pre-save adds a _dashboard_previous_translation property,
     # but here we test the scenario that it did not, for whatever reason (for
     # example, a bulk save).
     assert not hasattr(stored, "_dashboard_previous_translation")
-    # No error is raised when restore_updated_stringtranslation_at_on_noop aaa().
-    restore_updated_stringtranslation_at_on_noop(
+    # No error is raised when restore_stringtranslation_updated_at_on_noop().
+    restore_stringtranslation_updated_at_on_noop(
         StringTranslation, stored, created=False
+    )
+    # Since _dashboard_previous_translation was not added, updated_at is not
+    # updated in restore_stringtranslation_updated_at_on_noop(). In a real-world
+    # scenario, updated_at is updated, but by a different signal. See
+    # test_a_broken_stash_does_not_break_the_save.
+    assert (
+        get_first_segment_translation(source, locale_de).updated_at
+        == original_updated_at
     )
 
     # An explicit None, as when the row was deleted between pre_save and save.
     stored._dashboard_previous_translation = None
-    # No error is raised when restore_updated_stringtranslation_at_on_noop aaa().
-    restore_updated_stringtranslation_at_on_noop(
+    # No error is raised when restore_stringtranslation_updated_at_on_noop().
+    restore_stringtranslation_updated_at_on_noop(
         StringTranslation, stored, created=False
+    )
+    # Since _dashboard_previous_translation was not added, updated_at is not
+    # updated in restore_stringtranslation_updated_at_on_noop(). In a real-world
+    # scenario, updated_at is updated, but by a different signal. See
+    # test_a_broken_stash_does_not_break_the_save.
+    assert (
+        get_first_segment_translation(source, locale_de).updated_at
+        == original_updated_at
     )
 
 
 @run_on_commit
 def test_raw_saves_are_skipped(_on_commit, test_page, locale_de):
     """loaddata fires both signals with raw=True and must not pay for a SELECT."""
-    from wagtail_localize_dashboard.signals import remember_previous_stringtranslation
-
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
 
@@ -251,11 +266,6 @@ def test_a_real_update_fields_save_leaves_the_timestamp_alone(
 @run_on_commit
 def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, locale_de):
     """Pin the overhead on the receivers themselves."""
-    from wagtail_localize_dashboard.signals import (
-        remember_previous_stringtranslation,
-        restore_updated_stringtranslation_at_on_noop,
-    )
-
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
 
@@ -267,7 +277,7 @@ def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, loc
     stored.updated_at = timezone.now()
 
     with CaptureQueriesContext(connection) as restore:
-        restore_updated_stringtranslation_at_on_noop(
+        restore_stringtranslation_updated_at_on_noop(
             StringTranslation, stored, created=False
         )
     assert len(restore) == 1, "a no-op costs exactly one UPDATE"
@@ -277,26 +287,10 @@ def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, loc
     stored.data = "DE genuinely different"
     stored.updated_at = timezone.now()
     with CaptureQueriesContext(connection) as real:
-        restore_updated_stringtranslation_at_on_noop(
+        restore_stringtranslation_updated_at_on_noop(
             StringTranslation, stored, created=False
         )
     assert len(real) == 0, "a real edit writes nothing back"
-
-
-@run_on_commit
-def test_the_stash_cost_is_linear_in_rows_saved(_on_commit, test_page, locale_de):
-    """A PO import saves one row per changed segment and pays one SELECT each."""
-    from wagtail_localize_dashboard.signals import remember_previous_stringtranslation
-
-    translate_all_segments_and_publish(test_page, locale_de)
-    rows = list(StringTranslation.objects.filter(locale=locale_de))
-    assert len(rows) > 1, "the fixture must have more than one segment to mean anything"
-
-    with CaptureQueriesContext(connection) as ctx:
-        for row in rows:
-            remember_previous_stringtranslation(StringTranslation, row)
-
-    assert len(ctx) == len(rows), "one SELECT per row, and no more"
 
 
 @run_on_commit
@@ -349,11 +343,6 @@ def test_a_failed_restore_reports_the_failure_and_changes_nothing(
     _on_commit, test_page, locale_de, caplog
 ):
     """An UPDATE that cannot reach the database must log and return quietly."""
-    from wagtail_localize_dashboard.signals import (
-        remember_previous_stringtranslation,
-        restore_updated_stringtranslation_at_on_noop,
-    )
-
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
     remember_previous_stringtranslation(StringTranslation, stored)
@@ -371,7 +360,7 @@ def test_a_failed_restore_reports_the_failure_and_changes_nothing(
             side_effect=RuntimeError("database on fire"),
         ),
     ):
-        restore_updated_stringtranslation_at_on_noop(
+        restore_stringtranslation_updated_at_on_noop(
             StringTranslation, stored, created=False
         )
 
@@ -379,7 +368,7 @@ def test_a_failed_restore_reports_the_failure_and_changes_nothing(
         "a failed UPDATE must leave the instance's timestamp alone, so that it "
         "still matches what the database holds"
     )
-    assert "Error in restore_updated_stringtranslation_at_on_noop" in caplog.text, (
+    assert "Error in restore_stringtranslation_updated_at_on_noop" in caplog.text, (
         "a swallowed exception nobody can see is indistinguishable from the "
         f"feature silently not working: {[r.getMessage() for r in caplog.records]}"
     )

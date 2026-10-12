@@ -37,33 +37,19 @@ INSTALLED_APPS = [
 ]
 ```
 
-### 2. Include URLs
-
-```python
-# urls.py
-
-from django.urls import path, include
-
-urlpatterns = [
-    # ... other patterns
-    path("translations/", include("wagtail_localize_dashboard.urls")),
-    # ... other patterns
-]
-```
-
-### 3. Run Migrations
+### 2. Run Migrations
 
 ```bash
 python manage.py migrate wagtail_localize_dashboard
 ```
 
-### 4. Calculate Percentages
+### 3. Calculate Percentages
 
 ```bash
 python manage.py rebuild_translation_progress
 ```
 
-### 5. Access Dashboard
+### 4. Access Dashboard
 
 Navigate to `/translations/` in your Wagtail admin, or click "Translations" in the admin menu.
 
