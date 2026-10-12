@@ -24,6 +24,10 @@ from tests.helpers import (
     translate_all_segments_and_publish,
 )
 from wagtail_localize_dashboard.models import TranslationProgress
+from wagtail_localize_dashboard.signals import (
+    remember_previous_stringtranslation,
+    restore_updated_stringtranslation_at_on_noop,
+)
 from wagtail_localize_dashboard.utils import get_translation_progress
 
 pytestmark = [pytest.mark.django_db]
@@ -175,10 +179,6 @@ def test_creating_a_translation_is_untouched(_on_commit, test_page, locale_de):
 @run_on_commit
 def test_post_save_tolerates_a_missing_stash(_on_commit, test_page, locale_de):
     """pre_save may not have run, or may have found no row to stash."""
-    from wagtail_localize_dashboard.signals import (
-        restore_updated_stringtranslation_at_on_noop,
-    )
-
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
 
@@ -202,8 +202,6 @@ def test_post_save_tolerates_a_missing_stash(_on_commit, test_page, locale_de):
 @run_on_commit
 def test_raw_saves_are_skipped(_on_commit, test_page, locale_de):
     """loaddata fires both signals with raw=True and must not pay for a SELECT."""
-    from wagtail_localize_dashboard.signals import remember_previous_stringtranslation
-
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
 
@@ -251,11 +249,6 @@ def test_a_real_update_fields_save_leaves_the_timestamp_alone(
 @run_on_commit
 def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, locale_de):
     """Pin the overhead on the receivers themselves."""
-    from wagtail_localize_dashboard.signals import (
-        remember_previous_stringtranslation,
-        restore_updated_stringtranslation_at_on_noop,
-    )
-
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
 
@@ -286,8 +279,6 @@ def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, loc
 @run_on_commit
 def test_the_stash_cost_is_linear_in_rows_saved(_on_commit, test_page, locale_de):
     """A PO import saves one row per changed segment and pays one SELECT each."""
-    from wagtail_localize_dashboard.signals import remember_previous_stringtranslation
-
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     rows = list(StringTranslation.objects.filter(locale=locale_de))
     assert len(rows) > 1, "the fixture must have more than one segment to mean anything"
@@ -349,11 +340,6 @@ def test_a_failed_restore_reports_the_failure_and_changes_nothing(
     _on_commit, test_page, locale_de, caplog
 ):
     """An UPDATE that cannot reach the database must log and return quietly."""
-    from wagtail_localize_dashboard.signals import (
-        remember_previous_stringtranslation,
-        restore_updated_stringtranslation_at_on_noop,
-    )
-
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
     remember_previous_stringtranslation(StringTranslation, stored)
