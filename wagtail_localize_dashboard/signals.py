@@ -62,32 +62,21 @@ def remember_previous_stringtranslation(
 def restore_updated_stringtranslation_at_on_noop(
     sender: type, instance: StringTranslation, created: bool, **kwargs: Any
 ) -> None:
-    """Put updated_at back when a save changed nothing that reaches the target.
+    """
+    Put updated_at back when a save changed nothing that reaches the target.
 
-    percent_published asks whether a translation was last written before the
-    last push. wagtail-localize's segment editor writes unconditionally, so a
-    translator who opens a segment and saves without typing would otherwise
-    drop that segment out of the published count and make a fully live page
-    look stale.
-
-    Only data and has_error are compared, because those are the only fields
-    _count_published() reads. The editor also always sends last_translated_by
-    and resets tool_name; neither changes what is on the target, so both are
-    ignored on purpose.
-
-    One no-op is deliberately NOT suppressed: a byte-identical re-save of a row
-    stored with has_error=True. The editor always posts has_error=False and
-    lets StringTranslation.save() re-derive it, so the comparison below sees
-    True != False and lets the bump stand. Harmless - errored segments never
-    count as published, so the percentage does not move either way.
-
-    queryset.update() is deliberate: it bypasses field pre_save(), so it can
-    write a value auto_now would otherwise overwrite. It also fires no signals,
-    so this cannot recurse.
+    If an editor opens a translation, and saves without changing anything,
+    wagtail-localize updates the updated_at field, since it's a valid
+    transaction. However, we do not want such an action to drop the published
+    percentage, so instead we set updated_at back to its previous value.
     """
     previous = getattr(instance, "_dashboard_previous_translation", None)
     if created or kwargs.get("raw", False) or not previous:
         return
+    # We look at data and has_error, since  those are the only fields
+    # _count_published() reads.
+    # If the data changed, or if has_error has changed, then return here, so
+    # updated_at does not return to its previous value.
     if previous["data"] != instance.data or previous["has_error"] != instance.has_error:
         return
 
@@ -95,6 +84,9 @@ def restore_updated_stringtranslation_at_on_noop(
         return
 
     try:
+        # queryset.update() is deliberate: it bypasses field pre_save(), so it can
+        # write a value auto_now would otherwise overwrite. It also fires no signals,
+        # so this cannot recurse.
         StringTranslation.objects.using(kwargs.get("using")).filter(
             pk=instance.pk
         ).update(updated_at=previous["updated_at"])
