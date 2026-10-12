@@ -181,21 +181,38 @@ def test_post_save_tolerates_a_missing_stash(_on_commit, test_page, locale_de):
     """pre_save may not have run, or may have found no row to stash."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
+    original_updated_at = stored.updated_at
 
     # Normally, the pre-save adds a _dashboard_previous_translation property,
     # but here we test the scenario that it did not, for whatever reason (for
     # example, a bulk save).
     assert not hasattr(stored, "_dashboard_previous_translation")
-    # No error is raised when restore_updated_stringtranslation_at_on_noop aaa().
+    # No error is raised when restore_updated_stringtranslation_at_on_noop().
     restore_updated_stringtranslation_at_on_noop(
         StringTranslation, stored, created=False
+    )
+    # Since _dashboard_previous_translation was not added, updated_at is not
+    # updated in restore_updated_stringtranslation_at_on_noop(). In a real-world
+    # scenario, updated_at is updated, but by a different signal. See
+    # test_a_broken_stash_does_not_break_the_save.
+    assert (
+        get_first_segment_translation(source, locale_de).updated_at
+        == original_updated_at
     )
 
     # An explicit None, as when the row was deleted between pre_save and save.
     stored._dashboard_previous_translation = None
-    # No error is raised when restore_updated_stringtranslation_at_on_noop aaa().
+    # No error is raised when restore_updated_stringtranslation_at_on_noop().
     restore_updated_stringtranslation_at_on_noop(
         StringTranslation, stored, created=False
+    )
+    # Since _dashboard_previous_translation was not added, updated_at is not
+    # updated in restore_updated_stringtranslation_at_on_noop(). In a real-world
+    # scenario, updated_at is updated, but by a different signal. See
+    # test_a_broken_stash_does_not_break_the_save.
+    assert (
+        get_first_segment_translation(source, locale_de).updated_at
+        == original_updated_at
     )
 
 
