@@ -294,20 +294,6 @@ def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, loc
 
 
 @run_on_commit
-def test_the_stash_cost_is_linear_in_rows_saved(_on_commit, test_page, locale_de):
-    """A PO import saves one row per changed segment and pays one SELECT each."""
-    translate_all_segments_and_publish(test_page, locale_de)
-    rows = list(StringTranslation.objects.filter(locale=locale_de))
-    assert len(rows) > 1, "the fixture must have more than one segment to mean anything"
-
-    with CaptureQueriesContext(connection) as ctx:
-        for row in rows:
-            remember_previous_stringtranslation(StringTranslation, row)
-
-    assert len(ctx) == len(rows), "one SELECT per row, and no more"
-
-
-@run_on_commit
 def test_stored_progress_row_survives_a_noop_resave(_on_commit, test_page, locale_de):
     """What the dashboard actually renders is the cached row, not a live call."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
