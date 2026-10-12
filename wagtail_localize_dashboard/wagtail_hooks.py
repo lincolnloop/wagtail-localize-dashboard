@@ -1,12 +1,17 @@
 """Wagtail hooks for adding dashboard to admin menu."""
 
-from django.urls import reverse
+from django.urls import URLResolver, include, path, reverse
 from django.utils.translation import gettext_lazy as _
 from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 from wagtail.admin.widgets import Button
 
 from .settings import get_setting, get_tracked_snippet_models
+
+
+@hooks.register("register_admin_urls")
+def register_dashboard_urls() -> list[URLResolver]:
+    return [path("translations/", include("wagtail_localize_dashboard.urls"))]
 
 
 @hooks.register("register_admin_menu_item")
