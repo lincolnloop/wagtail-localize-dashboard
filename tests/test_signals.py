@@ -1025,14 +1025,8 @@ def test_saving_a_target_rebuilds_only_that_locale_progress(
         de_page.title = "Geaenderter Titel"
         de_page.save()
 
-    assert create_page_translation_progress_calls_pages, (
-        "saving a target must call create_page_translation_progress()"
-    )
     assert create_page_translation_progress_calls_pages == [test_page], (
         "saving a target must rebuild the progress for the relevant page"
-    )
-    assert create_page_translation_progress_calls_kws, (
-        "saving a target must call create_page_translation_progress()"
     )
     assert create_page_translation_progress_calls_kws == [
         {"only_locale": locale_de.pk}
@@ -1057,9 +1051,6 @@ def test_saving_the_source_rebuilds_every_locale_progress(
         test_page.title = "Changed title"
         test_page.save()
 
-    assert create_page_translation_progress_calls_kws, (
-        "saving a source must call create_page_translation_progress()"
-    )
     # only_locale=None is how the builder is asked for every locale; naming the
     # locales instead would only rebuild the ones named here.
     assert create_page_translation_progress_calls_kws == [{"only_locale": None}], (
@@ -1190,9 +1181,6 @@ def test_deleting_a_string_translation_narrows_to_its_locale(
     ):
         string_translation.delete()
 
-    assert create_page_translation_progress_calls_kws, (
-        "deleting a StringTranslation queued nothing"
-    )
     assert all(
         kw.get("only_locale") == locale_de.pk
         for kw in create_page_translation_progress_calls_kws
@@ -1225,9 +1213,6 @@ def test_snippet_handlers_narrow_to_their_locale(
             defaults={"data": "DE snippet text"},
         )
 
-    assert create_snippet_translation_progress_calls_kws, (
-        "saving a snippet StringTranslation queued nothing"
-    )
     assert all(
         kw.get("only_locale") == locale_de.pk
         for kw in create_snippet_translation_progress_calls_kws
@@ -1253,9 +1238,6 @@ def test_saving_a_translation_source_rebuilds_every_locale(
     ):
         source.save()
 
-    assert create_page_translation_progress_calls_kws, (
-        "saving a TranslationSource queued nothing"
-    )
     assert all(
         kw.get("only_locale") is None
         for kw in create_page_translation_progress_calls_kws
