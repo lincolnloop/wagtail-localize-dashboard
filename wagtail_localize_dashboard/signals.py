@@ -143,13 +143,33 @@ class _PageTranslationProgressRebuild:
             logger.exception("Error in _PageTranslationProgressRebuild %r", (self.key,))
 
 
+def _rebuild_is_already_queued(rebuild: Any) -> bool:
+    """
+    Return whether an identical rebuild is already waiting for this commit.
+
+    The (old) entry and (new) rebuild are identical, so we keep the old one,
+    because it is more efficient than replacing the old one with the new one.
+    """
+    for entry in transaction.get_connection().run_on_commit:
+        # The type check keeps .key off callbacks belonging to other apps,
+        # which share this queue and would raise AttributeError here.
+        if type(entry[1]) is type(rebuild) and entry[1].key == rebuild.key:
+            # A skipped rebuild leaves no other trace, and a progress row that
+            # is quietly out of date is the one thing that can go wrong here.
+            logger.debug("A rebuild for %r is already queued", rebuild.key)
+            return True
+    return False
+
+
 def _queue_page_translation_progress_rebuild(
     translation_key: Any, locale_id: int | None, saved_pk: int | None = None
 ) -> None:
     """Queue a page rebuild to run when the current transaction commits."""
-    transaction.on_commit(
-        _PageTranslationProgressRebuild(translation_key, locale_id, saved_pk)
-    )
+    rebuild = _PageTranslationProgressRebuild(translation_key, locale_id, saved_pk)
+    # Saving many segments at once can ask for the same rebuild once per segment.
+    if _rebuild_is_already_queued(rebuild):
+        return
+    transaction.on_commit(rebuild)
 
 
 def _get_source_instance_for_string_translation(
