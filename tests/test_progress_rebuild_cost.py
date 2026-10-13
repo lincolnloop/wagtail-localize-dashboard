@@ -29,7 +29,7 @@ MAX_REBUILD_CALLS = {
 }
 MAX_SEGMENT_SAVE_REBUILDS_BY_LOCALE_COUNT = {
     1: 2,  # For 5 locales, there can be a maxium of 2 calls
-    10: 2,  # For 10 locales, there can be a maxium of 2 calls
+    10: 2,  # For 10 locales, there can be a maximum of 2 calls
 }
 
 TIMESTAMPS = {"last_updated", "created_at"}
