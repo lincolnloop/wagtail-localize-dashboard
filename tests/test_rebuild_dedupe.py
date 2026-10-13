@@ -2,6 +2,7 @@ import contextlib
 
 import pytest
 from django.db import transaction
+from django.test import override_settings
 from wagtail_localize.models import (
     StringSegment,
     StringTranslation,
@@ -9,7 +10,13 @@ from wagtail_localize.models import (
     TranslationSource,
 )
 
-from tests.helpers import count_translation_progress_calls, create_or_replace_page
+from tests.helpers import (
+    count_snippet_translation_progress_calls,
+    count_translation_progress_calls,
+    create_or_replace_page,
+)
+from tests.models import RichTextSnippet
+from wagtail_localize_dashboard.signals import snippet_saved_handler
 
 
 def translate_every_segment(source, locale):
@@ -181,4 +188,91 @@ def test_another_apps_pending_callback_does_not_break_the_scan(page_source):
         f"{calls['n']} rebuilds ran for two saves of one page queued beside "
         "another app's callback; the duplicate must be skipped without reading "
         "attributes off a callback that is not ours"
+    )
+
+
+@pytest.fixture
+def snippet_source(locale_en, locale_de):
+    """A tracked snippet of several segments, with a German Translation."""
+    snippet = RichTextSnippet.objects.create(
+        locale=locale_en,
+        body=(
+            "<p>The first paragraph.</p><p>The second paragraph.</p>"
+            "<p>The third paragraph.</p><p>The fourth paragraph.</p>"
+        ),
+    )
+    source, __ = TranslationSource.get_or_create_from_instance(snippet)
+    Translation.objects.get_or_create(source=source, target_locale=locale_de)
+    assert get_segment_count(source) > 2, (
+        f"this snippet has {get_segment_count(source)} segment(s) and needs more "
+        "than two, or it is no better a bulk than the page fixture"
+    )
+    return snippet, source
+
+
+@override_settings(
+    WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.RichTextSnippet"]
+)
+@pytest.mark.django_db(transaction=True)
+def test_bulk_snippet_segment_saves_queue_one_rebuild_per_locale(
+    snippet_source, locale_de
+):
+    """A snippet imported in one transaction is one rebuild, as a page is."""
+    __, source = snippet_source
+    locales = [locale_de]
+
+    with count_snippet_translation_progress_calls() as calls:  # noqa: SIM117 (on separate lines here for readability)
+        with transaction.atomic():
+            for locale in locales:
+                translate_every_segment(source, locale)
+
+    assert calls["n"] == len(locales), (
+        f"writing {get_segment_count(source)} snippet segments into "
+        f"{len(locales)} locale(s) in one transaction ran {calls['n']} "
+        f"rebuilds; expected: {len(locales)}"
+    )
+
+
+@override_settings(
+    WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.RichTextSnippet"]
+)
+@pytest.mark.django_db(transaction=True)
+def test_a_page_rebuild_and_a_snippet_rebuild_never_collapse(
+    page_source, snippet_source, locale_de
+):
+    """Both kinds of rebuild share one queue; neither may swallow the other."""
+    __, page_translation_source = page_source
+    __, snippet_translation_source = snippet_source
+
+    with (  # noqa: SIM117 (on separate lines here for readability)
+        count_translation_progress_calls() as page_calls,
+        count_snippet_translation_progress_calls() as snippet_calls,
+    ):
+        with transaction.atomic():
+            translate_every_segment(page_translation_source, locale_de)
+            translate_every_segment(snippet_translation_source, locale_de)
+
+    assert page_calls["n"] == 1, (
+        f"{page_calls['n']} page rebuilds ran; the page needs exactly one"
+    )
+    assert snippet_calls["n"] == 1, (
+        f"{snippet_calls['n']} snippet rebuilds ran; the snippet needs exactly "
+        "one, and must not be skipped because a page rebuild is queued"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_snippet_save_handler_skips_a_rebuild_it_already_queued(snippet_source):
+    """Saving one snippet twice in a transaction is one rebuild at commit."""
+    snippet, __ = snippet_source
+    saves = 2
+
+    with count_snippet_translation_progress_calls() as calls:  # noqa: SIM117 (on separate lines here for readability)
+        with transaction.atomic():
+            for __ in range(saves):
+                snippet_saved_handler(type(snippet), snippet, created=False)
+
+    assert calls["n"] == 1, (
+        f"{saves} saves of one snippet in one transaction ran {calls['n']} "
+        "rebuilds; expected: 1 (since both saves had an identical snippet)"
     )

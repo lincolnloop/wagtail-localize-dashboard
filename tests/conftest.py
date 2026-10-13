@@ -14,11 +14,17 @@ from wagtail.models import Locale, Page
 from tests.helpers import ensure_home_page, ensure_root_page
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import SnippetTranslationProgress
-from wagtail_localize_dashboard.signals import _PageTranslationProgressRebuild
+from wagtail_localize_dashboard.signals import (
+    _PageTranslationProgressRebuild,
+    _SnippetTranslationProgressRebuild,
+)
 
 User = get_user_model()
 
-_TYPES_CLEARED_AFTER_TEST_RUN = (_PageTranslationProgressRebuild,)
+_TYPES_CLEARED_AFTER_TEST_RUN = (
+    _PageTranslationProgressRebuild,
+    _SnippetTranslationProgressRebuild,
+)
 
 
 @pytest.hookimpl(wrapper=True)

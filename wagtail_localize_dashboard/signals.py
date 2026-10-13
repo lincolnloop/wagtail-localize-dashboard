@@ -143,6 +143,42 @@ class _PageTranslationProgressRebuild:
             logger.exception("Error in _PageTranslationProgressRebuild %r", (self.key,))
 
 
+class _SnippetTranslationProgressRebuild:
+    """One pending rebuild of a snippet's progress, queued until commit."""
+
+    __slots__ = ("locale_id", "model", "translation_key")
+
+    def __init__(
+        self, model: type, translation_key: Any, locale_id: int | None = None
+    ) -> None:
+        self.model = model
+        self.translation_key = translation_key
+        self.locale_id = locale_id
+
+    @property
+    def key(self) -> tuple[type, Any, int | None]:
+        return (self.model, self.translation_key, self.locale_id)
+
+    def __call__(self) -> None:
+        try:
+            original = (
+                self.model.objects.filter(translation_key=self.translation_key)
+                .order_by("id")
+                .first()
+            )
+            if original is None:
+                return
+
+            create_snippet_translation_progress(original, only_locale=self.locale_id)
+        except Exception:
+            # Don't let this error crash the save that caused this rebuild.
+            logger.exception(
+                "Error rebuilding progress for %s %s",
+                self.model.__name__,
+                self.translation_key,
+            )
+
+
 def _rebuild_is_already_queued(rebuild: Any) -> bool:
     """
     Return whether an identical rebuild is already waiting for this commit.
@@ -203,27 +239,14 @@ def _rebuild_progress_for_source(source_instance: Any, locale_id: int | None) ->
     if not isinstance(source_instance, tuple(get_tracked_snippet_models())):
         return
 
-    original = (
-        type(source_instance)
-        .objects.filter(translation_key=source_instance.translation_key)
-        .order_by("id")
-        .first()
+    rebuild = _SnippetTranslationProgressRebuild(
+        type(source_instance), source_instance.translation_key, locale_id
     )
-    if original is None:
+    # Saving many segments at once asks for the same rebuild once per segment.
+    # We avoid queueing duplicate rebuilds.
+    if _rebuild_is_already_queued(rebuild):
         return
-
-    def rebuild_snippet_progress() -> None:
-        try:
-            create_snippet_translation_progress(original, only_locale=locale_id)
-        except Exception:
-            # Don't let this error crash the save that caused this rebuild.
-            logger.exception(
-                "Error rebuilding progress for %s %s",
-                type(original).__name__,
-                original.pk,
-            )
-
-    transaction.on_commit(rebuild_snippet_progress)
+    transaction.on_commit(rebuild)
 
 
 @receiver(post_save, sender=Translation)
@@ -354,20 +377,13 @@ def snippet_saved_handler(
     if kwargs.get("raw", False):
         return
 
-    def update_after_commit() -> None:
-        try:
-            original = (
-                type(instance)
-                .objects.filter(translation_key=instance.translation_key)
-                .order_by("id")
-                .first()
-            )
-            if original:
-                create_snippet_translation_progress(original)
-        except Exception:
-            logger.exception("Error in snippet_saved_handler")
-
-    transaction.on_commit(update_after_commit)
+    rebuild = _SnippetTranslationProgressRebuild(
+        type(instance), instance.translation_key
+    )
+    # We avoid queueing duplicate rebuilds.
+    if _rebuild_is_already_queued(rebuild):
+        return
+    transaction.on_commit(rebuild)
 
 
 def snippet_deleted_handler(sender: type, instance: Any, **kwargs: Any) -> None:
