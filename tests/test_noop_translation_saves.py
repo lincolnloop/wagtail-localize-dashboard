@@ -33,8 +33,13 @@ from wagtail_localize_dashboard.utils import get_translation_progress
 pytestmark = [pytest.mark.django_db]
 
 
-@run_on_commit
-def test_noop_resave_does_not_create_a_published_gap(_on_commit, test_page, locale_de):
+@pytest.fixture(autouse=True)
+def _run_on_commit():
+    with run_on_commit:
+        yield
+
+
+def test_noop_resave_does_not_create_a_published_gap(test_page, locale_de):
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     target = target_of(test_page, locale_de)
     assert target.live is True, "the on_commit patch must have published the target"
@@ -51,8 +56,7 @@ def test_noop_resave_does_not_create_a_published_gap(_on_commit, test_page, loca
     )
 
 
-@run_on_commit
-def test_rebuild_command_agrees_after_a_noop_resave(_on_commit, test_page, locale_de):
+def test_rebuild_command_agrees_after_a_noop_resave(test_page, locale_de):
     """A site that rebuilds from the command, not from signals, must agree."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     row = TranslationProgress.objects.get(
@@ -71,8 +75,7 @@ def test_rebuild_command_agrees_after_a_noop_resave(_on_commit, test_page, local
     )
 
 
-@run_on_commit
-def test_real_edit_still_drops_the_published_count(_on_commit, test_page, locale_de):
+def test_real_edit_still_drops_the_published_count(test_page, locale_de):
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     target = target_of(test_page, locale_de)
     total = StringSegment.objects.filter(source=source).count()
@@ -92,10 +95,7 @@ def test_real_edit_still_drops_the_published_count(_on_commit, test_page, locale
     assert has_unpublished_translations is True
 
 
-@run_on_commit
-def test_updated_at_is_preserved_only_when_nothing_changed(
-    _on_commit, test_page, locale_de
-):
+def test_updated_at_is_preserved_only_when_nothing_changed(test_page, locale_de):
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     before = get_first_segment_translation(source, locale_de).updated_at
 
@@ -106,10 +106,7 @@ def test_updated_at_is_preserved_only_when_nothing_changed(
     assert get_first_segment_translation(source, locale_de).updated_at > before
 
 
-@run_on_commit
-def test_a_changed_editor_only_field_is_still_a_noop(
-    _on_commit, test_page, locale_de, admin_user
-):
+def test_a_changed_editor_only_field_is_still_a_noop(test_page, locale_de, admin_user):
     """The real editor always sends last_translated_by; it must not count."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     before = get_first_segment_translation(source, locale_de).updated_at
@@ -123,8 +120,7 @@ def test_a_changed_editor_only_field_is_still_a_noop(
     )
 
 
-@run_on_commit
-def test_has_error_flip_counts_as_a_change(_on_commit, test_page, locale_de):
+def test_has_error_flip_counts_as_a_change(test_page, locale_de):
     """has_error changes _count_published, so flipping it is not a no-op."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     target = target_of(test_page, locale_de)
@@ -138,9 +134,8 @@ def test_has_error_flip_counts_as_a_change(_on_commit, test_page, locale_de):
     assert published_after < published_before
 
 
-@run_on_commit
 def test_validation_failure_resave_does_not_crash_or_hide_the_change(
-    _on_commit, test_page, locale_de
+    test_page, locale_de
 ):
     """StringTranslation.save() re-saves itself with update_fields=["has_error"]."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
@@ -159,8 +154,7 @@ def test_validation_failure_resave_does_not_crash_or_hide_the_change(
     )
 
 
-@run_on_commit
-def test_creating_a_translation_is_untouched(_on_commit, test_page, locale_de):
+def test_creating_a_translation_is_untouched(test_page, locale_de):
     source, __ = TranslationSource.get_or_create_from_instance(test_page)
     Translation.objects.get_or_create(source=source, target_locale=locale_de)
     segment = StringSegment.objects.filter(source=source).order_by("order").first()
@@ -176,8 +170,7 @@ def test_creating_a_translation_is_untouched(_on_commit, test_page, locale_de):
     assert created_row.updated_at is not None
 
 
-@run_on_commit
-def test_post_save_tolerates_a_missing_stash(_on_commit, test_page, locale_de):
+def test_post_save_tolerates_a_missing_stash(test_page, locale_de):
     """pre_save may not have run, or may have found no row to stash."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
@@ -216,8 +209,7 @@ def test_post_save_tolerates_a_missing_stash(_on_commit, test_page, locale_de):
     )
 
 
-@run_on_commit
-def test_raw_saves_are_skipped(_on_commit, test_page, locale_de):
+def test_raw_saves_are_skipped(test_page, locale_de):
     """loaddata fires both signals with raw=True and must not pay for a SELECT."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
@@ -229,10 +221,7 @@ def test_raw_saves_are_skipped(_on_commit, test_page, locale_de):
     assert stored._dashboard_previous_translation is None
 
 
-@run_on_commit
-def test_a_real_update_fields_save_leaves_the_timestamp_alone(
-    _on_commit, test_page, locale_de
-):
+def test_a_real_update_fields_save_leaves_the_timestamp_alone(test_page, locale_de):
     """save(update_fields=...) excluding updated_at does not fire auto_now."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
@@ -263,8 +252,7 @@ def test_a_real_update_fields_save_leaves_the_timestamp_alone(
     )
 
 
-@run_on_commit
-def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, locale_de):
+def test_the_receivers_cost_one_select_and_one_update(test_page, locale_de):
     """Pin the overhead on the receivers themselves."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     stored = get_first_segment_translation(source, locale_de)
@@ -293,8 +281,7 @@ def test_the_receivers_cost_one_select_and_one_update(_on_commit, test_page, loc
     assert len(real) == 0, "a real edit writes nothing back"
 
 
-@run_on_commit
-def test_stored_progress_row_survives_a_noop_resave(_on_commit, test_page, locale_de):
+def test_stored_progress_row_survives_a_noop_resave(test_page, locale_de):
     """What the dashboard actually renders is the cached row, not a live call."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     row = TranslationProgress.objects.get(
@@ -321,8 +308,7 @@ def test_stored_progress_row_survives_a_noop_resave(_on_commit, test_page, local
     )
 
 
-@run_on_commit
-def test_a_broken_stash_does_not_break_the_save(_on_commit, test_page, locale_de):
+def test_a_broken_stash_does_not_break_the_save(test_page, locale_de):
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     before = get_first_segment_translation(source, locale_de).updated_at
 
@@ -338,9 +324,8 @@ def test_a_broken_stash_does_not_break_the_save(_on_commit, test_page, locale_de
     )
 
 
-@run_on_commit
 def test_a_failed_restore_reports_the_failure_and_changes_nothing(
-    _on_commit, test_page, locale_de, caplog
+    test_page, locale_de, caplog
 ):
     """An UPDATE that cannot reach the database must log and return quietly."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
@@ -378,8 +363,7 @@ def test_a_failed_restore_reports_the_failure_and_changes_nothing(
     ), "the stored row must be untouched, since the write never happened"
 
 
-@run_on_commit
-def test_setting_enabled_disabled(_on_commit, test_page, locale_de):
+def test_setting_enabled_disabled(test_page, locale_de):
     """Assert that WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES is respected."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     before = get_first_segment_translation(source, locale_de).updated_at
@@ -402,8 +386,7 @@ def test_setting_enabled_disabled(_on_commit, test_page, locale_de):
     )
 
 
-@run_on_commit
-def test_dashboard_disabled_leaves_upstream_alone(_on_commit, test_page, locale_de):
+def test_dashboard_disabled_leaves_upstream_alone(test_page, locale_de):
     """The ENABLED=False must switch off every receiver this package adds."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     before = get_first_segment_translation(source, locale_de).updated_at
@@ -426,10 +409,7 @@ def test_dashboard_disabled_leaves_upstream_alone(_on_commit, test_page, locale_
     )
 
 
-@run_on_commit
-def test_noop_resave_does_not_create_a_gap_for_snippets(
-    _on_commit, sample_snippet, locale_de
-):
+def test_noop_resave_does_not_create_a_gap_for_snippets(sample_snippet, locale_de):
     source, __ = translate_all_segments_and_publish(sample_snippet, locale_de)
     target = target_of(sample_snippet, locale_de)
 
