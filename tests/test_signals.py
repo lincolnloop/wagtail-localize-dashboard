@@ -1219,6 +1219,41 @@ def test_snippet_handlers_narrow_to_their_locale(
     ), create_snippet_translation_progress_calls_kws
 
 
+@override_settings(WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.SampleSnippet"])
+@pytest.mark.django_db(transaction=True)
+def test_a_failing_snippet_rebuild_does_not_break_the_save(
+    sample_snippet, locale_de, caplog
+):
+    """A crash in the queued snippet rebuild gets logged, but does not crash a save."""
+    source, __ = TranslationSource.get_or_create_from_instance(sample_snippet)
+    Translation.objects.get_or_create(source=source, target_locale=locale_de)
+    segment = StringSegment.objects.filter(source=source).order_by("order").first()
+    assert segment is not None, "the snippet must have a translatable segment"
+
+    with (
+        caplog.at_level(logging.ERROR, logger="wagtail_localize_dashboard.signals"),
+        patch.object(
+            dashboard_signals,
+            "create_snippet_translation_progress",
+            side_effect=RuntimeError("database error!"),
+        ),
+        transaction.atomic(),
+    ):
+        StringTranslation.objects.update_or_create(
+            translation_of=segment.string,
+            context=segment.context,
+            locale=locale_de,
+            defaults={"data": "DE snippet text"},
+        )
+
+    assert StringTranslation.objects.filter(
+        translation_of=segment.string, context=segment.context, locale=locale_de
+    ).exists(), "the editor's write must survive a failed progress rebuild"
+    assert "database error!" in caplog.text, (
+        f"the failed rebuild must be logged: {[r.getMessage() for r in caplog.records]}"
+    )
+
+
 @run_on_commit
 def test_saving_a_translation_source_rebuilds_every_locale(
     _mock_on_commit, test_page, locale_de, locale_es

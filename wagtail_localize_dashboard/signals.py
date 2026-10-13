@@ -192,9 +192,18 @@ def _rebuild_progress_for_source(source_instance: Any, locale_id: int | None) ->
     if original is None:
         return
 
-    transaction.on_commit(
-        lambda: create_snippet_translation_progress(original, only_locale=locale_id)
-    )
+    def rebuild_snippet_progress() -> None:
+        try:
+            create_snippet_translation_progress(original, only_locale=locale_id)
+        except Exception:
+            # Don't let this error crash the save that caused this rebuild.
+            logger.exception(
+                "Error rebuilding progress for %s %s",
+                type(original).__name__,
+                original.pk,
+            )
+
+    transaction.on_commit(rebuild_snippet_progress)
 
 
 @receiver(post_save, sender=Translation)
