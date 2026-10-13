@@ -1,6 +1,7 @@
 """Tests for signal handlers in wagtail-localize-dashboard."""
 
 import logging
+import uuid
 from unittest.mock import patch
 
 import polib
@@ -22,6 +23,7 @@ from wagtail_localize.models import (
     TranslationSource,
 )
 
+import wagtail_localize_dashboard.signals as dashboard_signals
 from tests.helpers import (
     count_translation_progress_calls,
     create_or_replace_page,
@@ -951,8 +953,6 @@ def test_snippet_saved_handler_finds_original_when_translated_saved(
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
 def test_snippet_saved_handler_does_nothing_when_no_original(mock_on_commit):
     """snippet_saved_handler does not call create_snippet_translation_progress when no DB record has that translation_key."""
-    import uuid
-
     dummy = SampleSnippet()
     dummy.translation_key = uuid.uuid4()
 
@@ -1005,8 +1005,6 @@ def test_repeated_rich_text_does_not_break_the_handler(
 def test_saving_a_target_rebuilds_only_that_locale_progress(
     _mock_on_commit, test_page, locale_de, locale_es
 ):
-    import wagtail_localize_dashboard.signals as dashboard_signals
-
     for locale in (locale_de, locale_es):
         test_page.copy_for_translation(locale, copy_parents=True).save()
     de_page = Page.objects.get(
@@ -1045,8 +1043,6 @@ def test_saving_a_target_rebuilds_only_that_locale_progress(
 def test_saving_the_source_rebuilds_every_locale_progress(
     _mock_on_commit, test_page, locale_de, locale_es
 ):
-    import wagtail_localize_dashboard.signals as dashboard_signals
-
     for locale in (locale_de, locale_es):
         test_page.copy_for_translation(locale, copy_parents=True).save()
 
@@ -1074,21 +1070,19 @@ def test_saving_the_source_rebuilds_every_locale_progress(
 @pytest.mark.django_db(transaction=True)
 def test_a_rollback_leaves_nothing_queued(home_page):
     """A rolled-back transaction must leak nothing into the next one."""
-    from django.db import transaction as db_transaction
-
     page = create_or_replace_page(home_page, "rollback-me")
 
     with count_translation_progress_calls() as translation_progress_calls:
-        with db_transaction.atomic():
+        with transaction.atomic():
             page.title = "This translation is being rolled back"
             page.save()
-            db_transaction.set_rollback(True)
+            transaction.set_rollback(True)
 
         assert translation_progress_calls["n"] == 0, (
             "a rolled-back save must not rebuild"
         )
 
-        with db_transaction.atomic():
+        with transaction.atomic():
             page.title = "Committed"
             page.save()
 
@@ -1124,8 +1118,6 @@ def test_translation_handlers_narrow_to_their_locale(
     _mock_on_commit, handler_name, test_page, locale_de, locale_es
 ):
     """Each handler rebuilds only the locale its signal carried."""
-    import wagtail_localize_dashboard.signals as dashboard_signals
-
     for locale in (locale_de, locale_es):
         test_page.copy_for_translation(locale, copy_parents=True).save()
 
@@ -1175,8 +1167,6 @@ def test_deleting_a_string_translation_narrows_to_its_locale(
     _mock_on_commit, test_page, locale_de, locale_es
 ):
     """pre_delete must only rebuild for the deleted translation's locale."""
-    import wagtail_localize_dashboard.signals as dashboard_signals
-
     for locale in (locale_de, locale_es):
         test_page.copy_for_translation(locale, copy_parents=True).save()
 
@@ -1215,8 +1205,6 @@ def test_snippet_handlers_narrow_to_their_locale(
     _mock_on_commit, sample_snippet, sample_snippet_de, locale_de
 ):
     """Snippet handlers branch must pass only_locale when non-source objects are updated."""
-    import wagtail_localize_dashboard.signals as dashboard_signals
-
     source, __ = TranslationSource.get_or_create_from_instance(sample_snippet)
     Translation.objects.get_or_create(source=source, target_locale=locale_de)
     segment = StringSegment.objects.filter(source=source).order_by("order").first()
@@ -1250,8 +1238,6 @@ def test_snippet_handlers_narrow_to_their_locale(
 def test_saving_a_translation_source_rebuilds_every_locale(
     _mock_on_commit, test_page, locale_de, locale_es
 ):
-    import wagtail_localize_dashboard.signals as dashboard_signals
-
     for locale in (locale_de, locale_es):
         test_page.copy_for_translation(locale, copy_parents=True).save()
 
