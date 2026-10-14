@@ -54,6 +54,10 @@
 - Submitting a page for translation now uses fewer function and database calls.
 - `create_page_translation_progress()` and `create_snippet_translation_progress()`
   take an optional `only_locale` argument.
+- Saving many translated segments of one object inside a single transaction
+  (like for a PO import or a machine-translation sync) now queues one progress
+  rebuild per object and locale instead of one per segment saved. For example,
+  importing 40 segments into 5 locales now does 5 rebuilds.
 
 ### Deprecated
 

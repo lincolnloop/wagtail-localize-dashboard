@@ -184,6 +184,17 @@ print(
 )
 ```
 
+### When progress is rebuilt
+
+With auto-update on (the default), progress rows are rebuilt by signals as
+translations are saved. Two rules decide how much work one save causes:
+
+- Only the locale that changed is rebuilt
+- Identical rebuilds inside one database transaction happen once
+
+After a bulk import that bypassed signals entirely, rebuild by hand with the
+management commands above.
+
 ## Snippet Translation Dashboard
 
 Snippet tracking is **opt-in**. By default only pages are tracked, so existing sites are unaffected after upgrading.
@@ -256,7 +267,8 @@ django-admin compilemessages
 ## How It Works
 
 1. **Database Tables**: `TranslationProgress` stores pre-calculated percentages for pages; `SnippetTranslationProgress` does the same for tracked snippets.
-2. **Signals**: Listen for translation changes and update the relevant table automatically when a translation or tracked snippet is saved.
+2. **Signals**: Listen for translation changes and update the relevant table
+   automatically when a translation or tracked snippet is saved
 3. **Dashboards**: Display cached progress data — one view for pages, one for snippets.
 4. **Management Commands**: Rebuild the cache on demand after bulk imports or initial setup.
 
