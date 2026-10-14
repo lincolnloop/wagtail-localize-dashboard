@@ -25,10 +25,6 @@
   save alters neither the text nor the error state. This behavior exists to
   avoid lowering the published translated percentage when a user updates a
   segment without making any changes to the segment.
-- A segment re-saved without changes counts as unpublished until the next
-  push: upstream records no per-segment push provenance, so an identical
-  re-save still bumps `updated_at` and drops the segment from the published
-  count.
 - A supported matrix is now declared in `pyproject.toml` as hatch
   environments and tested in CI: Django 5.2/6.0/6.1 against Wagtail
   7.0/7.4/8.0 on Python 3.10 through 3.14.
@@ -38,8 +34,6 @@
 
 ### Fixed
 
-- Re-saving a translated segment without changing its text no longer lowers a
-  fully published page's published percenage.
 - Progress was silently never rebuilt for objects whose rich text contained the
   same phrase twice: the `StringTranslation` signal handlers raised
   `MultipleObjectsReturned` into a bare `except`.
