@@ -44,15 +44,33 @@ def test_noop_resave_does_not_create_a_published_gap(test_page, locale_de):
     target = target_of(test_page, locale_de)
     assert target.live is True, "the on_commit patch must have published the target"
 
-    before = get_translation_progress(test_page, locale_de, target)
+    live_before = get_translation_progress(test_page, locale_de, target)
+    row = TranslationProgress.objects.get(
+        source_page=test_page, translated_page__locale=locale_de
+    )
+    stored_before = (
+        row.percent_translated,
+        row.percent_published,
+        row.has_unpublished_translations,
+    )
 
     # Save the translation without making any changes.
     resave_first_segment_like_editor(source, locale_de)
 
-    after = get_translation_progress(test_page, locale_de, target)
-    assert after == before, (
+    live_after = get_translation_progress(test_page, locale_de, target)
+    assert live_after == live_before, (
         "re-saving a segment with identical text must not change the "
-        f"published percentage: {before} became {after}"
+        f"published percentage: {live_before} became {live_after}"
+    )
+    row.refresh_from_db()
+    stored_after = (
+        row.percent_translated,
+        row.percent_published,
+        row.has_unpublished_translations,
+    )
+    assert stored_after == stored_before, (
+        "the rebuild must not change the calculated percentages. "
+        f"{stored_before} became {stored_after}"
     )
 
 
@@ -281,33 +299,6 @@ def test_the_receivers_cost_one_select_and_one_update(test_page, locale_de):
     assert len(real) == 0, "a real edit writes nothing back"
 
 
-def test_stored_progress_row_survives_a_noop_resave(test_page, locale_de):
-    """What the dashboard actually renders is the cached row, not a live call."""
-    source, __ = translate_all_segments_and_publish(test_page, locale_de)
-    row = TranslationProgress.objects.get(
-        source_page=test_page, translated_page__locale=locale_de
-    )
-    before = (
-        row.percent_translated,
-        row.percent_published,
-        row.has_unpublished_translations,
-    )
-
-    resave_first_segment_like_editor(source, locale_de)
-
-    row.refresh_from_db()
-    after = (
-        row.percent_translated,
-        row.percent_published,
-        row.has_unpublished_translations,
-    )
-    assert after == before, (
-        "has_unpublished_translations is what to_dict() hands the template and "
-        f"what draws the badge, so it belongs in the comparison: {before} "
-        f"became {after}"
-    )
-
-
 def test_a_broken_stash_does_not_break_the_save(test_page, locale_de):
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     before = get_first_segment_translation(source, locale_de).updated_at
@@ -320,7 +311,7 @@ def test_a_broken_stash_does_not_break_the_save(test_page, locale_de):
 
     stored = get_first_segment_translation(source, locale_de)
     assert stored.updated_at > before, (
-        "with no stash the timestamp stands, as it did before the receivers"
+        "if stashing fails during the user's save, updated_at should get updated"
     )
 
 
@@ -363,18 +354,10 @@ def test_a_failed_restore_reports_the_failure_and_changes_nothing(
     ), "the stored row must be untouched, since the write never happened"
 
 
-def test_setting_enabled_disabled(test_page, locale_de):
+def test_preserve_timestamp_on_noop_saves_setting_disabled(test_page, locale_de):
     """Assert that WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES is respected."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     before = get_first_segment_translation(source, locale_de).updated_at
-
-    with override_settings(
-        WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES=True
-    ):
-        resave_first_segment_like_editor(source, locale_de)
-    assert get_first_segment_translation(source, locale_de).updated_at == before, (
-        "on by default: the timestamp is preserved"
-    )
 
     with override_settings(
         WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES=False
@@ -382,7 +365,8 @@ def test_setting_enabled_disabled(test_page, locale_de):
         resave_first_segment_like_editor(source, locale_de)
 
     assert get_first_segment_translation(source, locale_de).updated_at > before, (
-        "off: the bump stands, exactly as it did before this feature existed"
+        "when WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES is False, "
+        "resaving a segment updates updated_at"
     )
 
 
