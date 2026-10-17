@@ -7,7 +7,11 @@ pytestmark = [pytest.mark.django_db]
 
 
 def test_fixture_setup_leaves_no_pending_rebuilds(test_page):
-    """Saving pages in a fixture must not leave rebuilds pending for the body."""
+    """
+    Saving pages in a fixture must not leave rebuilds pending for the body.
+
+    This test verifies that conftest.pytest_runtest_call works as expected.
+    """
     pending = [
         entry
         for entry in transaction.get_connection().run_on_commit
