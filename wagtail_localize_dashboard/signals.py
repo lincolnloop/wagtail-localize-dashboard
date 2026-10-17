@@ -103,7 +103,32 @@ def restore_stringtranslation_updated_at_on_noop(
     )
 
 
-class _PageTranslationProgressRebuild:
+class _TranslationProgressRebuild:
+    """One pending rebuild of an object's progress, queued until commit."""
+
+    __slots__ = ("already_rebuilt",)
+
+    def __init__(self) -> None:
+        self.already_rebuilt: set[tuple[type, Any]] = set()
+
+    @property
+    def key(self) -> tuple[Any, ...]:
+        raise NotImplementedError
+
+    def _is_duplicate(self) -> bool:
+        """Whether an identical rebuild has already run in this commit."""
+        token = (type(self), self.key)
+        if token in self.already_rebuilt:
+            # We log that this rebuild is being skipped because it is considered
+            # a duplicate. In case this comparison is faulty, the log message
+            # can provide more information.
+            logger.debug("A rebuild for %r has already run in this commit", self.key)
+            return True
+        self.already_rebuilt.add(token)
+        return False
+
+
+class _PageTranslationProgressRebuild(_TranslationProgressRebuild):
     """One pending rebuild of a page's progress, queued until commit."""
 
     __slots__ = ("locale_id", "saved_pk", "translation_key")
@@ -114,6 +139,7 @@ class _PageTranslationProgressRebuild:
         locale_id: int | None,
         saved_pk: int | None = None,
     ) -> None:
+        super().__init__()
         self.translation_key = translation_key
         self.locale_id = locale_id
         self.saved_pk = saved_pk
@@ -123,6 +149,8 @@ class _PageTranslationProgressRebuild:
         return (self.translation_key, self.locale_id, self.saved_pk)
 
     def __call__(self) -> None:
+        if self._is_duplicate():
+            return
         try:
             original_page = (
                 Page.objects.filter(translation_key=self.translation_key)
@@ -143,7 +171,7 @@ class _PageTranslationProgressRebuild:
             logger.exception("Error in _PageTranslationProgressRebuild %r", (self.key,))
 
 
-class _SnippetTranslationProgressRebuild:
+class _SnippetTranslationProgressRebuild(_TranslationProgressRebuild):
     """One pending rebuild of a snippet's progress, queued until commit."""
 
     __slots__ = ("locale_id", "model", "translation_key")
@@ -151,6 +179,7 @@ class _SnippetTranslationProgressRebuild:
     def __init__(
         self, model: type, translation_key: Any, locale_id: int | None = None
     ) -> None:
+        super().__init__()
         self.model = model
         self.translation_key = translation_key
         self.locale_id = locale_id
@@ -160,6 +189,8 @@ class _SnippetTranslationProgressRebuild:
         return (self.model, self.translation_key, self.locale_id)
 
     def __call__(self) -> None:
+        if self._is_duplicate():
+            return
         try:
             original = (
                 self.model.objects.filter(translation_key=self.translation_key)
@@ -179,33 +210,40 @@ class _SnippetTranslationProgressRebuild:
             )
 
 
-def _rebuild_is_already_queued(rebuild: Any) -> bool:
-    """
-    Return whether an identical rebuild is already waiting for this commit.
-
-    The (old) entry and (new) rebuild are identical, so we keep the old one,
-    because it is more efficient than replacing the old one with the new one.
-    """
+def _already_rebuilt_in_this_commit() -> set[tuple[type, Any]]:
     for entry in transaction.get_connection().run_on_commit:
-        # The type check keeps .key off callbacks belonging to other apps,
-        # which share this queue and would raise AttributeError here.
-        if type(entry[1]) is type(rebuild) and entry[1].key == rebuild.key:
-            # A skipped rebuild leaves no other trace, and a progress row that
-            # is quietly out of date is the one thing that can go wrong here.
-            logger.debug("A rebuild for %r is already queued", rebuild.key)
-            return True
-    return False
+        # The type check keeps .already_rebuilt off callbacks belonging to other
+        # apps, which share this queue and would raise AttributeError here.
+        if isinstance(entry[1], _TranslationProgressRebuild):
+            already_rebuilt = entry[1].already_rebuilt
+            # Reaching here with rebuilds recorded means some of them ran while
+            # others were still pending, which a commit cannot do: it empties the
+            # queue as it runs it. Only Django's captureOnCommitCallbacks can,
+            # and the rebuild being queued now is for a write it has not seen.
+            already_rebuilt.clear()
+            return already_rebuilt
+    return set()
+
+
+def _queue_rebuild(rebuild: _TranslationProgressRebuild) -> None:
+    """
+    Queue a rebuild to run when the current transaction commits.
+
+    Saving many segments at once asks for the same rebuild once per segment, and
+    every one of them is queued. The duplicates cost nothing because they
+    collapse when they run, through the record they share here.
+    """
+    rebuild.already_rebuilt = _already_rebuilt_in_this_commit()
+    transaction.on_commit(rebuild)
 
 
 def _queue_page_translation_progress_rebuild(
     translation_key: Any, locale_id: int | None, saved_pk: int | None = None
 ) -> None:
     """Queue a page rebuild to run when the current transaction commits."""
-    rebuild = _PageTranslationProgressRebuild(translation_key, locale_id, saved_pk)
-    # Saving many segments at once can ask for the same rebuild once per segment.
-    if _rebuild_is_already_queued(rebuild):
-        return
-    transaction.on_commit(rebuild)
+    _queue_rebuild(
+        _PageTranslationProgressRebuild(translation_key, locale_id, saved_pk)
+    )
 
 
 def _get_source_instance_for_string_translation(
@@ -239,14 +277,11 @@ def _rebuild_progress_for_source(source_instance: Any, locale_id: int | None) ->
     if not isinstance(source_instance, tuple(get_tracked_snippet_models())):
         return
 
-    rebuild = _SnippetTranslationProgressRebuild(
-        type(source_instance), source_instance.translation_key, locale_id
+    _queue_rebuild(
+        _SnippetTranslationProgressRebuild(
+            type(source_instance), source_instance.translation_key, locale_id
+        )
     )
-    # Saving many segments at once asks for the same rebuild once per segment.
-    # We avoid queueing duplicate rebuilds.
-    if _rebuild_is_already_queued(rebuild):
-        return
-    transaction.on_commit(rebuild)
 
 
 @receiver(post_save, sender=Translation)
@@ -377,13 +412,9 @@ def snippet_saved_handler(
     if kwargs.get("raw", False):
         return
 
-    rebuild = _SnippetTranslationProgressRebuild(
-        type(instance), instance.translation_key
+    _queue_rebuild(
+        _SnippetTranslationProgressRebuild(type(instance), instance.translation_key)
     )
-    # We avoid queueing duplicate rebuilds.
-    if _rebuild_is_already_queued(rebuild):
-        return
-    transaction.on_commit(rebuild)
 
 
 def snippet_deleted_handler(sender: type, instance: Any, **kwargs: Any) -> None:
