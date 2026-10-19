@@ -8,41 +8,13 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
-from django.db import connections
 from wagtail.models import Locale, Page
 
 from tests.helpers import ensure_home_page, ensure_root_page
 from tests.models import SampleSnippet
 from wagtail_localize_dashboard.models import SnippetTranslationProgress
-from wagtail_localize_dashboard.signals import (
-    _PageTranslationProgressRebuild,
-    _SnippetTranslationProgressRebuild,
-)
 
 User = get_user_model()
-
-_TYPES_CLEARED_AFTER_TEST_RUN = (
-    _PageTranslationProgressRebuild,
-    _SnippetTranslationProgressRebuild,
-)
-
-
-@pytest.hookimpl(wrapper=True)
-def pytest_runtest_call(item):
-    """
-    Drop rebuilds left over from building this test's fixtures.
-
-    pytest-django rolls back the transaction most tests run in, so a rebuild
-    queued while the fixtures were being built never runs. Leaving it queued
-    makes it look like work the test body is still waiting on.
-    """
-    for connection in connections.all(initialized_only=True):
-        connection.run_on_commit[:] = [
-            entry
-            for entry in connection.run_on_commit
-            if not isinstance(entry[1], _TYPES_CLEARED_AFTER_TEST_RUN)
-        ]
-    return (yield)
 
 
 @pytest.fixture
