@@ -49,7 +49,7 @@ def page_source(home_page, locale_de):
 
 @pytest.mark.django_db(transaction=True)
 def test_bulk_segment_saves_queue_one_rebuild_per_locale(page_source, locale_de):
-    """Every segment of one page, written in one transaction, is one rebuild."""
+    """Every segment of one page, written in one transaction, is one rebuild per locale."""
     __, source = page_source
     locales = [locale_de]
 
