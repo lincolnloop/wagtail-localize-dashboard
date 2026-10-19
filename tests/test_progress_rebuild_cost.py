@@ -3,7 +3,7 @@ Cost regression tests for multi-locale translation work.
 """
 
 import pytest
-from django.db import connection
+from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
 from wagtail.models import Locale, Page
 from wagtail_localize.models import (
@@ -24,12 +24,12 @@ TEN_LOCALE_CODES = [*FIVE_LOCALE_CODES, "pt", "pl", "sv", "da", "fi"]
 
 # The ceilings for calling our rebuilding functions, per locale count.
 MAX_REBUILD_CALLS = {
-    5: 41,  # For 5 locales, there can be a maxium of 41 calls
-    10: 81,  # For 10 locales, there can be a maxium of 81 calls
+    5: 26,  # For 5 locales, there can be a maximum of 26 calls
+    10: 51,  # For 10 locales, there can be a maximum of 51 calls
 }
 MAX_SEGMENT_SAVE_REBUILDS_BY_LOCALE_COUNT = {
-    1: 2,  # For 5 locales, there can be a maxium of 2 calls
-    10: 2,  # For 10 locales, there can be a maximum of 2 calls
+    1: 1,  # For 1 locale, there can be a maximum of 1 call
+    10: 1,  # For 10 locales, there can be a maximum of 1 call
 }
 
 TIMESTAMPS = {"last_updated", "created_at"}
@@ -163,4 +163,40 @@ def test_one_segment_save_does_not_scale_with_locale_count():
         f"saving one segment cost {growth:.2f}x more with ten locales than "
         f"with one ({queries_1} -> {queries_10}); the other nine locales were "
         "not touched and must not be rebuilt"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_whole_object_imported_in_one_transaction_rebuilds_once_per_locale():
+    """
+    Test the scenario a PO import produces: every locale and segment, one transaction.
+    """
+    _warm_up()
+    home = ensure_home_page()
+    locales = [Locale.objects.get(language_code=code) for code in FIVE_LOCALE_CODES]
+    page = create_or_replace_page(home, "imported-page")
+    source, __ = TranslationSource.get_or_create_from_instance(page)
+    for locale in locales:
+        Translation.objects.get_or_create(source=source, target_locale=locale)
+    segments = list(StringSegment.objects.filter(source=source).order_by("order"))
+    assert len(segments) > 1, "the page must have more than one segment to import"
+
+    connection.queries_log.clear()
+    with (  # noqa: SIM117 (on separate lines here for readability)
+        count_translation_progress_calls() as calls,
+    ):
+        with transaction.atomic(durable=True):
+            for locale in locales:
+                for segment in segments:
+                    StringTranslation.objects.update_or_create(
+                        translation_of=segment.string,
+                        context=segment.context,
+                        locale=locale,
+                        defaults={"data": f"{locale.language_code} translated"},
+                    )
+
+    _assert_log_did_not_overflow()
+    assert calls["n"] == len(locales), (
+        f"importing {len(segments)} segments into {len(locales)} locales ran "
+        f"{calls['n']} rebuilds; expected: {len(locales)}"
     )

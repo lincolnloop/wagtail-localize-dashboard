@@ -103,7 +103,32 @@ def restore_stringtranslation_updated_at_on_noop(
     )
 
 
-class _PageTranslationProgressRebuild:
+class _TranslationProgressRebuild:
+    """One pending rebuild of an object's progress, queued until commit."""
+
+    __slots__ = ("already_rebuilt",)
+
+    def __init__(self) -> None:
+        self.already_rebuilt: set[tuple[type, Any]] = set()
+
+    @property
+    def key(self) -> tuple[Any, ...]:
+        raise NotImplementedError
+
+    def _is_duplicate(self) -> bool:
+        """Whether an identical rebuild has already run in this commit."""
+        token = (type(self), self.key)
+        if token in self.already_rebuilt:
+            # We log that this rebuild is being skipped because it is considered
+            # a duplicate. In case this comparison is faulty, the log message
+            # can provide more information.
+            logger.debug("A rebuild for %r has already run in this commit", self.key)
+            return True
+        self.already_rebuilt.add(token)
+        return False
+
+
+class _PageTranslationProgressRebuild(_TranslationProgressRebuild):
     """One pending rebuild of a page's progress, queued until commit."""
 
     __slots__ = ("locale_id", "saved_pk", "translation_key")
@@ -114,6 +139,7 @@ class _PageTranslationProgressRebuild:
         locale_id: int | None,
         saved_pk: int | None = None,
     ) -> None:
+        super().__init__()
         self.translation_key = translation_key
         self.locale_id = locale_id
         self.saved_pk = saved_pk
@@ -123,6 +149,8 @@ class _PageTranslationProgressRebuild:
         return (self.translation_key, self.locale_id, self.saved_pk)
 
     def __call__(self) -> None:
+        if self._is_duplicate():
+            return
         try:
             original_page = (
                 Page.objects.filter(translation_key=self.translation_key)
@@ -143,11 +171,77 @@ class _PageTranslationProgressRebuild:
             logger.exception("Error in _PageTranslationProgressRebuild %r", (self.key,))
 
 
+class _SnippetTranslationProgressRebuild(_TranslationProgressRebuild):
+    """One pending rebuild of a snippet's progress, queued until commit."""
+
+    __slots__ = ("locale_id", "model", "translation_key")
+
+    def __init__(
+        self, model: type, translation_key: Any, locale_id: int | None = None
+    ) -> None:
+        super().__init__()
+        self.model = model
+        self.translation_key = translation_key
+        self.locale_id = locale_id
+
+    @property
+    def key(self) -> tuple[type, Any, int | None]:
+        return (self.model, self.translation_key, self.locale_id)
+
+    def __call__(self) -> None:
+        if self._is_duplicate():
+            return
+        try:
+            original = (
+                self.model.objects.filter(translation_key=self.translation_key)
+                .order_by("id")
+                .first()
+            )
+            if original is None:
+                return
+
+            create_snippet_translation_progress(original, only_locale=self.locale_id)
+        except Exception:
+            # Don't let this error crash the save that caused this rebuild.
+            logger.exception(
+                "Error rebuilding progress for %s %s",
+                self.model.__name__,
+                self.translation_key,
+            )
+
+
+def _already_rebuilt_in_this_commit() -> set[tuple[type, Any]]:
+    for entry in transaction.get_connection().run_on_commit:
+        # The type check keeps .already_rebuilt off callbacks belonging to other
+        # apps, which share this queue and would raise AttributeError here.
+        if isinstance(entry[1], _TranslationProgressRebuild):
+            already_rebuilt = entry[1].already_rebuilt
+            # Reaching here with rebuilds recorded means some of them ran while
+            # others were still pending, which a commit cannot do: it empties the
+            # queue as it runs it. Only Django's captureOnCommitCallbacks can,
+            # and the rebuild being queued now is for a write it has not seen.
+            already_rebuilt.clear()
+            return already_rebuilt
+    return set()
+
+
+def _queue_rebuild(rebuild: _TranslationProgressRebuild) -> None:
+    """
+    Queue a rebuild to run when the current transaction commits.
+
+    Saving many segments at once asks for the same rebuild once per segment, and
+    every one of them is queued. The duplicates cost nothing because they
+    collapse when they run, through the record they share here.
+    """
+    rebuild.already_rebuilt = _already_rebuilt_in_this_commit()
+    transaction.on_commit(rebuild)
+
+
 def _queue_page_translation_progress_rebuild(
     translation_key: Any, locale_id: int | None, saved_pk: int | None = None
 ) -> None:
     """Queue a page rebuild to run when the current transaction commits."""
-    transaction.on_commit(
+    _queue_rebuild(
         _PageTranslationProgressRebuild(translation_key, locale_id, saved_pk)
     )
 
@@ -183,27 +277,11 @@ def _rebuild_progress_for_source(source_instance: Any, locale_id: int | None) ->
     if not isinstance(source_instance, tuple(get_tracked_snippet_models())):
         return
 
-    original = (
-        type(source_instance)
-        .objects.filter(translation_key=source_instance.translation_key)
-        .order_by("id")
-        .first()
+    _queue_rebuild(
+        _SnippetTranslationProgressRebuild(
+            type(source_instance), source_instance.translation_key, locale_id
+        )
     )
-    if original is None:
-        return
-
-    def rebuild_snippet_progress() -> None:
-        try:
-            create_snippet_translation_progress(original, only_locale=locale_id)
-        except Exception:
-            # Don't let this error crash the save that caused this rebuild.
-            logger.exception(
-                "Error rebuilding progress for %s %s",
-                type(original).__name__,
-                original.pk,
-            )
-
-    transaction.on_commit(rebuild_snippet_progress)
 
 
 @receiver(post_save, sender=Translation)
@@ -334,20 +412,9 @@ def snippet_saved_handler(
     if kwargs.get("raw", False):
         return
 
-    def update_after_commit() -> None:
-        try:
-            original = (
-                type(instance)
-                .objects.filter(translation_key=instance.translation_key)
-                .order_by("id")
-                .first()
-            )
-            if original:
-                create_snippet_translation_progress(original)
-        except Exception:
-            logger.exception("Error in snippet_saved_handler")
-
-    transaction.on_commit(update_after_commit)
+    _queue_rebuild(
+        _SnippetTranslationProgressRebuild(type(instance), instance.translation_key)
+    )
 
 
 def snippet_deleted_handler(sender: type, instance: Any, **kwargs: Any) -> None:

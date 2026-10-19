@@ -14,6 +14,9 @@ from wagtail_localize.models import (
     TranslationSource,
 )
 
+from wagtail_localize_dashboard import signals as dashboard_signals
+from wagtail_localize_dashboard import utils
+
 # Ensure save_target() actually publishes, since wagtail-localize defers
 # publishing to transaction.on_commit().
 run_on_commit = patch.object(transaction, "on_commit", side_effect=lambda func: func())
@@ -140,9 +143,6 @@ def create_or_replace_page(parent, slug):
 @contextmanager
 def count_translation_progress_calls():
     """Count the calls to create_page_translation_progress()."""
-    import wagtail_localize_dashboard.signals as sig
-    import wagtail_localize_dashboard.utils as utils
-
     calls = {"n": 0, "kwargs": []}
     real = utils.create_page_translation_progress
 
@@ -153,6 +153,26 @@ def count_translation_progress_calls():
 
     with (
         patch.object(utils, "create_page_translation_progress", counting),
-        patch.object(sig, "create_page_translation_progress", counting),
+        patch.object(dashboard_signals, "create_page_translation_progress", counting),
+    ):
+        yield calls
+
+
+@contextmanager
+def count_snippet_translation_progress_calls():
+    """Count the calls to create_snippet_translation_progress()."""
+    calls = {"n": 0, "kwargs": []}
+    real = utils.create_snippet_translation_progress
+
+    def counting(snippet, **kwargs):
+        calls["n"] += 1
+        calls["kwargs"].append(kwargs)
+        return real(snippet, **kwargs)
+
+    with (
+        patch.object(utils, "create_snippet_translation_progress", counting),
+        patch.object(
+            dashboard_signals, "create_snippet_translation_progress", counting
+        ),
     ):
         yield calls

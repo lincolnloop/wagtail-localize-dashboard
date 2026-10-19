@@ -827,7 +827,7 @@ def test_snippet_saved_handler_calls_create_snippet_translation_progress(
         "wagtail_localize_dashboard.signals.create_snippet_translation_progress"
     ) as mock_fn:
         snippet_saved_handler(SampleSnippet, snippet, created=False)
-        mock_fn.assert_called_once_with(snippet)
+        mock_fn.assert_called_once_with(snippet, only_locale=None)
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
@@ -947,7 +947,7 @@ def test_snippet_saved_handler_finds_original_when_translated_saved(
         "wagtail_localize_dashboard.signals.create_snippet_translation_progress"
     ) as mock_fn:
         snippet_saved_handler(SampleSnippet, translated, created=False)
-        mock_fn.assert_called_once_with(original)
+        mock_fn.assert_called_once_with(original, only_locale=None)
 
 
 @patch.object(transaction, "on_commit", side_effect=lambda func: func())
