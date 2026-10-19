@@ -268,7 +268,7 @@ django-admin compilemessages
 
 1. **Database Tables**: `TranslationProgress` stores pre-calculated percentages for pages; `SnippetTranslationProgress` does the same for tracked snippets.
 2. **Signals**: Listen for translation changes and update the relevant table
-   automatically when a translation or tracked snippet is saved
+   automatically when a translation or tracked snippet is saved.
 3. **Dashboards**: Display cached progress data — one view for pages, one for snippets.
 4. **Management Commands**: Rebuild the cache on demand after bulk imports or initial setup.
 
