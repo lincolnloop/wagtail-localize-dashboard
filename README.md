@@ -107,6 +107,12 @@ WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS = [
     "myapp.NavigationMenu",
     "myapp.SiteAlert",
 ]
+
+# Preserve StringTranslation.updated_at at its stored value when a save
+# changes neither the text nor the error state (default: True). If set to False,
+# a user who opens a segment and saves it without making any changes results in
+# a lower published percentage for the page.
+WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES = True
 ```
 
 When `WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS` is configured, a "Show languages" dropdown appears on the dashboard. Selecting a group limits the displayed language columns to the locales in that group. Rows are not hidden — pages with no translations in the selected group will still appear.

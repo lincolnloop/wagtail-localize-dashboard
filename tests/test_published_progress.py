@@ -1,9 +1,6 @@
 """Tests for the published-translation percentage."""
 
-from unittest.mock import patch
-
 import pytest
-from django.db import transaction
 from django.test import override_settings
 from wagtail_localize.models import (
     StringSegment,
@@ -13,6 +10,7 @@ from wagtail_localize.models import (
     TranslationSource,
 )
 
+from tests.helpers import run_on_commit, target_of
 from tests.models import DraftStateSnippet, RichTextSnippet, SampleSnippet
 from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
@@ -25,10 +23,6 @@ from wagtail_localize_dashboard.utils import (
 )
 
 pytestmark = [pytest.mark.django_db]
-
-# Ensure save_target() actually publishes, since wagtail-localize defers
-# publishing to transaction.on_commit().
-run_on_commit = patch.object(transaction, "on_commit", side_effect=lambda func: func())
 
 
 def translate_segment(source, locale, path, text, has_error=False, index=0):
@@ -49,12 +43,6 @@ def segment_paths(source):
         StringSegment.objects.filter(source=source)
         .order_by("order")
         .values_list("context__path", flat=True)
-    )
-
-
-def target_of(source_object, locale):
-    return type(source_object).objects.get(
-        translation_key=source_object.translation_key, locale=locale
     )
 
 

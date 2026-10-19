@@ -105,12 +105,8 @@ def _count_published(
     available proxy. StringTranslation.updated_at is auto_now=True, which gives
     the proxy two known errors:
 
-    - False gap. The edit_string_translation view does an unconditional
-      update_or_create, so re-saving a segment with BYTE-IDENTICAL text bumps
-      updated_at and drops that segment out of the published count. It errs
-      safe (it under-reports published, never over-reports), but a translator
-      who opens a segment and saves without editing will see a gap appear and
-      will report it as a bug.
+    - False gap, suppressed by default with the
+      WAGTAIL_LOCALIZE_DASHBOARD_PRESERVE_TIMESTAMP_ON_NOOP_SAVES setting.
     - False publish. A segment removed from the source and re-added after a
       push keeps its old StringTranslation row, and therefore its old
       updated_at, so it counts as published even though it was never pushed.
