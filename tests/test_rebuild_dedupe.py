@@ -22,6 +22,8 @@ from wagtail_localize_dashboard.models import TranslationProgress
 from wagtail_localize_dashboard.signals import snippet_saved_handler
 from wagtail_localize_dashboard.utils import get_translation_progress
 
+pytestmark = [pytest.mark.django_db(transaction=True)]
+
 
 def translate_segments(source, locale, segments):
     """Write a translation for each of the given segments."""
@@ -58,7 +60,6 @@ def page_source(home_page, locale_de):
     return page, source
 
 
-@pytest.mark.django_db(transaction=True)
 def test_bulk_segment_saves_queue_one_rebuild_per_locale(page_source, locale_de):
     """Every segment of one page, written in one transaction, is one rebuild per locale."""
     __, source = page_source
@@ -75,7 +76,6 @@ def test_bulk_segment_saves_queue_one_rebuild_per_locale(page_source, locale_de)
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_a_rolled_back_rebuild_does_not_suppress_the_next_one(page_source, locale_de):
     """A key from a transaction that never committed must not block a later one."""
     __, source = page_source
@@ -99,7 +99,6 @@ def test_a_rolled_back_rebuild_does_not_suppress_the_next_one(page_source, local
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_a_rolled_back_savepoint_does_not_suppress_the_next_rebuild(
     page_source, locale_de
 ):
@@ -121,7 +120,6 @@ def test_a_rolled_back_savepoint_does_not_suppress_the_next_rebuild(
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_a_rolled_back_duplicate_does_not_cancel_the_rebuild_before_it(
     page_source, locale_de
 ):
@@ -147,7 +145,6 @@ def test_a_rolled_back_duplicate_does_not_cancel_the_rebuild_before_it(
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_autocommit_segment_saves_each_get_their_own_rebuild(page_source, locale_de):
     """One segment at a time, as an editor works, must rebuild every time."""
     __, source = page_source
@@ -162,7 +159,6 @@ def test_autocommit_segment_saves_each_get_their_own_rebuild(page_source, locale
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_rebuilds_for_different_locales_do_not_collapse(
     page_source, locale_de, locale_es
 ):
@@ -183,7 +179,6 @@ def test_rebuilds_for_different_locales_do_not_collapse(
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_a_source_save_is_not_collapsed_into_a_target_rebuild(page_source, locale_de):
     page, source = page_source
     locales = [locale_de]
@@ -202,7 +197,6 @@ def test_a_source_save_is_not_collapsed_into_a_target_rebuild(page_source, local
     assert calls["n"] > len(locales)
 
 
-@pytest.mark.django_db(transaction=True)
 def test_another_apps_pending_callback_does_not_break_the_scan(page_source):
     """The queue is shared; reading .key off somebody else's callback crashes."""
     page, __ = page_source
@@ -257,7 +251,9 @@ def get_stored_and_live_progress(page, locale):
     return stored, get_translation_progress(page, locale, target_of(page, locale))
 
 
-@pytest.mark.django_db
+# Not transaction=True, unlike the rest of this module: captureOnCommitCallbacks
+# can only capture a callback that is queued, and autocommit runs them instead.
+@pytest.mark.django_db(transaction=False)
 def test_a_write_inside_a_capture_block_still_rebuilds_the_row(
     published_page_source_with_de_translation,
     locale_de,
@@ -293,7 +289,9 @@ def test_a_write_inside_a_capture_block_still_rebuilds_the_row(
     )
 
 
-@pytest.mark.django_db
+# Not transaction=True, unlike the rest of this module: captureOnCommitCallbacks
+# can only capture a callback that is queued, and autocommit runs them instead.
+@pytest.mark.django_db(transaction=False)
 def test_each_capture_block_gets_its_own_rebuild(
     published_page_source_with_de_translation,
     locale_de,
@@ -337,7 +335,6 @@ def snippet_source(locale_en, locale_de):
 @override_settings(
     WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.RichTextSnippet"]
 )
-@pytest.mark.django_db(transaction=True)
 def test_bulk_snippet_segment_saves_queue_one_rebuild_per_locale(
     snippet_source, locale_de
 ):
@@ -360,7 +357,6 @@ def test_bulk_snippet_segment_saves_queue_one_rebuild_per_locale(
 @override_settings(
     WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.RichTextSnippet"]
 )
-@pytest.mark.django_db(transaction=True)
 def test_a_page_rebuild_and_a_snippet_rebuild_never_collapse(
     page_source, snippet_source, locale_de
 ):
@@ -385,7 +381,6 @@ def test_a_page_rebuild_and_a_snippet_rebuild_never_collapse(
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_snippet_save_handler_skips_a_rebuild_it_already_queued(snippet_source):
     """Saving one snippet twice in a transaction is one rebuild at commit."""
     snippet, __ = snippet_source
