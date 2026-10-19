@@ -43,6 +43,12 @@
   badge, grey text in the "No translations" message)
 - Wagtail's profile language setting is now applied to the dashboard views.
 
+### Changed
+
+- Submitting a page for translation now uses fewer function and database calls.
+- `create_page_translation_progress()` and `create_snippet_translation_progress()`
+  take an optional `only_locale` argument.
+
 ### Deprecated
 
 - `get_translation_percentages` deprecated in favor of
