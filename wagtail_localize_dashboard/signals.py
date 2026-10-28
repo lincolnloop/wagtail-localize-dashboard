@@ -210,19 +210,22 @@ class _SnippetTranslationProgressRebuild(_TranslationProgressRebuild):
             )
 
 
-def _already_rebuilt_in_this_commit() -> set[tuple[type, Any]]:
+def _share_rebuild_record(rebuild: _TranslationProgressRebuild) -> None:
+    """
+    Give a (new) rebuild the record that pending rebuilds are already reading.
+
+    The goal here is that rebuilds collapse into one, rather than being repeated.
+    """
     for entry in transaction.get_connection().run_on_commit:
         # The type check keeps .already_rebuilt off callbacks belonging to other
         # apps, which share this queue and would raise AttributeError here.
         if isinstance(entry[1], _TranslationProgressRebuild):
-            already_rebuilt = entry[1].already_rebuilt
+            rebuild.already_rebuilt = entry[1].already_rebuilt
             # Reaching here with rebuilds recorded means some of them ran while
             # others were still pending, which a commit cannot do: it empties the
-            # queue as it runs it. Only Django's captureOnCommitCallbacks can,
-            # and the rebuild being queued now is for a write it has not seen.
-            already_rebuilt.clear()
-            return already_rebuilt
-    return set()
+            # queue as it runs it.
+            rebuild.already_rebuilt.clear()
+            return
 
 
 def _queue_rebuild(rebuild: _TranslationProgressRebuild) -> None:
@@ -233,7 +236,7 @@ def _queue_rebuild(rebuild: _TranslationProgressRebuild) -> None:
     every one of them is queued. The duplicates cost nothing because they
     collapse when they run, through the record they share here.
     """
-    rebuild.already_rebuilt = _already_rebuilt_in_this_commit()
+    _share_rebuild_record(rebuild)
     transaction.on_commit(rebuild)
 
 
