@@ -60,7 +60,9 @@ def page_source(home_page, locale_de):
     return page, source
 
 
-def test_bulk_segment_saves_queue_one_rebuild_per_locale(page_source, locale_de):
+def test_bulk_segment_saves_collapse_into_one_rebuild_per_locale(
+    page_source, locale_de
+):
     """Every segment of one page, written in one transaction, is one rebuild per locale."""
     __, source = page_source
     locales = [locale_de]
@@ -335,7 +337,7 @@ def snippet_source(locale_en, locale_de):
 @override_settings(
     WAGTAIL_LOCALIZE_DASHBOARD_TRACKED_SNIPPETS=["tests.RichTextSnippet"]
 )
-def test_bulk_snippet_segment_saves_queue_one_rebuild_per_locale(
+def test_bulk_snippet_segment_saves_collapse_into_one_rebuild_per_locale(
     snippet_source, locale_de
 ):
     """A snippet imported in one transaction is one rebuild, as a page is."""
@@ -381,7 +383,7 @@ def test_a_page_rebuild_and_a_snippet_rebuild_never_collapse(
     )
 
 
-def test_the_snippet_save_handler_skips_a_rebuild_it_already_queued(snippet_source):
+def test_repeated_snippet_saves_collapse_into_one_rebuild(snippet_source):
     """Saving one snippet twice in a transaction is one rebuild at commit."""
     snippet, __ = snippet_source
     saves = 2

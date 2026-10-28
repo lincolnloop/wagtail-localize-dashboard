@@ -1059,7 +1059,7 @@ def test_saving_the_source_rebuilds_every_locale_progress(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_rollback_leaves_nothing_queued(home_page):
+def test_a_rollback_leaks_nothing_into_the_next_transaction(home_page):
     """A rolled-back transaction must leak nothing into the next one."""
     page = create_or_replace_page(home_page, "rollback-me")
 
