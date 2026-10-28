@@ -128,8 +128,8 @@ def test_a_rolled_back_duplicate_does_not_cancel_the_rebuild_before_it(
     """
     A savepoint takes its own rebuild with it, and nothing else.
 
-    Duplicates queued in one transaction collapse into whichever of them runs
-    first, so the one that outlives a rolled-back savepoint still does the work.
+    The writes made before the savepoint opened are committed either way, so
+    the rebuild queued for them must outlive the rolled-back duplicate.
     """
     __, source = page_source
 
