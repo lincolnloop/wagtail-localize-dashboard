@@ -1,0 +1,12 @@
+/* Color-coded translation status text */
+.text-success {
+    color: #1b8666;
+}
+
+.text-warning {
+    color: #a06400;
+}
+
+.text-danger {
+    color: #ca3b3b;
+}

@@ -1,0 +1,13 @@
+{% load i18n %}
+
+{% if page.live and page.has_unpublished_changes %}
+    {% trans "live + draft" as page_status %}
+{% elif page.live %}
+    {% trans "live" as page_status %}
+{% else %}
+    {% trans "draft" as page_status %}
+{% endif %}
+<span class="w-status{% if page.live %} w-status--primary{% endif %}" role="status">{{ page_status }}</span>
+{% if show_last_published and page.live and page.last_published_at %}
+    <br>{% blocktrans trimmed with date=page.last_published_at|date:"M j, Y" %}Last published {{ date }}{% endblocktrans %}
+{% endif %}

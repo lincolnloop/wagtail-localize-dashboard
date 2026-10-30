@@ -98,19 +98,12 @@
               <tr>
                 <td class="title">
                   <div class="title-wrapper">
-                    <strong><a href="{{ page_data.edit_url }}">{{ page_data.page.get_admin_display_title }}</a></strong>
+                    <strong><a href="{{ page_data.manage_url }}">{{ page_data.page.get_admin_display_title }}</a></strong>
                     <div class="page-slug">{{ page_data.page.get_url }}</div>
                   </div>
                 </td>
                 <td>
-                  {% if page_data.page.live and page_data.page.has_unpublished_changes %}
-                    {% trans "live + draft" as page_status %}
-                  {% elif page_data.page.live %}
-                    {% trans "live" as page_status %}
-                  {% else %}
-                    {% trans "draft" as page_status %}
-                  {% endif %}
-                  <span class="w-status {% if page_data.page.live %}w-status--primary{% endif %}" role="status">{{ page_status }}</span>
+                  {% include "wagtail_localize_dashboard/includes/page_status.html" with page=page_data.page only %}
                 </td>
                 <td>
                   {% if page_data.translations %}

@@ -1,0 +1,46 @@
+{% extends "wagtailadmin/bulk_actions/confirmation/base.html" %}
+{% load i18n %}
+
+{% block titletag %}{{ view.display_name }}{% endblock %}
+
+{% block header %}
+    {% include "wagtailadmin/shared/header.html" with title=view.display_name icon="wagtail-localize-language" %}
+{% endblock header %}
+
+{% block items_with_access %}
+    {% if items %}
+        <p>{{ view.confirm_text }}</p>
+        <ul>
+            {% for item in items %}
+                <li>{{ item.item.target_locale.get_display_name }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock items_with_access %}
+
+{% block items_with_no_access %}
+    {% if items_with_no_access %}
+        <p>{{ view.no_access_text }}</p>
+        <ul>
+            {% for translation in items_with_no_access %}
+                <li>{{ translation.target_locale.get_display_name }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    {% if items_ineligible %}
+        <p>{{ view.ineligible_text }}</p>
+        <ul>
+            {% for translation in items_ineligible %}
+                <li>{{ translation.target_locale.get_display_name }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock items_with_no_access %}
+
+{% block form_section %}
+    {% if items %}
+        {% include "wagtailadmin/bulk_actions/confirmation/form.html" with action_button_text=view.action_button_text no_action_button_text=view.no_action_button_text %}
+    {% else %}
+        {% include "wagtailadmin/bulk_actions/confirmation/go_back.html" %}
+    {% endif %}
+{% endblock form_section %}

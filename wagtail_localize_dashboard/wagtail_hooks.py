@@ -5,8 +5,13 @@ from django.utils.translation import gettext_lazy as _
 from wagtail import hooks
 from wagtail.admin.menu import Menu, MenuItem, SubmenuMenuItem
 from wagtail.admin.widgets import Button
+from wagtail_localize.models import Translation
 
 from .settings import get_setting, get_tracked_snippet_models
+from .views.management import (
+    PublishTranslationBulkAction,
+    UnpublishTranslationBulkAction,
+)
 
 
 @hooks.register("register_admin_urls")
@@ -72,12 +77,23 @@ def add_translations_button(buttons, page, user, context=None):
     the root page).
     """
     if page.depth > 2:  # Only show the button for descendants of home pages
+        if Translation.objects.filter(source__object_id=page.translation_key).exists():
+            url = reverse(
+                "wagtail_localize_dashboard:manage_translations", args=[page.pk]
+            )
+        else:
+            # The manage view 404s without translations.
+            url = f"{reverse('wagtail_localize_dashboard:dashboard')}?translation_key={page.translation_key}"
         translations_button = Button(
             label=_("See Translations"),
-            url=f"{reverse('wagtail_localize_dashboard:dashboard')}?translation_key={page.translation_key}",
+            url=url,
             classname="button button-small button-secondary",
             attrs={"target": "_blank"},
             priority=100,
         )
         buttons.append(translations_button)
     return buttons
+
+
+hooks.register("register_bulk_action", PublishTranslationBulkAction)
+hooks.register("register_bulk_action", UnpublishTranslationBulkAction)
