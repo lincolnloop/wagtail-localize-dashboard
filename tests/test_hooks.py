@@ -59,14 +59,29 @@ class TestTranslationDashboardMenuHook:
 class TestPageListingButtonsHook:
     """Tests for the construct_page_listing_buttons hook."""
 
-    def test_button_links_to_page_dashboard_not_snippet_dashboard(
+    def test_button_links_to_manage_translations_view(
+        self, test_page_with_translations, admin_user
+    ):
+        """The 'See Translations' button links to the page's manage translations view."""
+        buttons = []
+        add_translations_button(buttons, test_page_with_translations, admin_user)
+
+        assert len(buttons) == 1
+        assert buttons[0].url == reverse(
+            "wagtail_localize_dashboard:manage_translations",
+            args=(test_page_with_translations.pk,),
+        )
+
+    def test_button_without_translations_links_to_filtered_dashboard(
         self, test_page, admin_user
     ):
-        """The 'See Translations' button links to the page dashboard, not the snippet dashboard."""
+        """Without translations the manage view would 404, so link to the dashboard."""
         buttons = []
         add_translations_button(buttons, test_page, admin_user)
 
         assert len(buttons) == 1
-        button_url = buttons[0].url
-        assert reverse("wagtail_localize_dashboard:dashboard") in button_url
-        assert "snippet" not in button_url
+        dashboard_url = reverse("wagtail_localize_dashboard:dashboard")
+        assert (
+            buttons[0].url
+            == f"{dashboard_url}?translation_key={test_page.translation_key}"
+        )

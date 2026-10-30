@@ -109,6 +109,7 @@ WAGTAIL_CONTENT_LANGUAGES = LANGUAGES = [
     ("fr", "French"),
     ("de", "German"),
     ("es", "Spanish"),
+    ("it", "Italian"),
 ]
 
 WAGTAIL_I18N_ENABLED = True

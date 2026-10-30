@@ -3,7 +3,7 @@
 from django.db import models
 from django.utils.html import strip_tags
 from wagtail.fields import RichTextField
-from wagtail.models import DraftStateMixin, RevisionMixin, TranslatableMixin
+from wagtail.models import DraftStateMixin, Page, RevisionMixin, TranslatableMixin
 from wagtail.snippets.models import register_snippet
 
 
@@ -49,3 +49,9 @@ class RichTextSnippet(TranslatableMixin, models.Model):
         # __str__ becomes display_str and the sort key on the snippet dashboard,
         # so it must not be raw markup.
         return strip_tags(self.body)
+
+
+class SegmentedPage(Page):
+    """A page with ten translatable segments, so progress can hit 80% and 50%."""
+
+    body = RichTextField(blank=True)
