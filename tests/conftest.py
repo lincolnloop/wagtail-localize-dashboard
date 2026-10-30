@@ -58,6 +58,13 @@ def locale_fr(db):
 
 
 @pytest.fixture
+def locale_it(db):
+    """Create and return Italian locale."""
+    locale, _ = Locale.objects.get_or_create(language_code="it")
+    return locale
+
+
+@pytest.fixture
 def test_page(db, home_page, locale_en):
     """Create and return a test page."""
     page = Page(
