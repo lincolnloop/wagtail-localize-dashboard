@@ -338,7 +338,8 @@ class TestPageManagementView:
             url = reverse(
                 "wagtail_bulk_action", args=("wagtail_localize", "translation", action)
             )
-            assert f'href="{url}"' in content
+            # Older Wagtail (e.g. 7.0) appends ?next=... to the URL
+            assert f'href="{url}' in content
 
     def test_does_not_show_source_locale(
         self, get_content, test_page_with_translations, locale_de, locale_en
@@ -498,7 +499,7 @@ class TestPageManagementView:
         content = get_content()
 
         assertInHTML(
-            '<td><span class="w-status" role="status">draft</span></td', content
+            '<td><span class="w-status" role="status">draft</span></td>', content
         )
         assertInHTML(
             '<td><span class="w-status w-status--primary" role="status">live</span><br>Last published Jan 1, 2026</td>',
