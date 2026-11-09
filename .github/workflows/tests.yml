@@ -73,18 +73,5 @@ jobs:
       - name: Verify accessibility dependencies are importable
         run: python -c "import selenium, selenium_axe_python"
 
-      - name: Install Chrome and ChromeDriver
-        run: |
-          # Install Chrome
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub \
-            | sudo apt-key add -
-          REPO="deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main"
-          LIST=/etc/apt/sources.list.d/google-chrome.list
-          echo "$REPO" | sudo tee -a "$LIST" > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-
-          # ChromeDriver is automatically managed by Selenium 4+
-
       - name: Run accessibility tests
         run: pytest -m accessibility -v
