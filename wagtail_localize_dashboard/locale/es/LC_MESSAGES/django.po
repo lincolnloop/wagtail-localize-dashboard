@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wagtail-localize-dashboard 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-01 17:06-0600\n"
+"POT-Creation-Date: 2026-11-09 13:37-0500\n"
 "PO-Revision-Date: 2026-04-17 15:26+0000\n"
 "Last-Translator: \n"
 "Language-Team: Spanish\n"
@@ -203,15 +203,6 @@ msgstr "Estado"
 msgid "Actions"
 msgstr "Acciones"
 
-msgid "live + draft"
-msgstr "publicado + borrador"
-
-msgid "live"
-msgstr "publicado"
-
-msgid "draft"
-msgstr "borrador"
-
 #, python-format
 msgid ""
 "Edit %(locale)s version - %(percent)s%% translated, %(published)s%% published"
@@ -222,6 +213,12 @@ msgstr ""
 #, python-format
 msgid "Edit %(locale)s version - %(percent)s%% complete"
 msgstr "Editar versión %(locale)s — %(percent)s%% completado"
+
+msgid "draft"
+msgstr "borrador"
+
+msgid "live + draft"
+msgstr "publicado + borrador"
 
 msgid "Complete, awaiting publish:"
 msgstr "Completo, esperando publicar:"
@@ -268,6 +265,13 @@ msgstr "(se abre en una nueva ventana)"
 msgid "No pages found."
 msgstr "No se encontraron páginas."
 
+msgid "live"
+msgstr "publicado"
+
+#, python-format
+msgid "Last published %(date)s"
+msgstr "Último publicado %(date)s"
+
 msgid "Snippets with their translation progress"
 msgstr "Fragmentos con su progreso de traducción"
 
@@ -290,6 +294,109 @@ msgstr "Editar %(name)s"
 
 msgid "No snippets found."
 msgstr "No se encontraron fragmentos."
+
+#, python-format
+msgid "%(percent)s%% (%(done)s of %(total)s)"
+msgstr "%(percent)s%% (%(done)s de %(total)s)"
+
+msgid "Manage Translations"
+msgstr "Administrar traducciones"
+
+msgid "Edit %(locale)s Page"
+msgstr "Editar página en %(locale)s"
+
+msgid "Translate into more locales"
+msgstr "Traducir a más configuraciones regionales"
+
+msgid "Sync translated pages"
+msgstr "Sincronizar páginas traducidas"
+
+msgid "Manual"
+msgstr "Manual"
+
+msgid "Other tool"
+msgstr "Otra herramienta"
+
+msgid "Not translated yet"
+msgstr "Aún no traducido"
+
+#, python-format
+msgid "%(locale)s (alias)"
+msgstr "%(locale)s (alias)"
+
+msgid "Not created yet"
+msgstr "Aún no creado"
+
+msgid "Locale"
+msgstr "Configuraciones regionales"
+
+msgid "Translated"
+msgstr "traducida"
+
+msgid "Published"
+msgstr "Publicada"
+
+msgid "Page status"
+msgstr "Estado de la página"
+
+msgid "Translated via"
+msgstr "Traducida vía"
+
+msgid "Publish"
+msgstr "Publicar"
+
+msgid "Publish selected translations"
+msgstr "Publicar traducciones seleccionadas"
+
+msgid "Are you sure you want to publish these translations?"
+msgstr "¿Quieres publicar estas traducciones?"
+
+msgid "Yes, publish"
+msgstr "Si, publicar"
+
+msgid "No, don't publish"
+msgstr "No, no lo publiques"
+
+msgid "You don't have permission to publish these:"
+msgstr "No tienes permiso para publicar esto:"
+
+msgid "These translations are not syncing:"
+msgstr "Estas traducciones no se sincronizan:"
+
+#, python-format
+msgid "%(count)d translation has been published"
+msgid_plural "%(count)d translations have been published"
+msgstr[0] "No se han publicado traducciones"
+msgstr[1] "Se ha publicado %(count)d traducción"
+msgstr[2] "Se han publicado %(count)d traducciones"
+
+msgid "Unpublish"
+msgstr "Despublicar"
+
+msgid "Unpublish selected translations"
+msgstr "Despublicar traducciones seleccionadas"
+
+msgid "Are you sure you want to unpublish these translations?"
+msgstr "¿Quieres despublicar estas traducciones?"
+
+msgid "Yes, unpublish"
+msgstr "Sí, despublicar"
+
+msgid "No, don't unpublish"
+msgstr "No, no lo despublicar"
+
+msgid "You don't have permission to unpublish these:"
+msgstr "No tienes permiso para despublicar esto:"
+
+msgid "These translations have no live page:"
+msgstr "Estas traducciones no tienen página publicada:"
+
+#, python-format
+msgid "%(count)d translation has been unpublished"
+msgid_plural "%(count)d translations have been unpublished"
+msgstr[0] "No se han despublicado traducciones"
+msgstr[1] "Se ha despublicado %(count)d traducción"
+msgstr[2] "Se han despublicado %(count)d traducciones"
 
 msgid "Pages"
 msgstr "Páginas"
