@@ -10,12 +10,11 @@ from pytest_django.asserts import assertInHTML, assertRedirects
 from wagtail.models import GroupPagePermission, Page
 from wagtail_localize.models import (
     StringSegment,
-    StringTranslation,
     Translation,
     TranslationSource,
 )
 
-from tests.helpers import run_on_commit, target_of
+from tests.helpers import publish, target_of, translate_segments
 from tests.models import SegmentedPage
 
 
@@ -38,27 +37,6 @@ def give_page_permissions(user, page, *permission_types):
 
 def give_page_edit_permission(user, page):
     give_page_permissions(user, page, "change")
-
-
-def translate_segments(source, locale, stop, start=0, **defaults):
-    """Translate the source's segments [start:stop] into locale."""
-    segments = StringSegment.objects.filter(source=source).order_by("order")
-    for segment in segments[start:stop]:
-        StringTranslation.objects.update_or_create(
-            translation_of=segment.string,
-            context=segment.context,
-            locale=locale,
-            defaults={
-                "data": f"{locale.language_code} {segment.string.data}",
-                **defaults,
-            },
-        )
-
-
-def publish(translation):
-    """Write the translations into a live target page."""
-    with run_on_commit:
-        translation.save_target(publish=True)
 
 
 @pytest.fixture
