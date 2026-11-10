@@ -10,6 +10,7 @@ from pytest_django.asserts import assertInHTML, assertRedirects
 from wagtail.models import GroupPagePermission, Page
 from wagtail_localize.models import (
     StringSegment,
+    StringTranslation,
     Translation,
     TranslationSource,
 )
@@ -529,6 +530,27 @@ class TestPageManagementView:
 
         assertInHTML("<ul><li>Manual (2)</li><li>PO file (1)</li></ul>", content)
         assertInHTML("<ul><li>Other tool (2)</li></ul>", content)
+        assert "Not translated yet" in content
+
+    def test_translated_via_ignores_string_translated_in_another_context(
+        self, get_content, segmented_page, segmented_source, locale_de
+    ):
+        # E.g. after two fields swap text: each string is still translated, but
+        # in the other field's context, which is not a segment of this source.
+        Translation.objects.create(source=segmented_source, target_locale=locale_de)
+        first, second = StringSegment.objects.filter(source=segmented_source).order_by(
+            "order"
+        )[:2]
+        StringTranslation.objects.create(
+            translation_of=first.string,
+            context=second.context,
+            locale=locale_de,
+            data="Mismatched",
+        )
+
+        content = get_content(segmented_page)
+
+        assertInHTML('<span class="text-danger">0% (0 of 10)</span>', content)
         assert "Not translated yet" in content
 
 

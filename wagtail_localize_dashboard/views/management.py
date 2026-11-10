@@ -2,7 +2,7 @@
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.http import Http404
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
@@ -150,12 +150,17 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
         )
 
     def get_translated_via(self, translation):
-        segments = StringSegment.objects.filter(source=self.source)
         rows = (
             StringTranslation.objects.filter(
+                # Match string and context together, as Translation.get_progress() does.
+                Exists(
+                    StringSegment.objects.filter(
+                        source=self.source,
+                        string_id=OuterRef("translation_of_id"),
+                        context_id=OuterRef("context_id"),
+                    )
+                ),
                 locale_id=translation.target_locale_id,
-                translation_of_id__in=segments.values("string_id"),
-                context_id__in=segments.values("context_id"),
                 has_error=False,
             )
             .values("tool_name")
