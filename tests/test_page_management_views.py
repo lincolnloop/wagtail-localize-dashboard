@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import Group, Permission
 from django.contrib.messages import get_messages
+from django.core.exceptions import ValidationError
 from django.test import override_settings
 from django.urls import reverse
 from django.utils.http import urlencode
@@ -750,6 +752,50 @@ class TestPublishAction:
         assert [str(m) for m in get_messages(response.wsgi_request)] == [
             "2 translations have been published"
         ]
+
+    def test_validation_error_skips_only_that_translation_with_error_message(
+        self,
+        admin_client,
+        django_capture_on_commit_callbacks,
+        test_page_with_translations,
+        translations,
+        locale_de,
+        locale_es,
+    ):
+        de_page = target_of(test_page_with_translations, locale_de)
+        es_page = target_of(test_page_with_translations, locale_es)
+        Page.objects.filter(pk__in=(de_page.pk, es_page.pk)).update(live=False)
+        translate_segments(translations["de"].source, locale_de, 1)  # the title
+        real_save_target = Translation.save_target
+
+        def save_target_failing_for_german(translation, **kwargs):
+            real_save_target(translation, **kwargs)
+            if translation.target_locale == locale_de:
+                raise ValidationError({"title": "Invalid"})
+
+        with (
+            patch.object(
+                Translation,
+                "save_target",
+                autospec=True,
+                side_effect=save_target_failing_for_german,
+            ),
+            django_capture_on_commit_callbacks(execute=True),
+        ):
+            response = admin_client.post(
+                bulk_action_url("publish", [translations["de"], translations["es"]])
+            )
+
+        assert response.status_code == 302
+        assert [str(m) for m in get_messages(response.wsgi_request)] == [
+            "1 translation has been published",
+            "'Test Page' could not be published in German because of validation "
+            "errors.",
+        ]
+        de_page.refresh_from_db()
+        es_page.refresh_from_db()
+        assert (de_page.live, de_page.title) == (False, "Test Page")
+        assert es_page.live is True
 
     def test_alias_target_page_is_marked_as_converted(
         self, admin_client, test_page_with_translations, translations, locale_de
