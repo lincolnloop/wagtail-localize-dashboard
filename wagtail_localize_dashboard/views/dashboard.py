@@ -4,14 +4,13 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Count, Exists, Min, OuterRef, Q, QuerySet
+from django.db.models import Count, Min, Q, QuerySet
 from django.urls import NoReverseMatch, reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.views.generic import ListView
 from wagtail.admin.views.generic.base import BaseListingView
 from wagtail.models import DraftStateMixin, Locale, Page
-from wagtail_localize.models import Translation
 
 from wagtail_localize_dashboard.forms import (
     ProgressFilterForm,
@@ -160,15 +159,8 @@ class ProgressDashboardView(ListView, BaseListingView):
                         translation_key__in=translation_keys_with_locale
                     )
 
-        # Prefetch locale data for pages. The manage view 404s for pages
-        # without translations, so the template links those elsewhere.
-        return pages_qs.select_related("locale").annotate(
-            has_translations=Exists(
-                Translation.objects.filter(
-                    source__object_id=OuterRef("translation_key")
-                )
-            )
-        )
+        # Prefetch locale data for pages
+        return pages_qs.select_related("locale")
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """
@@ -215,9 +207,7 @@ class ProgressDashboardView(ListView, BaseListingView):
                     "manage_url": reverse(
                         "wagtail_localize_dashboard:manage_translations",
                         args=[page.id],
-                    )
-                    if page.has_translations
-                    else edit_url,
+                    ),
                     "view_url": page.get_url() if hasattr(page, "get_url") else "#",
                 }
             )

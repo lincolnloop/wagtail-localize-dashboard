@@ -3,7 +3,6 @@
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Exists, OuterRef, Q
-from django.http import Http404
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
@@ -67,6 +66,7 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
         }
     ]
     header_icon = "wagtail-localize-language"
+    no_results_message = gettext_lazy("This page has no translations yet.")
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
@@ -85,9 +85,6 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
                 return redirect(
                     "wagtail_localize_dashboard:manage_translations", original.pk
                 )
-            raise Http404
-        if not self.get_queryset().exists():
-            raise Http404
         user = request.user
         if not (
             user.has_perm("wagtail_localize.submit_translation")
@@ -126,7 +123,8 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
             )
         # wagtail-localize's own condition for syncing, plus an unsynced change.
         if (
-            page.latest_revision_created_at
+            self.source
+            and page.latest_revision_created_at
             and page.latest_revision_created_at > self.source.last_updated_at
             and self.source.translations.filter(enabled=True).exists()
         ):
@@ -143,7 +141,8 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
 
     def get_queryset(self):
         return (
-            Translation.objects.filter(source=self.source)
+            # Every source for the page, so translations of translations are listed.
+            Translation.objects.filter(source__object_id=self.object.translation_key)
             .exclude(target_locale_id=self.object.locale_id)
             .select_related("source", "target_locale")
             .order_by("target_locale__language_code")
@@ -155,7 +154,7 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
                 # Match string and context together, as Translation.get_progress() does.
                 Exists(
                     StringSegment.objects.filter(
-                        source=self.source,
+                        source=translation.source,
                         string_id=OuterRef("translation_of_id"),
                         context_id=OuterRef("context_id"),
                     )
@@ -205,7 +204,7 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
                 translation.published_html = mark_safe("<span>-</span>")
             else:
                 published = _count_published(
-                    self.source, translation.target_locale, page
+                    translation.source, translation.target_locale, page
                 )
                 translation.published_html = progress_html(
                     min(published, translated), total

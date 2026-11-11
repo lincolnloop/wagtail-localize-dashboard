@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wagtail-localize-dashboard 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-11 11:52-0500\n"
+"POT-Creation-Date: 2026-11-11 12:58-0500\n"
 "PO-Revision-Date: 2026-04-17 15:26+0000\n"
 "Last-Translator: \n"
 "Language-Team: Spanish\n"
@@ -301,6 +301,9 @@ msgstr "%(percent)s%% (%(done)s de %(total)s)"
 
 msgid "Manage Translations"
 msgstr "Administrar traducciones"
+
+msgid "This page has no translations yet."
+msgstr "Esta página aún no tiene traducciones."
 
 #, python-format
 msgid "Edit original page (%(locale)s)"
