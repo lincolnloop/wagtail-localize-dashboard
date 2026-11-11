@@ -751,6 +751,23 @@ class TestPublishAction:
             "2 translations have been published"
         ]
 
+    def test_alias_target_page_is_marked_as_converted(
+        self, admin_client, test_page_with_translations, translations, locale_de
+    ):
+        Page.objects.filter(
+            pk=target_of(test_page_with_translations, locale_de).pk
+        ).update(alias_of=test_page_with_translations)
+
+        response = admin_client.get(
+            bulk_action_url("publish", [translations["de"], translations["es"]])
+        )
+
+        content = response.content.decode()
+        assertInHTML(
+            "<li>German (alias, will be converted to a regular page)</li>", content
+        )
+        assertInHTML("<li>Spanish</li>", content)
+
     def test_disabled_translation_is_listed_as_ineligible(
         self, admin_client, translations
     ):

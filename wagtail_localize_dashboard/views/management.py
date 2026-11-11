@@ -309,6 +309,14 @@ class PublishTranslationBulkAction(TranslationBulkAction):
     def is_eligible(self, translation):
         return translation.enabled
 
+    def get_actionable_objects(self):
+        objects, context = super().get_actionable_objects()
+        # wagtail-localize converts an alias target into a regular page on publish
+        for translation in objects:
+            page = get_target_page(translation)
+            translation.converts_alias = bool(page and page.alias_of_id)
+        return objects, context
+
     def has_perm(self, translation):
         user = self.request.user
         page = get_target_page(translation)
