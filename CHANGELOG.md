@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added
+
+- Page "Manage Translations" view which shows a row with details for each of a
+  page's translations and allows for bulk published and unpublishing.
+
+### Changed
+
+- The "Manage Translations" page action and page link from the dashboard have
+  been changed to point to the new page "Manage Translations" view.
+
+## 0.6.0
+
 ### Removed
 
 - Support for Django 4.2-5.1 and Wagtail 5.2-6.x. Those versions are not

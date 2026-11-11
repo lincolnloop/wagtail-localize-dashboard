@@ -53,6 +53,7 @@ python manage.py runserver
    - Watch the dashboard update automatically
 3. **Filter Results**: Use the search and filter options in the dashboard
 4. **View Progress**: See color-coded translation status (green=100%, yellow=80-99%, red=<80%)
+5. **Manage Translations**: Click the "Manage Translations" page action to view detailed translation info with bulk actions
 
 ## Project Structure
 
