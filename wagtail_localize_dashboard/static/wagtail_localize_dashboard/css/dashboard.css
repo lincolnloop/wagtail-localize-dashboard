@@ -85,6 +85,10 @@
     margin-bottom: 0.5rem;
 }
 
+.listing .actions .button+.button {
+    margin-inline-start: 0;
+}
+
 .align-items-end {
     align-items: flex-end;
 }
