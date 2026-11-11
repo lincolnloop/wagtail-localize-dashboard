@@ -12,7 +12,7 @@
         <p>{{ view.confirm_text }}</p>
         <ul>
             {% for item in items %}
-                <li>{{ item.item.target_locale.get_display_name }}</li>
+                <li>{{ item.item.target_locale.get_display_name }}{% if item.item.converts_alias %} {% trans "(alias, will be converted to a regular page)" %}{% endif %}</li>
             {% endfor %}
         </ul>
     {% endif %}
