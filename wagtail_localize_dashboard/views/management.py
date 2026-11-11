@@ -1,7 +1,8 @@
 """Views for managing the translations of a single page."""
 
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.shortcuts import redirect
 from django.template.loader import render_to_string
@@ -327,9 +328,33 @@ class PublishTranslationBulkAction(TranslationBulkAction):
 
     @classmethod
     def execute_action(cls, objects, user=None, **kwargs):
+        published = 0
         for translation in objects:
-            translation.save_target(user=user, publish=True)
-        return len(objects), 0
+            try:
+                with transaction.atomic():
+                    translation.save_target(user=user, publish=True)
+            except ValidationError:
+                translation.publish_failed = True
+            else:
+                published += 1
+        return published, 0
+
+    def get_success_message(self, num_parent_objects, num_child_objects):
+        if num_parent_objects:
+            super().get_success_message(num_parent_objects, num_child_objects)
+        for translation in self.actionable_objects:
+            if getattr(translation, "publish_failed", False):
+                messages.error(
+                    self.request,
+                    _(
+                        "'%(object)s' could not be published in %(locale)s "
+                        "because of validation errors."
+                    )
+                    % {
+                        "object": translation.source.object_repr,
+                        "locale": translation.target_locale.get_display_name(),
+                    },
+                )
 
     def get_success_text(self, count):
         return ngettext(
