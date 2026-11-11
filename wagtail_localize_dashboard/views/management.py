@@ -26,7 +26,7 @@ from wagtail_localize.models import (
     TranslationSource,
 )
 
-from wagtail_localize_dashboard.utils import _count_published
+from wagtail_localize_dashboard.utils import count_published
 
 
 def get_target_page(translation):
@@ -203,7 +203,7 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
             if page is None:
                 translation.published_html = mark_safe("<span>-</span>")
             else:
-                published = _count_published(
+                published = count_published(
                     translation.source, translation.target_locale, page
                 )
                 translation.published_html = progress_html(

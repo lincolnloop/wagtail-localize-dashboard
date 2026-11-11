@@ -139,7 +139,7 @@ def test_a_changed_editor_only_field_is_still_a_noop(test_page, locale_de, admin
 
 
 def test_has_error_flip_counts_as_a_change(test_page, locale_de):
-    """has_error changes _count_published, so flipping it is not a no-op."""
+    """has_error changes count_published, so flipping it is not a no-op."""
     source, __ = translate_all_segments_and_publish(test_page, locale_de)
     target = target_of(test_page, locale_de)
     before = get_first_segment_translation(source, locale_de).updated_at
