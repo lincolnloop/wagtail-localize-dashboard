@@ -98,7 +98,7 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_page_subtitle(self):
-        return self.object.title
+        return self.object.get_admin_display_title()
 
     @cached_property
     def header_buttons(self):

@@ -206,7 +206,7 @@ class TestPageManagementView:
         )
 
     def test_heading_escapes_page_title(self, get_content, test_page_with_translations):
-        test_page_with_translations.title = "<b>Bold</b> Page"
+        test_page_with_translations.draft_title = "<b>Bold</b> Page"
         test_page_with_translations.save()
 
         content = get_content()
