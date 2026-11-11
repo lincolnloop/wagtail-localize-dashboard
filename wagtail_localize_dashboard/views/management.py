@@ -310,9 +310,12 @@ class PublishTranslationBulkAction(TranslationBulkAction):
         return translation.enabled
 
     def has_perm(self, translation):
-        # A missing target page is created under the source page.
-        page = get_target_page(translation) or translation.source.get_source_instance()
-        return page.permissions_for_user(self.request.user).can_publish()
+        user = self.request.user
+        page = get_target_page(translation)
+        if page is None:
+            # Match wagtail-localize's sync and translate views
+            return user.has_perm("wagtail_localize.submit_translation")
+        return page.permissions_for_user(user).can_publish()
 
     @classmethod
     def execute_action(cls, objects, user=None, **kwargs):
