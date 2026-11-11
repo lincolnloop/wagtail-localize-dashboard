@@ -108,12 +108,46 @@ class TestPageManagementView:
 
         assert response.status_code == 404
 
-    def test_page_without_translations_is_404(self, admin_client, test_page):
+    def test_page_without_translations_shows_empty_state(self, admin_client, test_page):
         url = self.url(test_page)
 
         response = admin_client.get(url)
 
-        assert response.status_code == 404
+        assert response.status_code == 200
+        assert "This page has no translations yet." in response.content.decode()
+        assert "Sync translated pages" not in response.content.decode()
+
+    def test_shows_translations_from_a_sibling_source(
+        self, admin_client, test_page_with_translations, locale_de, locale_fr
+    ):
+        de_source, _ = TranslationSource.get_or_create_from_instance(
+            target_of(test_page_with_translations, locale_de)
+        )
+        fr_translation = Translation.objects.create(
+            source=de_source, target_locale=locale_fr
+        )
+
+        response = admin_client.get(self.url(test_page_with_translations))
+
+        assert f'data-object-id="{fr_translation.pk}"' in response.content.decode()
+
+    def test_original_without_its_own_source_shows_sibling_translations(
+        self, admin_client, test_page, locale_de, locale_fr
+    ):
+        # German created outside wagtail-localize, then translated into French.
+        de_page = test_page.copy_for_translation(locale_de, copy_parents=True)
+        assert TranslationSource.objects.get_for_instance_or_none(test_page) is None
+        de_source, _ = TranslationSource.get_or_create_from_instance(de_page)
+        fr_translation = Translation.objects.create(
+            source=de_source, target_locale=locale_fr
+        )
+
+        response = admin_client.get(self.url(test_page))
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert f'data-object-id="{fr_translation.pk}"' in content
+        assert "Sync translated pages" not in content
 
     def test_translated_page_redirects_to_source(
         self, admin_client, test_page_with_translations, locale_de
@@ -542,6 +576,29 @@ class TestPageManagementView:
         assertInHTML("<ul><li>Manual (2)</li><li>PO file (1)</li></ul>", content)
         assertInHTML("<ul><li>Other tool (2)</li></ul>", content)
         assert "Not translated yet" in content
+
+    def test_sibling_source_progress_uses_its_own_segments(
+        self, get_content, segmented_page, segmented_source, locale_de, locale_fr
+    ):
+        de_translation = Translation.objects.create(
+            source=segmented_source, target_locale=locale_de
+        )
+        translate_segments(segmented_source, locale_de, 10)
+        publish(de_translation)
+        de_source, _ = TranslationSource.get_or_create_from_instance(
+            target_of(segmented_page, locale_de)
+        )
+        fr_translation = Translation.objects.create(
+            source=de_source, target_locale=locale_fr
+        )
+        translate_segments(de_source, locale_fr, 3, tool_name="PO file")
+        publish(fr_translation)
+
+        content = get_content(segmented_page)
+
+        assertInHTML("<ul><li>PO file (3)</li></ul>", content)
+        # Translated and published, both counted against the German segments.
+        assertInHTML('<span class="text-danger">30% (3 of 10)</span>', content, count=2)
 
     def test_translated_via_ignores_string_translated_in_another_context(
         self, get_content, segmented_page, segmented_source, locale_de
