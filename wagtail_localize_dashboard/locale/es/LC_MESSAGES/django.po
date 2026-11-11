@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wagtail-localize-dashboard 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-11 12:58-0500\n"
+"POT-Creation-Date: 2026-11-11 15:32-0500\n"
 "PO-Revision-Date: 2026-04-17 15:26+0000\n"
 "Last-Translator: \n"
 "Language-Team: Spanish\n"
@@ -165,6 +165,9 @@ msgstr "Progreso de traducción de fragmentos"
 
 msgid "Translations"
 msgstr "Traducciones"
+
+msgid "(alias, will be converted to a regular page)"
+msgstr "(alias, se convertirá en una página normal)"
 
 msgid "Translation Progress Dashboard"
 msgstr "Panel de progreso de traducción"
@@ -366,6 +369,13 @@ msgstr "No tienes permiso para publicar esto:"
 
 msgid "These translations are not syncing:"
 msgstr "Estas traducciones no se sincronizan:"
+
+#, python-format
+msgid ""
+"'%(object)s' could not be published in %(locale)s because of validation "
+"errors."
+msgstr "'%(object)s' no pudo publicarse en %(locale)s debido a errores de "
+"validación."
 
 #, python-format
 msgid "%(count)d translation has been published"
