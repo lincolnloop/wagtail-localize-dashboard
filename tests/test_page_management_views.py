@@ -807,17 +807,19 @@ class TestPublishAction:
 
         assert context_items(response) == [translations["de"]]
 
-    def test_missing_target_page_requires_publish_permission_on_source_page(
-        self, wagtail_client, root_editor, translations
+    def test_missing_target_page_requires_submit_translation_permission(
+        self, wagtail_client, root_editor, translations, test_page_with_translations
     ):
+        give_page_permissions(root_editor, test_page_with_translations, "publish")
+
         response = wagtail_client.get(bulk_action_url("publish", [translations["fr"]]))
 
         assert context_items(response, "items_with_no_access") == [translations["fr"]]
 
-    def test_missing_target_page_publish_permission_on_source_page_is_sufficient(
-        self, wagtail_client, root_editor, translations, test_page_with_translations
+    def test_missing_target_page_submit_translation_permission_is_sufficient(
+        self, wagtail_client, root_editor, translations
     ):
-        give_page_permissions(root_editor, test_page_with_translations, "publish")
+        give_submit_translation_permission(root_editor)
 
         response = wagtail_client.get(bulk_action_url("publish", [translations["fr"]]))
 
