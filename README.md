@@ -7,6 +7,7 @@ A translation dashboard for Wagtail sites using [wagtail-localize](https://githu
 ## Features
 
 - **Page Dashboard**: Visual overview of translation progress for all pages
+- **Translation Management**: Detailed table of translations and their progress for each page
 - **Snippet Dashboard**: Opt-in dashboard for translatable snippet models
 - **Auto-Updates**: Signals automatically update percentages when translations change
 - **Performance**: Translation percentages are stored in the database, for fast loading
@@ -127,7 +128,17 @@ The dashboard shows:
 - All original pages (not translations)
 - Translation progress for each locale (0-100%)
 - Color-coded status badges
-- Quick links to edit pages
+- Quick links to edit pages or manage their translations
+
+### Translation Management
+
+The translation management view for a page shows:
+- Details on all translations for the page
+  - Translation progress
+  - Publish status
+  - How segments were translated
+- Bulk actions on translations
+- Actions to sync translations and translate into additional locales
 
 ### Management Commands
 
@@ -257,7 +268,7 @@ django-admin compilemessages
 
 1. **Database Tables**: `TranslationProgress` stores pre-calculated percentages for pages; `SnippetTranslationProgress` does the same for tracked snippets.
 2. **Signals**: Listen for translation changes and update the relevant table automatically when a translation or tracked snippet is saved.
-3. **Dashboards**: Display cached progress data — one view for pages, one for snippets.
+3. **Views**: Display cached progress data — one dashboard for pages, one dashboard for snippets, one view of translations per page.
 4. **Management Commands**: Rebuild the cache on demand after bulk imports or initial setup.
 
 ## Requirements
