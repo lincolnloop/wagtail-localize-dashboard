@@ -288,6 +288,20 @@ class TestDashboardView:
             response.content.decode(),
         )
 
+    def test_dashboard_title_links_to_edit_if_no_translations(
+        self, admin_client, test_page
+    ):
+        """The page title links to the page's edit link if it has no translations."""
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        edit_url = reverse("wagtailadmin_pages:edit", args=[test_page.id])
+
+        response = admin_client.get(url)
+
+        assertInHTML(
+            f'<strong><a href="{edit_url}">Test Page</a></strong>',
+            response.content.decode(),
+        )
+
     @override_settings(WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=[])
     def test_column_filter_absent_when_setting_empty(self, admin_client, test_page):
         """Column filter field is absent when COLUMN_FILTER_OPTIONS is empty."""
