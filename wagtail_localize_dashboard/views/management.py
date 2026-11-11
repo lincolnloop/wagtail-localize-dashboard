@@ -63,7 +63,7 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
     breadcrumbs_items = BaseListingView.breadcrumbs_items + [
         {
             "url": reverse_lazy("wagtail_localize_dashboard:dashboard"),
-            "label": _("Translations"),
+            "label": gettext_lazy("Translations"),
         }
     ]
     header_icon = "wagtail-localize-language"
@@ -105,7 +105,7 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
         page = self.object
         buttons = [
             HeaderButton(
-                label=_("Edit %(locale)s Page")
+                label=_("Edit original page (%(locale)s)")
                 % {"locale": page.locale.get_display_name()},
                 url=reverse("wagtailadmin_pages:edit", args=(page.pk,)),
                 icon_name="edit",
@@ -117,7 +117,7 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
         if Locale.objects.exclude(pk__in=translated_locales).exists():
             buttons.append(
                 HeaderButton(
-                    label=_("Translate into more locales"),
+                    label=_("Translate"),
                     url=reverse(
                         "wagtail_localize:submit_page_translation", args=(page.pk,)
                     ),

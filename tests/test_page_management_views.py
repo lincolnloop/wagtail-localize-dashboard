@@ -53,6 +53,16 @@ def segmented_page(home_page, locale_en):
     return page
 
 
+def header_action_html(action_label, action_url, action_icon):
+    return f"""
+        <a href="{action_url}" class="w-header-button button">
+            <svg class="icon icon-{action_icon} icon" aria-hidden="true">
+                <use href="#icon-{action_icon}"></use>
+            </svg>
+            {action_label}
+        </a>"""
+
+
 @pytest.fixture
 def segmented_source(segmented_page):
     source, _ = TranslationSource.get_or_create_from_instance(segmented_page)
@@ -208,35 +218,38 @@ class TestPageManagementView:
         edit_page_url = reverse(
             "wagtailadmin_pages:edit", args=(test_page_with_translations.pk,)
         )
-        edit_page_label = "Edit English Page"
+        edit_page_label = "Edit original page (English)"
+        edit_page_action = header_action_html(edit_page_label, edit_page_url, "edit")
 
         content = get_content()
 
-        assert f'href="{edit_page_url}"' in content
-        assert edit_page_label in content
+        assertInHTML(edit_page_action, content)
 
     def test_translate_more_header_button(
         self, get_content, test_page_with_translations, locale_fr
     ):
-        translate_more_url = reverse(
+        translate_url = reverse(
             "wagtail_localize:submit_page_translation",
             args=(test_page_with_translations.pk,),
         )
-        translate_more_label = "Translate into more locales"
+        translate_action = header_action_html(
+            "Translate", translate_url, "wagtail-localize-language"
+        )
 
         content = get_content()
 
-        assert translate_more_url in content
-        assert translate_more_label in content
+        assertInHTML(translate_action, content)
 
     def test_translate_more_header_button_shown_for_alias_locales(
         self, get_content, test_page_with_translations, locale_de
     ):
-        translate_more_url = reverse(
+        translate_url = reverse(
             "wagtail_localize:submit_page_translation",
             args=(test_page_with_translations.pk,),
         )
-        translate_more_label = "Translate into more locales"
+        translate_action = header_action_html(
+            "Translate", translate_url, "wagtail-localize-language"
+        )
         Page.objects.filter(
             pk=target_of(test_page_with_translations, locale_de).pk
         ).update(alias_of=test_page_with_translations)
@@ -244,22 +257,19 @@ class TestPageManagementView:
 
         content = get_content()
 
-        assert translate_more_url in content
-        assert translate_more_label in content
+        assertInHTML(translate_action, content)
 
     def test_translate_more_header_button_requires_an_untranslated_locale(
         self, get_content, test_page_with_translations
     ):
-        translate_more_url = reverse(
+        translate_url = reverse(
             "wagtail_localize:submit_page_translation",
             args=(test_page_with_translations.pk,),
         )
-        translate_more_label = "Translate into more locales"
 
         content = get_content()
 
-        assert translate_more_url not in content
-        assert translate_more_label not in content
+        assert translate_url not in content
 
     def test_sync_translations_header_button(
         self, get_content, test_page_with_translations
@@ -268,14 +278,15 @@ class TestPageManagementView:
         sync_translations_url = reverse(
             "wagtail_localize:update_translations", args=(source.pk,)
         )
-        sync_translations_label = "Sync translated pages"
+        sync_translations_action = header_action_html(
+            "Sync translated pages", sync_translations_url, "resubmit"
+        )
         test_page_with_translations.title = "Changed Test Page"
         test_page_with_translations.save_revision().publish()
 
         content = get_content()
 
-        assert sync_translations_url in content
-        assert sync_translations_label in content
+        assertInHTML(sync_translations_action, content)
 
     def test_sync_translations_header_button_requires_an_unsynced_source_change(
         self, get_content, test_page_with_translations
