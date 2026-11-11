@@ -1,0 +1,22 @@
+/* Color-coded translation status text */
+
+.text-success,
+.text-warning,
+.text-danger {
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    padding: 0.25rem .75rem;
+}
+
+.text-success {
+    background-color: #1b8666;
+}
+
+.text-warning {
+    background-color: #a06400;
+}
+
+.text-danger {
+    background-color: #ca3b3b;
+}

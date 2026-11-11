@@ -81,7 +81,7 @@ def get_translation_percentages(
         return percent_translated
 
 
-def _count_published(
+def count_published(
     source: TranslationSource,
     target_locale: Locale,
     translated_object: Model | None,
@@ -202,7 +202,7 @@ def get_translation_progress(
         return 100, 100, False
 
     percent_translated = int(translated_segments / total_segments * 100)
-    published_segments = _count_published(source, target_locale, translated_object)
+    published_segments = count_published(source, target_locale, translated_object)
     percent_published = int(published_segments / total_segments * 100)
 
     # Compare the raw counts since int() truncation can make rounded

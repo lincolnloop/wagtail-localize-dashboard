@@ -10,6 +10,7 @@ from django.db import connection, transaction
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from pytest_django.asserts import assertInHTML
 from wagtail.models import Locale, Page
 from wagtail_localize.models import Translation, TranslationSource
 
@@ -269,6 +270,23 @@ class TestDashboardView:
         # Should have edit link
         edit_url = reverse("wagtailadmin_pages:edit", args=[test_page.id])
         assert edit_url.encode() in response.content
+
+    def test_dashboard_title_links_to_manage_translations(
+        self, admin_client, test_page_with_translations
+    ):
+        """The page title links to the page's manage translations view."""
+        url = reverse("wagtail_localize_dashboard:dashboard")
+        manage_url = reverse(
+            "wagtail_localize_dashboard:manage_translations",
+            args=(test_page_with_translations.pk,),
+        )
+
+        response = admin_client.get(url)
+
+        assertInHTML(
+            f'<strong><a href="{manage_url}">Test Page</a></strong>',
+            response.content.decode(),
+        )
 
     @override_settings(WAGTAIL_LOCALIZE_DASHBOARD_COLUMN_FILTER_OPTIONS=[])
     def test_column_filter_absent_when_setting_empty(self, admin_client, test_page):

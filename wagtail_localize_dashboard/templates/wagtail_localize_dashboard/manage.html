@@ -1,0 +1,16 @@
+{% extends "wagtailadmin/generic/listing.html" %}
+{% load i18n static wagtailadmin_tags %}
+
+{% block extra_css %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'wagtail_localize_dashboard/css/manage.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script defer src="{% versioned_static 'wagtailadmin/js/bulk-actions.js' %}"></script>
+{% endblock %}
+
+{% block bulk_actions %}
+    {% include 'wagtailadmin/bulk_actions/footer.html' with app_label="wagtail_localize" model_name="translation" objects=page_obj item_type="TRANSLATION" %}
+{% endblock %}

@@ -39,6 +39,27 @@ def translate_all_segments_and_publish(source_object, locale):
     return source, translation
 
 
+def translate_segments(source, locale, stop, start=0, **defaults):
+    """Translate the source's segments [start:stop] into locale."""
+    segments = StringSegment.objects.filter(source=source).order_by("order")
+    for segment in segments[start:stop]:
+        StringTranslation.objects.update_or_create(
+            translation_of=segment.string,
+            context=segment.context,
+            locale=locale,
+            defaults={
+                "data": f"{locale.language_code} {segment.string.data}",
+                **defaults,
+            },
+        )
+
+
+def publish(translation):
+    """Write the translations into a live target page."""
+    with run_on_commit:
+        translation.save_target(publish=True)
+
+
 def get_first_segment_translation(source, locale):
     """Return the StringTranslation for the first segment of source."""
     segment = StringSegment.objects.filter(source=source).order_by("order").first()

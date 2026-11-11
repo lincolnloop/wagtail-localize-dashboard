@@ -23,8 +23,10 @@ from django.test import Client, override_settings
 from django.urls import reverse
 from wagtail.models import Locale, Page
 from wagtail.users.models import UserProfile
+from wagtail_localize.models import Translation, TranslationSource
 
-from tests.models import SampleSnippet
+from tests.helpers import ensure_home_page, publish, translate_segments
+from tests.models import SampleSnippet, SegmentedPage
 from wagtail_localize_dashboard.models import (
     SnippetTranslationProgress,
     TranslationProgress,
@@ -41,47 +43,52 @@ Axe = pytest.importorskip("selenium_axe_python").Axe
 User = get_user_model()
 
 
-class DashboardAccessibilityMixin:
+class AdminPageAccessibilityMixin:
     """
-    Shared axe-core test methods for both dashboard views.
+    Shared axe-core test methods for any of the package's admin views.
 
     Concrete subclasses must define:
-        DASHBOARD_URL_NAME  -- Django URL name for the dashboard
-    And implement:
-        _clear_progress_records()        -- delete model-specific progress rows
-        test_filtered_dashboard_accessibility()  -- filtered-state check with explicit params
+        URL_NAME    -- Django URL name for the view
+        STYLESHEET  -- the package stylesheet the view's template loads
+    And may override:
+        _path()     -- when the URL takes arguments
     """
 
-    DASHBOARD_URL_NAME = None
+    URL_NAME = None
+    STYLESHEET = "dashboard.css"
+
+    def _path(self):
+        return reverse(self.URL_NAME)
 
     def _url(self, params=""):
-        path = reverse(self.DASHBOARD_URL_NAME)
+        path = self._path()
         if params:
             path = f"{path}?{params}"
         return f"{self.live_server_url}{path}"
 
     def _open(self, params=""):
-        """Log in, open the dashboard, and refuse to audit anything else."""
+        """Log in, open the view, and refuse to audit anything else."""
         self._login()
         self.driver.get(self._url(params))
 
-        # Make sure that the test is on the dashboard, rather than a login form,
-        # a 404 page, etc.
-        expected = reverse(self.DASHBOARD_URL_NAME)
+        # Make sure that the test is on the view, rather than a login form,
+        # a 404 page, a redirect, etc.
+        expected = self._path()
         actual = urlparse(self.driver.current_url).path
         assert actual == expected, (
             f"Expected to audit {expected}, but the browser is on {actual}. "
             "Auditing that page would pass vacuously."
         )
 
-        # Make sure the dashboard stylesheet was actually applied.
+        # Make sure the package stylesheet was actually applied.
         rules = self.driver.execute_script(
             "const s = [...document.styleSheets]"
-            "  .find(s => (s.href || '').includes('dashboard.css'));"
-            "try { return s ? s.cssRules.length : 0 } catch (e) { return 0 }"
+            "  .find(s => (s.href || '').includes(arguments[0]));"
+            "try { return s ? s.cssRules.length : 0 } catch (e) { return 0 }",
+            self.STYLESHEET,
         )
         assert rules > 0, (
-            "dashboard.css did not load, so the audit would run against "
+            f"{self.STYLESHEET} did not load, so the audit would run against "
             "unstyled markup and tell us nothing about what users see."
         )
 
@@ -99,7 +106,7 @@ class DashboardAccessibilityMixin:
     # ------------------------------------------------------------------
 
     def test_no_critical_violations(self):
-        """Dashboard has no critical or serious axe violations."""
+        """View has no critical or serious axe violations."""
         self._open()
 
         violations = self._run_axe()["violations"]
@@ -179,7 +186,7 @@ class DashboardAccessibilityMixin:
         )
 
     def test_screen_reader_compatibility(self):
-        """Dashboard has no critical/serious screen-reader compatibility issues."""
+        """View has no critical/serious screen-reader compatibility issues."""
         self._open()
 
         results = self._run_axe(
@@ -228,7 +235,7 @@ class DashboardAccessibilityMixin:
         self._test_color_contrast()
 
     def test_table_accessibility(self):
-        """The dashboard table is accessible."""
+        """The view's table is accessible."""
         self._open()
 
         results = self._run_axe(
@@ -241,7 +248,7 @@ class DashboardAccessibilityMixin:
             self.fail(f"Table accessibility violations:\n{issues}")
 
     def test_form_accessibility(self):
-        """Filter form controls have no critical/serious accessibility issues."""
+        """Form controls have no critical/serious accessibility issues."""
         self._open()
 
         results = self._run_axe(
@@ -279,6 +286,16 @@ class DashboardAccessibilityMixin:
         assert len(results["violations"]) == 0, (
             f"Language attribute violations:\n{results['violations']}"
         )
+
+
+class DashboardAccessibilityMixin(AdminPageAccessibilityMixin):
+    """
+    Adds the listing states only the dashboards have.
+
+    Concrete subclasses must also implement:
+        _clear_progress_records()                -- delete model-specific progress rows
+        test_filtered_dashboard_accessibility()  -- filtered-state check with explicit params
+    """
 
     def test_empty_dashboard_accessibility(self):
         """Dashboard has no critical/serious violations in the empty state."""
@@ -390,32 +407,15 @@ class TestPageDashboardAccessibility(
 ):
     """Accessibility tests for the pages translation progress dashboard."""
 
-    DASHBOARD_URL_NAME = "wagtail_localize_dashboard:dashboard"
+    URL_NAME = "wagtail_localize_dashboard:dashboard"
 
     def setUp(self):
         super().setUp()
 
-        try:
-            root_page = Page.objects.get(depth=1)
-        except Page.DoesNotExist:
-            root_page = Page(
-                title="Root",
-                slug="root",
-                content_type=ContentType.objects.get_for_model(Page),
-                path="0001",
-                depth=1,
-                numchild=0,
-                url_path="/",
-            )
-            root_page.save()
-
         # The dashboard lists pages at depth > 2, which skips the root and the
         # site's home page. We attach the test page to a home page, to make sure
         # that the dashboard does not render an empty table.
-        self.parent_page = Page(
-            title="Axe Home", slug="axe-home", locale=self.locale_en
-        )
-        root_page.add_child(instance=self.parent_page)
+        self.parent_page = ensure_home_page()
 
         self.test_page = Page(
             title="Test Page", slug="test-page", locale=self.locale_en
@@ -485,7 +485,7 @@ class TestSnippetDashboardAccessibility(
 ):
     """Accessibility tests for the snippet translation progress dashboard."""
 
-    DASHBOARD_URL_NAME = "wagtail_localize_dashboard:snippet_dashboard"
+    URL_NAME = "wagtail_localize_dashboard:snippet_dashboard"
 
     def setUp(self):
         super().setUp()
@@ -558,3 +558,58 @@ class TestSnippetDashboardAccessibility(
             self.fail(
                 f"Accessibility violations in filtered snippet dashboard:\n{details}"
             )
+
+
+@pytest.mark.accessibility
+@pytest.mark.selenium
+class TestManageTranslationsAccessibility(
+    AdminPageAccessibilityMixin, BaseDashboardAccessibility
+):
+    """Accessibility tests for a page's Manage Translations view."""
+
+    URL_NAME = "wagtail_localize_dashboard:manage_translations"
+    STYLESHEET = "manage.css"
+
+    def _path(self):
+        return reverse(self.URL_NAME, args=[self.source_page.pk])
+
+    def setUp(self):
+        super().setUp()
+        locale_nl, _ = Locale.objects.get_or_create(language_code="nl")
+
+        # Ten segments, so 10, 8, and 5 translated give each progress color.
+        self.source_page = SegmentedPage(
+            title="Segmented Page",
+            slug="segmented-page",
+            locale=self.locale_en,
+            body="".join(f"<p>Paragraph {i}</p>" for i in range(1, 9)),
+        )
+        ensure_home_page().add_child(instance=self.source_page)
+        source, _ = TranslationSource.get_or_create_from_instance(self.source_page)
+
+        # German: fully translated by hand, and live.
+        de = Translation.objects.create(source=source, target_locale=self.locale_de)
+        translate_segments(source, self.locale_de, 10, last_translated_by=self.user)
+        publish(de)
+
+        # Spanish: 80% translated by a tool, with a draft target page.
+        es = Translation.objects.create(source=source, target_locale=self.locale_es)
+        translate_segments(source, self.locale_es, 8, tool_name="PO file")
+        es.save_target(publish=False)
+
+        # French: 50% translated, and live.
+        fr = Translation.objects.create(source=source, target_locale=self.locale_fr)
+        translate_segments(source, self.locale_fr, 5)
+        publish(fr)
+
+        # Italian: an alias of the source page.
+        Translation.objects.create(source=source, target_locale=self.locale_it)
+        self.source_page.copy_for_translation(
+            self.locale_it, copy_parents=True, alias=True
+        )
+
+        # Dutch: nothing translated and no target page yet.
+        Translation.objects.create(source=source, target_locale=locale_nl)
+
+        # An edit after the source was captured shows the "Sync" header button.
+        self.source_page.save_revision()

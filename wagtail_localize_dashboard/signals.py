@@ -74,7 +74,7 @@ def restore_stringtranslation_updated_at_on_noop(
     if created or kwargs.get("raw", False) or not previous:
         return
     # We look at data and has_error, since  those are the only fields
-    # _count_published() reads.
+    # count_published() reads.
     # If the data changed, or if has_error has changed, then return here, so
     # updated_at does not return to its previous value.
     if previous["data"] != instance.data or previous["has_error"] != instance.has_error:

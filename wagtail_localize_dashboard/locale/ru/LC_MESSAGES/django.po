@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wagtail-localize-dashboard 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-01 17:06-0600\n"
+"POT-Creation-Date: 2026-11-11 15:32-0500\n"
 "PO-Revision-Date: 2026-04-17 15:26+0000\n"
 "Last-Translator: \n"
 "Language-Team: Russian\n"
@@ -165,6 +165,9 @@ msgstr "Прогресс перевода фрагментов"
 msgid "Translations"
 msgstr "Переводы"
 
+msgid "(alias, will be converted to a regular page)"
+msgstr "(псевдоним, будет преобразован в обычную страницу)"
+
 msgid "Translation Progress Dashboard"
 msgstr "Панель прогресса перевода"
 
@@ -202,15 +205,6 @@ msgstr "Статус"
 msgid "Actions"
 msgstr "Действия"
 
-msgid "live + draft"
-msgstr "опубликовано + черновик"
-
-msgid "live"
-msgstr "опубликовано"
-
-msgid "draft"
-msgstr "черновик"
-
 #, python-format
 msgid ""
 "Edit %(locale)s version - %(percent)s%% translated, %(published)s%% published"
@@ -221,6 +215,12 @@ msgstr ""
 #, python-format
 msgid "Edit %(locale)s version - %(percent)s%% complete"
 msgstr "Редактировать версию %(locale)s — %(percent)s%% завершено"
+
+msgid "draft"
+msgstr "черновик"
+
+msgid "live + draft"
+msgstr "опубликовано + черновик"
 
 msgid "Complete, awaiting publish:"
 msgstr "Завершено, ожидание публикации:"
@@ -267,6 +267,13 @@ msgstr "(откроется в новом окне)"
 msgid "No pages found."
 msgstr "Страницы не найдены."
 
+msgid "live"
+msgstr "опубликовано"
+
+#, python-format
+msgid "Last published %(date)s"
+msgstr "Последняя публикация %(date)s"
+
 msgid "Snippets with their translation progress"
 msgstr "Фрагменты с прогрессом перевода"
 
@@ -289,6 +296,122 @@ msgstr "Редактировать %(name)s"
 
 msgid "No snippets found."
 msgstr "Фрагменты не найдены."
+
+#, python-format
+msgid "%(percent)s%% (%(done)s of %(total)s)"
+msgstr "%(percent)s%% (%(done)s из %(total)s)"
+
+msgid "Manage Translations"
+msgstr "Управление переводами"
+
+msgid "This page has no translations yet."
+msgstr "У этой страницы пока нет переводов."
+
+#, python-format
+msgid "Edit original page (%(locale)s)"
+msgstr "Редактировать исходную страницу (%(locale)s)"
+
+msgid "Translate"
+msgstr "Переводить"
+
+msgid "Sync translated pages"
+msgstr "Синхронизировать переведенные страницы"
+
+msgid "Manual"
+msgstr "ручной"
+
+msgid "Other tool"
+msgstr "Другой инструмент"
+
+msgid "Not translated yet"
+msgstr "Еще не переведено"
+
+#, python-format
+msgid "%(locale)s (alias)"
+msgstr "%(locale)s (Псевдоним)"
+
+msgid "Not created yet"
+msgstr "Еще не создано"
+
+msgid "Locale"
+msgstr "локаль"
+
+msgid "Translated"
+msgstr "Переведено"
+
+msgid "Published"
+msgstr "Опубликовано"
+
+msgid "Page status"
+msgstr "Статус страницы"
+
+msgid "Translated via"
+msgstr "Переведено через"
+
+msgid "Publish"
+msgstr "Публиковать"
+
+msgid "Publish selected translations"
+msgstr "Опубликовать выбранные переводы"
+
+msgid "Are you sure you want to publish these translations?"
+msgstr "Вы уверены, что хотите опубликовать эти переводы?"
+
+msgid "Yes, publish"
+msgstr "Да, опубликовать"
+
+msgid "No, don't publish"
+msgstr "Нет, не публикуйте"
+
+msgid "You don't have permission to publish these:"
+msgstr "Вам не разрешено опубликовать это:"
+
+msgid "These translations are not syncing:"
+msgstr "Эти переводы не синхронизируются:"
+
+#, python-format
+msgid ""
+"'%(object)s' could not be published in %(locale)s because of validation "
+"errors."
+msgstr "'%(object)s' не удалось опубликовать на %(locale)s языке из-за ошибок "
+"валидации."
+
+#, python-format
+msgid "%(count)d translation has been published"
+msgid_plural "%(count)d translations have been published"
+msgstr[0] "Опубликовано %(count)d переводов"
+msgstr[1] "Опубликован %(count)d перевод"
+msgstr[2] "Опубликовано %(count)d перевода"
+msgstr[3] "Опубликовано %(count)d перевода"
+
+msgid "Unpublish"
+msgstr "Отменить публикацию"
+
+msgid "Unpublish selected translations"
+msgstr "Отменить публикацию отдельных переводов"
+
+msgid "Are you sure you want to unpublish these translations?"
+msgstr "Вы уверены, что хотите отменить публикацию этих переводов?"
+
+msgid "Yes, unpublish"
+msgstr "Да, отменить публикацию"
+
+msgid "No, don't unpublish"
+msgstr "Нет, не отменяйте публикацию"
+
+msgid "You don't have permission to unpublish these:"
+msgstr "У вас нет права отменять публикацию этих материалов:"
+
+msgid "These translations have no live page:"
+msgstr "У этих переводов нет опубликованной страницы:"
+
+#, python-format
+msgid "%(count)d translation has been unpublished"
+msgid_plural "%(count)d translations have been unpublished"
+msgstr[0] "Публикация %(count)d переводов была отменена"
+msgstr[1] "Публикация %(count)d перевода была отменена"
+msgstr[2] "Публикация %(count)d переводов была отменена"
+msgstr[3] "Публикация %(count)d переводов была отменена"
 
 msgid "Pages"
 msgstr "Страницы"
