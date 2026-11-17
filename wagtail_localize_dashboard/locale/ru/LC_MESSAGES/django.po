@@ -312,7 +312,7 @@ msgid "Edit original page (%(locale)s)"
 msgstr "Редактировать исходную страницу (%(locale)s)"
 
 msgid "Translate"
-msgstr "Переводить"
+msgstr "Перевести"
 
 msgid "Sync translated pages"
 msgstr "Синхронизировать переведенные страницы"
