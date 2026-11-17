@@ -12,10 +12,16 @@ from django.views.generic import ListView
 from wagtail.admin.views.generic.base import BaseListingView
 from wagtail.models import DraftStateMixin, Locale, Page
 
-from .forms import ProgressFilterForm, SnippetProgressFilterForm
-from .models import SnippetTranslationProgress, TranslationProgress
-from .settings import get_setting, get_tracked_snippet_models
-from .utils import get_original_objects
+from wagtail_localize_dashboard.forms import (
+    ProgressFilterForm,
+    SnippetProgressFilterForm,
+)
+from wagtail_localize_dashboard.models import (
+    SnippetTranslationProgress,
+    TranslationProgress,
+)
+from wagtail_localize_dashboard.settings import get_setting, get_tracked_snippet_models
+from wagtail_localize_dashboard.utils import get_original_objects
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -198,6 +204,10 @@ class ProgressDashboardView(ListView, BaseListingView):
                     "page": page,
                     "translations": [p.to_dict() for p in progress_records],
                     "edit_url": edit_url,
+                    "manage_url": reverse(
+                        "wagtail_localize_dashboard:manage_translations",
+                        args=[page.id],
+                    ),
                     "view_url": page.get_url() if hasattr(page, "get_url") else "#",
                 }
             )
