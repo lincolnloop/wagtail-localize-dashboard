@@ -10,6 +10,8 @@ from wagtail_localize.models import Translation
 from .settings import get_setting, get_tracked_snippet_models
 from .views.management import (
     PublishTranslationBulkAction,
+    RestartSyncingTranslationBulkAction,
+    StopSyncingTranslationBulkAction,
     UnpublishTranslationBulkAction,
 )
 
@@ -97,3 +99,5 @@ def add_translations_button(buttons, page, user, context=None):
 
 hooks.register("register_bulk_action", PublishTranslationBulkAction)
 hooks.register("register_bulk_action", UnpublishTranslationBulkAction)
+hooks.register("register_bulk_action", StopSyncingTranslationBulkAction)
+hooks.register("register_bulk_action", RestartSyncingTranslationBulkAction)

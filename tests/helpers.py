@@ -3,10 +3,12 @@
 from contextlib import contextmanager
 from unittest.mock import patch
 
+from bs4 import BeautifulSoup
 from django.conf import settings
+from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-from wagtail.models import Locale, Page, Site
+from wagtail.models import GroupPagePermission, Locale, Page, Site
 from wagtail_localize.models import (
     StringSegment,
     StringTranslation,
@@ -197,3 +199,64 @@ def count_snippet_translation_progress_calls():
         ),
     ):
         yield calls
+
+
+def give_submit_translation_permission(user):
+    user.user_permissions.add(
+        Permission.objects.get(
+            content_type__app_label="wagtail_localize", codename="submit_translation"
+        )
+    )
+
+
+def give_page_permissions(user, page, *permission_types):
+    group = Group.objects.create(name=f"Test Page Editors {Group.objects.count()}")
+    for permission_type in permission_types:
+        GroupPagePermission.objects.create(
+            group=group, page=page, permission_type=permission_type
+        )
+    user.groups.add(group)
+
+
+STOPPED = "Syncing was stopped"
+NEVER_SYNCED = "Never synced: created outside the translation workflow"
+
+
+def table_rows(content):
+    """Each listing row's cells, keyed by column header."""
+    table = BeautifulSoup(content, "html.parser").select_one("table.listing")
+    headers = [th.get_text(strip=True) for th in table.select("thead th")]
+    return [
+        dict(zip(headers, tr.find_all("td"), strict=True))
+        for tr in table.select("tbody tr")
+    ]
+
+
+def table_row(content, locale_name):
+    rows = [
+        row
+        for row in table_rows(content)
+        if row["Locale"].get_text(strip=True).startswith(locale_name)
+    ]
+    assert len(rows) == 1, f"{len(rows)} rows for {locale_name}"
+    return rows[0]
+
+
+def listed_locale_names(content):
+    return [row["Locale"].get_text(strip=True) for row in table_rows(content)]
+
+
+def assert_syncing(cell):
+    assert cell.select('use[href="#icon-check"]')
+    assert not cell.select('use[href="#icon-warning"]')
+    assert cell.get_text(strip=True) == "Syncing"
+
+
+def assert_not_syncing(cell, reason):
+    assert cell.select('use[href="#icon-warning"]')
+    assert not cell.select('use[href="#icon-check"]')
+    assert cell.get_text(strip=True) == reason
+
+
+def assert_stopped(cell):
+    assert_not_syncing(cell, STOPPED)
