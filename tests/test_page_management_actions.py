@@ -466,10 +466,10 @@ STOP = SimpleNamespace(
     end_enabled=False,
     ineligible_heading="These translations are not syncing:",
     confirmation_texts={
-        1: "Stop syncing the selected locale? It becomes an independent page that "
-        "source changes no longer reach.",
-        2: "Stop syncing the selected locales? They become independent pages that "
-        "source changes no longer reach.",
+        1: "Stop syncing the selected locale? Changes to the source will no longer "
+        "be synced to the page.",
+        2: "Stop syncing the selected locales? Changes to the source will no longer "
+        "be synced to the pages.",
     },
     success_messages={
         1: "1 translation has stopped syncing",

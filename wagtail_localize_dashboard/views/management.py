@@ -503,10 +503,10 @@ class StopSyncingTranslationBulkAction(SyncingTranslationBulkAction):
 
     def get_confirm_text(self, count):
         return ngettext(
-            "Stop syncing the selected locale? It becomes an independent page that "
-            "source changes no longer reach.",
-            "Stop syncing the selected locales? They become independent pages that "
-            "source changes no longer reach.",
+            "Stop syncing the selected locale? Changes to the source will no longer "
+            "be synced to the page.",
+            "Stop syncing the selected locales? Changes to the source will no longer "
+            "be synced to the pages.",
             count,
         )
 
