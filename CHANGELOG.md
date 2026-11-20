@@ -5,7 +5,7 @@
 ### Added
 
 - Page "Manage Translations" view which shows a row with details for each of a
-  page's translations and allows for bulk published, unpublishing, and updating
+  page's translations and allows for bulk publishing, unpublishing, and updating
   synchronization status.
 
 ### Changed
