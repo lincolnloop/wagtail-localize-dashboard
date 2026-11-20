@@ -1,15 +1,11 @@
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 import pytest
-from django.contrib.auth.models import Group, Permission
-from django.contrib.messages import get_messages
-from django.core.exceptions import ValidationError
+from bs4 import BeautifulSoup
 from django.test import override_settings
 from django.urls import reverse
-from django.utils.http import urlencode
 from pytest_django.asserts import assertInHTML, assertRedirects
-from wagtail.models import GroupPagePermission, Page
+from wagtail.models import Locale, Page
 from wagtail_localize.models import (
     StringSegment,
     StringTranslation,
@@ -17,25 +13,20 @@ from wagtail_localize.models import (
     TranslationSource,
 )
 
-from tests.helpers import publish, target_of, translate_segments
+from tests.helpers import (
+    NEVER_SYNCED,
+    assert_not_syncing,
+    assert_stopped,
+    assert_syncing,
+    give_page_permissions,
+    give_submit_translation_permission,
+    listed_locale_names,
+    publish,
+    table_row,
+    target_of,
+    translate_segments,
+)
 from tests.models import SegmentedPage
-
-
-def give_submit_translation_permission(user):
-    user.user_permissions.add(
-        Permission.objects.get(
-            content_type__app_label="wagtail_localize", codename="submit_translation"
-        )
-    )
-
-
-def give_page_permissions(user, page, *permission_types):
-    group = Group.objects.create(name=f"Test Page Editors {Group.objects.count()}")
-    for permission_type in permission_types:
-        GroupPagePermission.objects.create(
-            group=group, page=page, permission_type=permission_type
-        )
-    user.groups.add(group)
 
 
 def give_page_edit_permission(user, page):
@@ -53,6 +44,46 @@ def segmented_page(home_page, locale_en):
     )
     home_page.add_child(instance=page)
     return page
+
+
+def create_untracked_page(page, locale, **kwargs):
+    """A page in another locale, made outside wagtail-localize's workflow."""
+    return page.copy_for_translation(locale, copy_parents=True, **kwargs)
+
+
+def source_of(page):
+    return TranslationSource.objects.get_for_instance(page)
+
+
+def translate_to_live_page(page, locale_fr, enabled):
+    Translation.objects.filter(
+        source=source_of(page), target_locale__language_code="de"
+    ).update(enabled=enabled)
+    return "German"
+
+
+def translate_without_page(page, locale_fr, enabled):
+    Translation.objects.create(
+        source=source_of(page), target_locale=locale_fr, enabled=enabled
+    )
+    return "French"
+
+
+def translate_to_alias_page(page, locale_fr, enabled):
+    create_untracked_page(page, locale_fr, alias=True)
+    return translate_without_page(page, locale_fr, enabled)
+
+
+def translate_via_sibling_source(page, locale_fr, enabled):
+    de_source, _ = TranslationSource.get_or_create_from_instance(
+        target_of(page, Locale.objects.get(language_code="de"))
+    )
+    publish(
+        Translation.objects.create(
+            source=de_source, target_locale=locale_fr, enabled=enabled
+        )
+    )
+    return "French"
 
 
 def header_action_html(action_label, action_url, action_icon):
@@ -132,24 +163,6 @@ class TestPageManagementView:
         response = admin_client.get(self.url(test_page_with_translations))
 
         assert f'data-object-id="{fr_translation.pk}"' in response.content.decode()
-
-    def test_original_without_its_own_source_shows_sibling_translations(
-        self, admin_client, test_page, locale_de, locale_fr
-    ):
-        # German created outside wagtail-localize, then translated into French.
-        de_page = test_page.copy_for_translation(locale_de, copy_parents=True)
-        assert TranslationSource.objects.get_for_instance_or_none(test_page) is None
-        de_source, _ = TranslationSource.get_or_create_from_instance(de_page)
-        fr_translation = Translation.objects.create(
-            source=de_source, target_locale=locale_fr
-        )
-
-        response = admin_client.get(self.url(test_page))
-
-        assert response.status_code == 200
-        content = response.content.decode()
-        assert f'data-object-id="{fr_translation.pk}"' in content
-        assert "Sync translated pages" not in content
 
     def test_translated_page_redirects_to_source(
         self, admin_client, test_page_with_translations, locale_de
@@ -360,12 +373,28 @@ class TestPageManagementView:
 
         assert "data-bulk-action-select-all-checkbox" in content
         assert 'data-bulk-action-footer="TRANSLATION"' in content
-        for action in ("publish", "unpublish"):
+        positions = []
+        for action in ("publish", "unpublish", "stop_syncing", "restart_syncing"):
             url = reverse(
                 "wagtail_bulk_action", args=("wagtail_localize", "translation", action)
             )
             # Older Wagtail (e.g. 7.0) appends ?next=... to the URL
             assert f'href="{url}' in content
+            positions.append(content.index(f'href="{url}'))
+        assert positions == sorted(positions)
+
+    def test_column_headers(self, get_content):
+        table = BeautifulSoup(get_content(), "html.parser").select_one("table.listing")
+
+        assert [th.get_text(strip=True) for th in table.select("thead th")] == [
+            "",
+            "Locale",
+            "Translated",
+            "Published",
+            "Page status",
+            "Syncing",
+            "Translated via",
+        ]
 
     def test_does_not_show_source_locale(
         self, get_content, test_page_with_translations, locale_de, locale_en
@@ -623,441 +652,111 @@ class TestPageManagementView:
         assertInHTML('<span class="text-danger">0% (0 of 10)</span>', content)
         assert "Not translated yet" in content
 
-
-def bulk_action_url(action, translations, next_url=None):
-    params = [("id", translation.pk) for translation in translations]
-    if next_url:
-        params.append(("next", next_url))
-    url = reverse(
-        "wagtail_bulk_action", args=("wagtail_localize", "translation", action)
+    @pytest.mark.parametrize(
+        ("setup_translation", "enabled", "assert_cell"),
+        [
+            (translate_to_live_page, True, assert_syncing),
+            (translate_without_page, True, assert_syncing),
+            (translate_to_alias_page, True, assert_syncing),
+            (translate_via_sibling_source, True, assert_syncing),
+            (translate_to_live_page, False, assert_stopped),
+            (translate_without_page, False, assert_stopped),
+            (translate_to_alias_page, False, assert_stopped),
+        ],
+        ids=[
+            "enabled-live-page",
+            "enabled-no-page",
+            "enabled-alias-page",
+            "enabled-sibling-source",
+            "disabled-live-page",
+            "disabled-no-page",
+            "disabled-alias-page",
+        ],
     )
-    return f"{url}?{urlencode(params)}"
-
-
-def context_items(response, key="items"):
-    """The Translations listed under ``key`` on the confirmation page."""
-    return [
-        item["item"] if isinstance(item, dict) else item
-        for item in response.context[key]
-    ]
-
-
-@pytest.fixture
-def translations(test_page_with_translations, locale_de, locale_es, locale_fr):
-    """German and Spanish translations with live pages; French with no page."""
-    source = TranslationSource.objects.get_for_instance(test_page_with_translations)
-    Translation.objects.create(source=source, target_locale=locale_fr)
-    # save_target() would defer publishing to on_commit, which the fixture never runs.
-    Page.objects.filter(
-        translation_key=test_page_with_translations.translation_key,
-        locale__in=(locale_de, locale_es),
-    ).update(live=True)
-    return {
-        translation.target_locale.language_code: translation
-        for translation in Translation.objects.filter(source=source)
-    }
-
-
-@pytest.fixture
-def root_editor(wagtail_user, root_page):
-    """A user who can edit every page, but not publish or unpublish any."""
-    give_page_permissions(wagtail_user, root_page, "change")
-    return wagtail_user
-
-
-class TestPublishAction:
-    """Tests for the translation Publish action view."""
-
-    def test_requires_authentication(self, client, translations):
-        url = bulk_action_url("publish", [translations["de"]])
-
-        response = client.get(url)
-
-        assert response.status_code == 302
-        assert response.url.startswith(reverse("wagtailadmin_login"))
-
-    def test_get_shows_confirmation_without_publishing(
-        self, admin_client, test_page_with_translations, translations, locale_de
-    ):
-        de_page = target_of(test_page_with_translations, locale_de)
-        Page.objects.filter(pk=de_page.pk).update(live=False)
-
-        response = admin_client.get(
-            bulk_action_url("publish", [translations["de"], translations["fr"]])
-        )
-
-        assert response.status_code == 200
-        assert set(context_items(response)) == {translations["de"], translations["fr"]}
-        de_page.refresh_from_db()
-        assert de_page.live is False
-        assert not Page.objects.filter(
-            translation_key=test_page_with_translations.translation_key,
-            locale__language_code="fr",
-        ).exists()
-
-    def test_post_publishes_translations_into_target_pages(
+    def test_translation_row_shows_syncing_state(
         self,
-        admin_client,
-        django_capture_on_commit_callbacks,
-        test_page_with_translations,
-        translations,
-        locale_de,
-    ):
-        de_page = target_of(test_page_with_translations, locale_de)
-        Page.objects.filter(pk=de_page.pk).update(live=False)
-        source = translations["de"].source
-        translate_segments(source, locale_de, 1)  # the title
-
-        with django_capture_on_commit_callbacks(execute=True):
-            response = admin_client.post(
-                bulk_action_url("publish", [translations["de"]])
-            )
-
-        assert response.status_code == 302
-        de_page.refresh_from_db()
-        assert de_page.live is True
-        assert de_page.title == "de Test Page"
-
-    def test_post_creates_and_publishes_missing_target_page(
-        self,
-        admin_client,
-        django_capture_on_commit_callbacks,
-        test_page_with_translations,
-        translations,
+        assert_cell,
+        enabled,
+        get_content,
         locale_fr,
-    ):
-        with django_capture_on_commit_callbacks(execute=True):
-            response = admin_client.post(
-                bulk_action_url("publish", [translations["fr"]])
-            )
-
-        assert response.status_code == 302
-        fr_page = target_of(test_page_with_translations, locale_fr)
-        assert fr_page.live is True
-
-    def test_post_redirects_to_next_with_success_message(
-        self, admin_client, django_capture_on_commit_callbacks, translations
-    ):
-        next_url = reverse("wagtail_localize_dashboard:manage_translations", args=(1,))
-
-        with django_capture_on_commit_callbacks(execute=True):
-            response = admin_client.post(
-                bulk_action_url(
-                    "publish", [translations["de"], translations["es"]], next_url
-                )
-            )
-
-        assert response.status_code == 302
-        assert response.url == next_url
-        assert [str(m) for m in get_messages(response.wsgi_request)] == [
-            "2 translations have been published"
-        ]
-
-    def test_validation_error_skips_only_that_translation_with_error_message(
-        self,
-        admin_client,
-        django_capture_on_commit_callbacks,
+        setup_translation,
         test_page_with_translations,
-        translations,
-        locale_de,
-        locale_es,
     ):
-        de_page = target_of(test_page_with_translations, locale_de)
-        es_page = target_of(test_page_with_translations, locale_es)
-        Page.objects.filter(pk__in=(de_page.pk, es_page.pk)).update(live=False)
-        translate_segments(translations["de"].source, locale_de, 1)  # the title
-        real_save_target = Translation.save_target
-
-        def save_target_failing_for_german(translation, **kwargs):
-            real_save_target(translation, **kwargs)
-            if translation.target_locale == locale_de:
-                raise ValidationError({"title": "Invalid"})
-
-        with (
-            patch.object(
-                Translation,
-                "save_target",
-                autospec=True,
-                side_effect=save_target_failing_for_german,
-            ),
-            django_capture_on_commit_callbacks(execute=True),
-        ):
-            response = admin_client.post(
-                bulk_action_url("publish", [translations["de"], translations["es"]])
-            )
-
-        assert response.status_code == 302
-        assert [str(m) for m in get_messages(response.wsgi_request)] == [
-            "1 translation has been published",
-            "'Test Page' could not be published in German because of validation "
-            "errors.",
-        ]
-        de_page.refresh_from_db()
-        es_page.refresh_from_db()
-        assert (de_page.live, de_page.title) == (False, "Test Page")
-        assert es_page.live is True
-
-    def test_alias_target_page_is_marked_as_converted(
-        self, admin_client, test_page_with_translations, translations, locale_de
-    ):
-        Page.objects.filter(
-            pk=target_of(test_page_with_translations, locale_de).pk
-        ).update(alias_of=test_page_with_translations)
-
-        response = admin_client.get(
-            bulk_action_url("publish", [translations["de"], translations["es"]])
+        locale_name = setup_translation(
+            test_page_with_translations, locale_fr, enabled=enabled
         )
 
-        content = response.content.decode()
+        content = get_content()
+
+        # table_row() also asserts the locale is not listed again as untracked.
+        assert_cell(table_row(content, locale_name)["Syncing"])
+        assert NEVER_SYNCED not in content
+
+    def test_untracked_page_row_shows_link_and_status_but_no_translation_details(
+        self, get_content, locale_fr, test_page_with_translations
+    ):
+        fr_page = create_untracked_page(test_page_with_translations, locale_fr)
+        edit_url = reverse("wagtailadmin_pages:edit", args=(fr_page.pk,))
+
+        row = table_row(get_content(), "French")
+
+        assert not any(cell.select('input[type="checkbox"]') for cell in row.values())
+        assert row["Locale"].select_one("a")["href"] == edit_url
         assertInHTML(
-            "<li>German (alias, will be converted to a regular page)</li>", content
+            '<span class="w-status" role="status">draft</span>',
+            str(row["Page status"]),
         )
-        assertInHTML("<li>Spanish</li>", content)
+        for column in ("Translated", "Published", "Translated via"):
+            assert row[column].get_text(strip=True) == "-"
+        assert_not_syncing(row["Syncing"], NEVER_SYNCED)
 
-    def test_disabled_translation_is_listed_as_ineligible(
-        self, admin_client, translations
+    def test_original_without_translation_source_lists_untracked_pages(
+        self, admin_client, locale_fr, test_page
     ):
-        translations["es"].enabled = False
-        translations["es"].save()
+        create_untracked_page(test_page, locale_fr)
 
-        response = admin_client.get(
-            bulk_action_url("publish", [translations["de"], translations["es"]])
+        content = admin_client.get(self.url(test_page)).content.decode()
+
+        assert "This page has no translations yet." not in content
+        assert_not_syncing(table_row(content, "French")["Syncing"], NEVER_SYNCED)
+
+    def test_untracked_sibling_source_page_is_listed_as_never_synced(
+        self, admin_client, locale_de, locale_fr, test_page
+    ):
+        # German created outside wagtail-localize, then translated into French.
+        de_page = create_untracked_page(test_page, locale_de)
+        assert TranslationSource.objects.get_for_instance_or_none(test_page) is None
+        de_source, _ = TranslationSource.get_or_create_from_instance(de_page)
+        publish(Translation.objects.create(source=de_source, target_locale=locale_fr))
+
+        content = admin_client.get(self.url(test_page)).content.decode()
+
+        assert_not_syncing(table_row(content, "German")["Syncing"], NEVER_SYNCED)
+        assert_syncing(table_row(content, "French")["Syncing"])
+        assert "Sync translated pages" not in content
+
+    def test_untracked_alias_page_is_not_listed(
+        self, get_content, locale_it, test_page_with_translations
+    ):
+        create_untracked_page(test_page_with_translations, locale_it, alias=True)
+
+        content = get_content()
+
+        assert listed_locale_names(content) == ["German", "Spanish"]
+
+    def test_rows_are_ordered_by_locale_across_translations_and_untracked_pages(
+        self, get_content, locale_fr, locale_it, test_page_with_translations
+    ):
+        create_untracked_page(test_page_with_translations, locale_fr)
+        Translation.objects.create(
+            source=source_of(test_page_with_translations), target_locale=locale_it
         )
 
-        assert context_items(response) == [translations["de"]]
-        assert context_items(response, "items_ineligible") == [translations["es"]]
+        content = get_content()
 
-    def test_disabled_translation_is_not_published(
-        self,
-        admin_client,
-        django_capture_on_commit_callbacks,
-        test_page_with_translations,
-        translations,
-        locale_es,
-    ):
-        translations["es"].enabled = False
-        translations["es"].save()
-        translate_segments(translations["es"].source, locale_es, 1)  # the title
-
-        with django_capture_on_commit_callbacks(execute=True):
-            response = admin_client.post(
-                bulk_action_url("publish", [translations["de"], translations["es"]])
-            )
-            assert response.status_code == 302
-
-        assert target_of(test_page_with_translations, locale_es).title == "Test Page"
-        assert [str(m) for m in get_messages(response.wsgi_request)] == [
-            "1 translation has been published"
+        assert listed_locale_names(content) == [
+            "German",
+            "Spanish",
+            "French",
+            "Italian",
         ]
-
-    def test_requires_publish_permission_on_target_page(
-        self, wagtail_client, root_editor, translations
-    ):
-        response = wagtail_client.get(bulk_action_url("publish", [translations["de"]]))
-
-        assert context_items(response) == []
-        assert context_items(response, "items_with_no_access") == [translations["de"]]
-
-    def test_publish_permission_on_target_page_is_sufficient(
-        self, wagtail_client, root_editor, translations, test_page_with_translations
-    ):
-        de_page = target_of(
-            test_page_with_translations, translations["de"].target_locale
-        )
-        give_page_permissions(root_editor, de_page, "publish")
-
-        response = wagtail_client.get(bulk_action_url("publish", [translations["de"]]))
-
-        assert context_items(response) == [translations["de"]]
-
-    def test_missing_target_page_requires_submit_translation_permission(
-        self, wagtail_client, root_editor, translations, test_page_with_translations
-    ):
-        give_page_permissions(root_editor, test_page_with_translations, "publish")
-
-        response = wagtail_client.get(bulk_action_url("publish", [translations["fr"]]))
-
-        assert context_items(response, "items_with_no_access") == [translations["fr"]]
-
-    def test_missing_target_page_submit_translation_permission_is_sufficient(
-        self, wagtail_client, root_editor, translations
-    ):
-        give_submit_translation_permission(root_editor)
-
-        response = wagtail_client.get(bulk_action_url("publish", [translations["fr"]]))
-
-        assert context_items(response) == [translations["fr"]]
-
-    def test_post_skips_translations_without_permission(
-        self,
-        wagtail_client,
-        django_capture_on_commit_callbacks,
-        root_editor,
-        test_page_with_translations,
-        translations,
-        locale_de,
-    ):
-        de_page = target_of(test_page_with_translations, locale_de)
-        Page.objects.filter(pk=de_page.pk).update(live=False)
-
-        with django_capture_on_commit_callbacks(execute=True):
-            response = wagtail_client.post(
-                bulk_action_url("publish", [translations["de"]])
-            )
-
-        assert response.status_code == 302
-        de_page.refresh_from_db()
-        assert de_page.live is False
-
-
-class TestUnpublishAction:
-    """Tests for the translation Unpublish action view."""
-
-    def test_requires_authentication(self, client, translations):
-        url = bulk_action_url("unpublish", [translations["de"]])
-
-        response = client.get(url)
-
-        assert response.status_code == 302
-        assert response.url.startswith(reverse("wagtailadmin_login"))
-
-    def test_get_shows_confirmation_without_unpublishing(
-        self, admin_client, test_page_with_translations, translations, locale_de
-    ):
-        response = admin_client.get(bulk_action_url("unpublish", [translations["de"]]))
-
-        assert response.status_code == 200
-        assert context_items(response) == [translations["de"]]
-        assert target_of(test_page_with_translations, locale_de).live is True
-
-    def test_post_unpublishes_target_pages(
-        self,
-        admin_client,
-        test_page_with_translations,
-        translations,
-        locale_de,
-        locale_es,
-    ):
-        response = admin_client.post(
-            bulk_action_url("unpublish", [translations["de"], translations["es"]])
-        )
-
-        assert response.status_code == 302
-
-        assert target_of(test_page_with_translations, locale_de).live is False
-        assert target_of(test_page_with_translations, locale_es).live is False
-
-    def test_post_does_not_unpublish_source_page(
-        self, admin_client, test_page_with_translations, translations
-    ):
-        response = admin_client.post(bulk_action_url("unpublish", [translations["de"]]))
-
-        assert response.status_code == 302
-
-        test_page_with_translations.refresh_from_db()
-        assert test_page_with_translations.live is True
-
-    def test_post_keeps_translation_syncing(self, admin_client, translations):
-        response = admin_client.post(bulk_action_url("unpublish", [translations["de"]]))
-
-        assert response.status_code == 302
-
-        translations["de"].refresh_from_db()
-        assert translations["de"].enabled is True
-
-    def test_post_redirects_to_next_with_success_message(
-        self, admin_client, translations
-    ):
-        next_url = reverse("wagtail_localize_dashboard:manage_translations", args=(1,))
-
-        response = admin_client.post(
-            bulk_action_url(
-                "unpublish", [translations["de"], translations["es"]], next_url
-            )
-        )
-
-        assert response.status_code == 302
-        assert response.url == next_url
-        assert [str(m) for m in get_messages(response.wsgi_request)] == [
-            "2 translations have been unpublished"
-        ]
-
-    def test_disabled_translation_can_be_unpublished(
-        self, admin_client, test_page_with_translations, translations, locale_de
-    ):
-        translations["de"].enabled = False
-        translations["de"].save()
-
-        response = admin_client.post(bulk_action_url("unpublish", [translations["de"]]))
-
-        assert response.status_code == 302
-
-        assert target_of(test_page_with_translations, locale_de).live is False
-
-    def test_missing_and_draft_target_pages_are_listed_as_ineligible(
-        self, admin_client, test_page_with_translations, translations, locale_es
-    ):
-        Page.objects.filter(
-            pk=target_of(test_page_with_translations, locale_es).pk
-        ).update(live=False)
-
-        response = admin_client.get(
-            bulk_action_url(
-                "unpublish",
-                [translations["de"], translations["es"], translations["fr"]],
-            )
-        )
-
-        assert context_items(response) == [translations["de"]]
-        assert set(context_items(response, "items_ineligible")) == {
-            translations["es"],
-            translations["fr"],
-        }
-
-    def test_post_skips_ineligible_translations(self, admin_client, translations):
-        response = admin_client.post(
-            bulk_action_url("unpublish", [translations["de"], translations["fr"]])
-        )
-
-        assert response.status_code == 302
-
-        assert [str(m) for m in get_messages(response.wsgi_request)] == [
-            "1 translation has been unpublished"
-        ]
-
-    def test_requires_unpublish_permission_on_target_page(
-        self, wagtail_client, root_editor, translations
-    ):
-        response = wagtail_client.get(
-            bulk_action_url("unpublish", [translations["de"]])
-        )
-
-        assert context_items(response) == []
-        assert context_items(response, "items_with_no_access") == [translations["de"]]
-
-    def test_unpublish_permission_on_target_page_is_sufficient(
-        self, wagtail_client, root_editor, translations, test_page_with_translations
-    ):
-        de_page = target_of(
-            test_page_with_translations, translations["de"].target_locale
-        )
-        give_page_permissions(root_editor, de_page, "publish")
-
-        response = wagtail_client.get(
-            bulk_action_url("unpublish", [translations["de"]])
-        )
-
-        assert context_items(response) == [translations["de"]]
-
-    def test_post_skips_translations_without_permission(
-        self, wagtail_client, root_editor, test_page_with_translations, translations
-    ):
-        response = wagtail_client.post(
-            bulk_action_url("unpublish", [translations["de"]])
-        )
-        assert response.status_code == 302
-
-        de_page = target_of(
-            test_page_with_translations, translations["de"].target_locale
-        )
-        assert de_page.live is True

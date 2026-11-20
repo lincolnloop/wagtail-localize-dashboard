@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wagtail-localize-dashboard 0.4.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-11 15:32-0500\n"
+"POT-Creation-Date: 2026-11-20 18:21-0500\n"
 "PO-Revision-Date: 2026-04-17 15:26+0000\n"
 "Last-Translator: \n"
 "Language-Team: Spanish\n"
@@ -275,6 +275,9 @@ msgstr "publicado"
 msgid "Last published %(date)s"
 msgstr "Último publicado %(date)s"
 
+msgid "Syncing"
+msgstr "Sincronizando"
+
 msgid "Snippets with their translation progress"
 msgstr "Fragmentos con su progreso de traducción"
 
@@ -334,6 +337,12 @@ msgstr "%(locale)s (alias)"
 msgid "Not created yet"
 msgstr "Aún no creado"
 
+msgid "Never synced: created outside the translation workflow"
+msgstr "Nunca sincronizada: creada fuera del flujo de traducción"
+
+msgid "Syncing was stopped"
+msgstr "La sincronización se detuvo"
+
 msgid "Locale"
 msgstr "Configuraciones regionales"
 
@@ -374,14 +383,14 @@ msgstr "Estas traducciones no se sincronizan:"
 msgid ""
 "'%(object)s' could not be published in %(locale)s because of validation "
 "errors."
-msgstr "'%(object)s' no pudo publicarse en %(locale)s debido a errores de "
-"validación."
+msgstr ""
+"'%(object)s' no pudo publicarse en %(locale)s debido a errores de validación."
 
 #, python-format
 msgid "%(count)d translation has been published"
 msgid_plural "%(count)d translations have been published"
-msgstr[0] "No se han publicado traducciones"
-msgstr[1] "Se ha publicado %(count)d traducción"
+msgstr[0] "Se ha publicado %(count)d traducción"
+msgstr[1] "Se han publicado %(count)d traducciones"
 msgstr[2] "Se han publicado %(count)d traducciones"
 
 msgid "Unpublish"
@@ -408,9 +417,93 @@ msgstr "Estas traducciones no tienen página publicada:"
 #, python-format
 msgid "%(count)d translation has been unpublished"
 msgid_plural "%(count)d translations have been unpublished"
-msgstr[0] "No se han despublicado traducciones"
-msgstr[1] "Se ha despublicado %(count)d traducción"
+msgstr[0] "Se ha despublicado %(count)d traducción"
+msgstr[1] "Se han despublicado %(count)d traducciones"
 msgstr[2] "Se han despublicado %(count)d traducciones"
+
+msgid "Stop syncing"
+msgstr "Detener sincronización"
+
+msgid "Stop syncing selected translations"
+msgstr "Detener la sincronización de las traducciones seleccionadas"
+
+msgid "Yes, stop syncing"
+msgstr "Sí, detener sincronización"
+
+msgid "No, keep syncing"
+msgstr "No, seguir sincronizando"
+
+msgid "You don't have permission to stop syncing for these:"
+msgstr "No tienes permiso para detener la sincronización de esto:"
+
+msgid ""
+"Stop syncing the selected locale? Changes to the source will no longer be "
+"synced to the page."
+msgid_plural ""
+"Stop syncing the selected locales? Changes to the source will no longer be "
+"synced to the pages."
+msgstr[0] ""
+"¿Detener la sincronización del idioma seleccionado? Los cambios en el "
+"origen ya no se sincronizarán con la página."
+msgstr[1] ""
+"¿Detener la sincronización de los idiomas seleccionados? Los cambios en el "
+"origen ya no se sincronizarán con las páginas."
+msgstr[2] ""
+"¿Detener la sincronización de los idiomas seleccionados? Los cambios en el "
+"origen ya no se sincronizarán con las páginas."
+
+#, python-format
+msgid "%(count)d translation has stopped syncing"
+msgid_plural "%(count)d translations have stopped syncing"
+msgstr[0] "%(count)d traducción ha dejado de sincronizarse"
+msgstr[1] "%(count)d traducciones han dejado de sincronizarse"
+msgstr[2] "%(count)d traducciones han dejado de sincronizarse"
+
+msgid "Restart syncing"
+msgstr "Reanudar sincronización"
+
+msgid "Restart syncing selected translations"
+msgstr "Reanudar la sincronización de las traducciones seleccionadas"
+
+msgid "Yes, restart syncing"
+msgstr "Sí, reanudar sincronización"
+
+msgid "No, don't restart syncing"
+msgstr "No, no reanudar la sincronización"
+
+msgid "You don't have permission to restart syncing for these:"
+msgstr "No tienes permiso para reanudar la sincronización de esto:"
+
+msgid "These translations are already syncing:"
+msgstr "Estas traducciones ya se sincronizan:"
+
+msgid ""
+"Restart syncing this locale? It will open in the translation editor again, "
+"and edits made to it while it was not syncing may be replaced the next time "
+"it is published."
+msgid_plural ""
+"Restart syncing these locales? They will open in the translation editor "
+"again, and edits made to them while they were not syncing may be replaced "
+"the next time they are published."
+msgstr[0] ""
+"¿Reanudar la sincronización de este idioma? Se abrirá de nuevo en el editor "
+"de traducciones, y las ediciones hechas mientras no se sincronizaba podrían "
+"reemplazarse la próxima vez que se publique."
+msgstr[1] ""
+"¿Reanudar la sincronización de estos idiomas? Se abrirán de nuevo en el "
+"editor de traducciones, y las ediciones hechas mientras no se sincronizaban "
+"podrían reemplazarse la próxima vez que se publiquen."
+msgstr[2] ""
+"¿Reanudar la sincronización de estos idiomas? Se abrirán de nuevo en el "
+"editor de traducciones, y las ediciones hechas mientras no se sincronizaban "
+"podrían reemplazarse la próxima vez que se publiquen."
+
+#, python-format
+msgid "%(count)d translation has restarted syncing"
+msgid_plural "%(count)d translations have restarted syncing"
+msgstr[0] "%(count)d traducción ha reanudado la sincronización"
+msgstr[1] "%(count)d traducciones han reanudado la sincronización"
+msgstr[2] "%(count)d traducciones han reanudado la sincronización"
 
 msgid "Pages"
 msgstr "Páginas"

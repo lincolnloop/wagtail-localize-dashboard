@@ -1,0 +1,8 @@
+{% load i18n wagtailadmin_tags %}
+{% if reason %}
+    {% icon name="warning" classname="default w-text-warning-100" %}<br>
+    {{ reason }}
+{% else %}
+    {% icon name="check" classname="default w-text-positive-100" %}
+    <span class="w-sr-only">{% trans "Syncing" %}</span>
+{% endif %}
