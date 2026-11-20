@@ -81,6 +81,10 @@
     }
 }
 
+.listing .actions {
+    float: none;
+}
+
 .listing .actions a {
     margin-bottom: 0.5rem;
 }
