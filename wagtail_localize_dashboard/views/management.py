@@ -474,11 +474,10 @@ class SyncingTranslationBulkAction(TranslationBulkAction):
         return translation.enabled != self.enable
 
     def has_perm(self, translation):
-        user = self.request.user
         page = get_target_page(translation)
         if page is None:
-            return user.has_perm("wagtail_localize.submit_translation")
-        return page.permissions_for_user(user).can_edit()
+            return False
+        return page.permissions_for_user(self.request.user).can_edit()
 
     @classmethod
     def execute_action(cls, objects, user=None, **kwargs):

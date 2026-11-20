@@ -529,11 +529,11 @@ class TestSyncingActions:
         self, action, admin_client, translations
     ):
         response = admin_client.get(
-            bulk_action_url(action.type, [translations["de"], translations["fr"]])
+            bulk_action_url(action.type, [translations["de"], translations["es"]])
         )
 
         assert response.status_code == 200
-        assert context_items(response) == [translations["de"], translations["fr"]]
+        assert context_items(response) == [translations["de"], translations["es"]]
         assert set(
             Translation.objects.values_list("enabled", flat=True).distinct()
         ) == {action.start_enabled}
@@ -566,14 +566,14 @@ class TestSyncingActions:
         self, action, admin_client, translations
     ):
         response = admin_client.post(
-            bulk_action_url(action.type, [translations["de"], translations["fr"]])
+            bulk_action_url(action.type, [translations["de"], translations["es"]])
         )
 
         assert response.status_code == 302
         for code, expected in (
             ("de", action.end_enabled),
-            ("fr", action.end_enabled),
-            ("es", action.start_enabled),
+            ("es", action.end_enabled),
+            ("fr", action.start_enabled),
         ):
             translations[code].refresh_from_db()
             assert translations[code].enabled is expected, code
@@ -683,7 +683,7 @@ class TestSyncingActions:
     @pytest.mark.parametrize(
         ("grant", "code"),
         [(grant_submit_translation, "de"), (grant_root_edit, "fr")],
-        ids=["page-without-edit-permission", "no-page-without-submit-translation"],
+        ids=["page-without-edit-permission", "no-page-with-edit-permission"],
     )
     def test_user_without_permission_is_listed_as_no_access(
         self, action, code, grant, root_page, translations, wagtail_client, wagtail_user
@@ -697,21 +697,16 @@ class TestSyncingActions:
         assert context_items(response) == []
         assert context_items(response, "items_with_no_access") == [translations[code]]
 
-    @pytest.mark.parametrize(
-        ("grant", "code"),
-        [(grant_root_edit, "de"), (grant_submit_translation, "fr")],
-        ids=["page-edit-permission", "no-page-submit-translation"],
-    )
-    def test_user_with_permission_can_act(
-        self, action, code, grant, root_page, translations, wagtail_client, wagtail_user
+    def test_user_with_edit_permission_can_act(
+        self, action, root_page, translations, wagtail_client, wagtail_user
     ):
-        grant(wagtail_user, root_page)
+        grant_root_edit(wagtail_user, root_page)
 
         response = wagtail_client.get(
-            bulk_action_url(action.type, [translations[code]])
+            bulk_action_url(action.type, [translations["de"]])
         )
 
-        assert context_items(response) == [translations[code]]
+        assert context_items(response) == [translations["de"]]
 
     def test_post_skips_translations_without_permission(
         self, action, root_page, translations, wagtail_client, wagtail_user
