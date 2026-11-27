@@ -436,6 +436,9 @@ msgstr "No, seguir sincronizando"
 msgid "You don't have permission to stop syncing for these:"
 msgstr "No tienes permiso para detener la sincronización de esto:"
 
+msgid "These translations are not syncing or have no page:"
+msgstr "Estas traducciones no se sincronizan o no tienen página:"
+
 msgid ""
 "Stop syncing the selected locale? Changes to the source will no longer be "
 "synced to the page."
@@ -474,8 +477,8 @@ msgstr "No, no reanudar la sincronización"
 msgid "You don't have permission to restart syncing for these:"
 msgstr "No tienes permiso para reanudar la sincronización de esto:"
 
-msgid "These translations are already syncing:"
-msgstr "Estas traducciones ya se sincronizan:"
+msgid "These translations are already syncing or have no page:"
+msgstr "Estas traducciones ya se sincronizan o no tienen página:"
 
 msgid ""
 "Restart syncing this locale? It will open in the translation editor again, "

@@ -420,6 +420,9 @@ msgstr ""
 msgid "You don't have permission to stop syncing for these:"
 msgstr ""
 
+msgid "These translations are not syncing or have no page:"
+msgstr ""
+
 msgid ""
 "Stop syncing the selected locale? Changes to the source will no longer be "
 "synced to the page."
@@ -450,7 +453,7 @@ msgstr ""
 msgid "You don't have permission to restart syncing for these:"
 msgstr ""
 
-msgid "These translations are already syncing:"
+msgid "These translations are already syncing or have no page:"
 msgstr ""
 
 msgid ""

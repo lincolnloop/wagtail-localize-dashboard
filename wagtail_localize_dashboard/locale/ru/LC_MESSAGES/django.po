@@ -437,6 +437,9 @@ msgstr "Нет, продолжить синхронизацию"
 msgid "You don't have permission to stop syncing for these:"
 msgstr "Вам не разрешено останавливать синхронизацию для следующих:"
 
+msgid "These translations are not syncing or have no page:"
+msgstr "Эти переводы не синхронизируются или не имеют страницы:"
+
 msgid ""
 "Stop syncing the selected locale? Changes to the source will no longer be "
 "synced to the page."
@@ -479,8 +482,8 @@ msgstr "Нет, не возобновлять синхронизацию"
 msgid "You don't have permission to restart syncing for these:"
 msgstr "Вам не разрешено возобновлять синхронизацию для следующих:"
 
-msgid "These translations are already syncing:"
-msgstr "Эти переводы уже синхронизируются:"
+msgid "These translations are already syncing or have no page:"
+msgstr "Эти переводы уже синхронизируются или не имеют страницы:"
 
 msgid ""
 "Restart syncing this locale? It will open in the translation editor again, "

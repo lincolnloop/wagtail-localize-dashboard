@@ -471,12 +471,13 @@ class SyncingTranslationBulkAction(TranslationBulkAction):
     enable = None
 
     def is_eligible(self, translation):
-        return translation.enabled != self.enable
+        return (
+            translation.enabled != self.enable
+            and get_target_page(translation) is not None
+        )
 
     def has_perm(self, translation):
         page = get_target_page(translation)
-        if page is None:
-            return False
         return page.permissions_for_user(self.request.user).can_edit()
 
     @classmethod
@@ -499,7 +500,9 @@ class StopSyncingTranslationBulkAction(SyncingTranslationBulkAction):
     no_access_text = gettext_lazy(
         "You don't have permission to stop syncing for these:"
     )
-    ineligible_text = gettext_lazy("These translations are not syncing:")
+    ineligible_text = gettext_lazy(
+        "These translations are not syncing or have no page:"
+    )
 
     def get_confirm_text(self, count):
         return ngettext(
@@ -529,7 +532,9 @@ class RestartSyncingTranslationBulkAction(SyncingTranslationBulkAction):
     no_access_text = gettext_lazy(
         "You don't have permission to restart syncing for these:"
     )
-    ineligible_text = gettext_lazy("These translations are already syncing:")
+    ineligible_text = gettext_lazy(
+        "These translations are already syncing or have no page:"
+    )
 
     def get_confirm_text(self, count):
         return ngettext(

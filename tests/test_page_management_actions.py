@@ -464,7 +464,7 @@ STOP = SimpleNamespace(
     type="stop_syncing",
     start_enabled=True,
     end_enabled=False,
-    ineligible_heading="These translations are not syncing:",
+    ineligible_heading="These translations are not syncing or have no page:",
     confirmation_texts={
         1: "Stop syncing the selected locale? Changes to the source will no longer "
         "be synced to the page.",
@@ -481,7 +481,7 @@ RESTART = SimpleNamespace(
     type="restart_syncing",
     start_enabled=False,
     end_enabled=True,
-    ineligible_heading="These translations are already syncing:",
+    ineligible_heading="These translations are already syncing or have no page:",
     confirmation_texts={
         1: "Restart syncing this locale? It will open in the translation editor "
         "again, and edits made to it while it was not syncing may be replaced the "
@@ -680,22 +680,29 @@ class TestSyncingActions:
         translations["de"].refresh_from_db()
         assert translations["de"].enabled is action.end_enabled
 
-    @pytest.mark.parametrize(
-        ("grant", "code"),
-        [(grant_submit_translation, "de"), (grant_root_edit, "fr")],
-        ids=["page-without-edit-permission", "no-page-with-edit-permission"],
-    )
     def test_user_without_permission_is_listed_as_no_access(
-        self, action, code, grant, root_page, translations, wagtail_client, wagtail_user
+        self, action, root_page, translations, wagtail_client, wagtail_user
     ):
-        grant(wagtail_user, root_page)
+        grant_submit_translation(wagtail_user, root_page)
 
         response = wagtail_client.get(
-            bulk_action_url(action.type, [translations[code]])
+            bulk_action_url(action.type, [translations["de"]])
         )
 
         assert context_items(response) == []
-        assert context_items(response, "items_with_no_access") == [translations[code]]
+        assert context_items(response, "items_with_no_access") == [translations["de"]]
+
+    def test_translation_without_target_page_is_listed_as_ineligible(
+        self, action, admin_client, translations
+    ):
+        response = admin_client.get(
+            bulk_action_url(action.type, [translations["de"], translations["fr"]])
+        )
+
+        assert context_items(response) == [translations["de"]]
+        assert context_items(response, "items_ineligible") == [translations["fr"]]
+        assert context_items(response, "items_with_no_access") == []
+        assert action.ineligible_heading in response.content.decode()
 
     def test_user_with_edit_permission_can_act(
         self, action, root_page, translations, wagtail_client, wagtail_user
