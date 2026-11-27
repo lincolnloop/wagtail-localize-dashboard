@@ -29,6 +29,8 @@ from wagtail_localize.models import (
 
 from wagtail_localize_dashboard.utils import count_published
 
+EMPTY_CONTENT = mark_safe("<span>-</span>")
+
 
 def get_target_page(translation):
     """The translated page, or None if it hasn't been created yet."""
@@ -52,6 +54,15 @@ def progress_html(done, total):
         _("%(percent)s%% (%(done)s of %(total)s)")
         % {"percent": percent, "done": done, "total": total},
     )
+
+
+class TranslationCheckboxColumn(tables.BulkActionsCheckboxColumn):
+    """Bulk action checkboxes for Translation rows only."""
+
+    def render_cell_html(self, instance, parent_context):
+        if not isinstance(instance, Translation):
+            return mark_safe("<td></td>")
+        return super().render_cell_html(instance, parent_context)
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -140,13 +151,34 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
             )
         return buttons
 
-    def get_queryset(self):
+    def get_translation_queryset(self):
         return (
             # Every source for the page, so translations of translations are listed.
             Translation.objects.filter(source__object_id=self.object.translation_key)
             .exclude(target_locale_id=self.object.locale_id)
             .select_related("source", "target_locale")
             .order_by("target_locale__language_code")
+        )
+
+    def get_untracked_page_queryset(self, translations):
+        """Pages in other locales made outside wagtail-localize's workflow."""
+        return (
+            # Aliases mirror the original, so never fall behind.
+            Page.objects.filter(
+                translation_key=self.object.translation_key, alias_of__isnull=True
+            )
+            .exclude(locale_id=self.object.locale_id)
+            .exclude(locale_id__in=translations.values("target_locale_id"))
+            .select_related("locale")
+        )
+
+    def get_queryset(self):
+        translations = self.get_translation_queryset()
+        pages = list(self.get_untracked_page_queryset(translations))
+        for page in pages:
+            page.target_locale = page.locale
+        return sorted(
+            [*translations, *pages], key=lambda row: row.target_locale.language_code
         )
 
     def get_translated_via(self, translation):
@@ -196,13 +228,21 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
         }
         # shortcut: a few queries per row, fine for a page's handful of locales.
         for translation in object_list:
+            if not isinstance(translation, Translation):
+                # An untracked page: no Translation, so no translation details.
+                translation.target_page = translation
+                translation.is_alias = False
+                translation.translated_html = EMPTY_CONTENT
+                translation.published_html = EMPTY_CONTENT
+                translation.translated_via = EMPTY_CONTENT
+                continue
             page = pages.get(translation.target_locale_id)
             total, translated = translation.get_progress()
             translation.target_page = page
             translation.is_alias = bool(page and page.alias_of_id)
             translation.translated_html = progress_html(translated, total)
             if page is None:
-                translation.published_html = mark_safe("<span>-</span>")
+                translation.published_html = EMPTY_CONTENT
             else:
                 published = count_published(
                     translation.source, translation.target_locale, page
@@ -223,10 +263,14 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
             return format_html(
                 '<span id="translation_{}_title">{}</span>', translation.pk, name
             )
+        edit_url = reverse("wagtailadmin_pages:edit", args=(page.pk,))
+        if not isinstance(translation, Translation):
+            # No checkbox to describe, and its pk could clash with a translation's.
+            return format_html('<a href="{}">{}</a>', edit_url, name)
         return format_html(
             '<a id="translation_{}_title" href="{}">{}</a>',
             translation.pk,
-            reverse("wagtailadmin_pages:edit", args=(page.pk,)),
+            edit_url,
             name,
         )
 
@@ -240,16 +284,30 @@ class PageTranslationsManageView(BaseObjectMixin, BaseListingView):
             {"page": page, "show_last_published": True},
         )
 
+    @staticmethod
+    def get_syncing(row):
+        if not isinstance(row, Translation):
+            reason = _("Never synced: created outside the translation workflow")
+        elif not row.enabled:
+            reason = _("Syncing was stopped")
+        else:
+            reason = None
+        return render_to_string(
+            "wagtail_localize_dashboard/includes/syncing_status.html",
+            {"reason": reason},
+        )
+
     @cached_property
     def columns(self):
         return [
-            tables.BulkActionsCheckboxColumn("bulk_actions", obj_type="translation"),
+            TranslationCheckboxColumn("bulk_actions", obj_type="translation"),
             tables.Column("locale", label=_("Locale"), accessor=self.get_locale_html),
             tables.Column(
                 "translated", label=_("Translated"), accessor="translated_html"
             ),
             tables.Column("published", label=_("Published"), accessor="published_html"),
             tables.Column("status", label=_("Page status"), accessor=self.get_status),
+            tables.Column("syncing", label=_("Syncing"), accessor=self.get_syncing),
             tables.Column(
                 "translated_via", label=_("Translated via"), accessor="translated_via"
             ),
@@ -284,6 +342,14 @@ class TranslationBulkAction(BulkAction):
         objects, context = super().get_actionable_objects()
         context["items_ineligible"] = [o for o in objects if not self.is_eligible(o)]
         return [o for o in objects if self.is_eligible(o)], context
+
+    def get_confirm_text(self, count):
+        return self.confirm_text
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["confirm_text"] = self.get_confirm_text(len(context["items"]))
+        return context
 
     def get_execution_context(self):
         return {"user": self.request.user}
@@ -395,5 +461,95 @@ class UnpublishTranslationBulkAction(TranslationBulkAction):
         return ngettext(
             "%(count)d translation has been unpublished",
             "%(count)d translations have been unpublished",
+            count,
+        ) % {"count": count}
+
+
+class SyncingTranslationBulkAction(TranslationBulkAction):
+    """Sets Translation.enabled, like wagtail-localize's stop and restart views."""
+
+    enable = None
+
+    def is_eligible(self, translation):
+        return (
+            translation.enabled != self.enable
+            and get_target_page(translation) is not None
+        )
+
+    def has_perm(self, translation):
+        page = get_target_page(translation)
+        return page.permissions_for_user(self.request.user).can_edit()
+
+    @classmethod
+    def execute_action(cls, objects, user=None, **kwargs):
+        for translation in objects:
+            translation.enabled = cls.enable
+            # save(), not update(), so the progress signal handlers run.
+            translation.save(update_fields=["enabled"])
+        return len(objects), 0
+
+
+class StopSyncingTranslationBulkAction(SyncingTranslationBulkAction):
+    enable = False
+    display_name = gettext_lazy("Stop syncing")
+    action_type = "stop_syncing"
+    aria_label = gettext_lazy("Stop syncing selected translations")
+    action_priority = 30
+    action_button_text = gettext_lazy("Yes, stop syncing")
+    no_action_button_text = gettext_lazy("No, keep syncing")
+    no_access_text = gettext_lazy(
+        "You don't have permission to stop syncing for these:"
+    )
+    ineligible_text = gettext_lazy(
+        "These translations are not syncing or have no page:"
+    )
+
+    def get_confirm_text(self, count):
+        return ngettext(
+            "Stop syncing the selected locale? Changes to the source will no longer "
+            "be synced to the page.",
+            "Stop syncing the selected locales? Changes to the source will no longer "
+            "be synced to the pages.",
+            count,
+        )
+
+    def get_success_text(self, count):
+        return ngettext(
+            "%(count)d translation has stopped syncing",
+            "%(count)d translations have stopped syncing",
+            count,
+        ) % {"count": count}
+
+
+class RestartSyncingTranslationBulkAction(SyncingTranslationBulkAction):
+    enable = True
+    display_name = gettext_lazy("Restart syncing")
+    action_type = "restart_syncing"
+    aria_label = gettext_lazy("Restart syncing selected translations")
+    action_priority = 40
+    action_button_text = gettext_lazy("Yes, restart syncing")
+    no_action_button_text = gettext_lazy("No, don't restart syncing")
+    no_access_text = gettext_lazy(
+        "You don't have permission to restart syncing for these:"
+    )
+    ineligible_text = gettext_lazy(
+        "These translations are already syncing or have no page:"
+    )
+
+    def get_confirm_text(self, count):
+        return ngettext(
+            "Restart syncing this locale? It will open in the translation editor "
+            "again, and edits made to it while it was not syncing may be replaced "
+            "the next time it is published.",
+            "Restart syncing these locales? They will open in the translation editor "
+            "again, and edits made to them while they were not syncing may be "
+            "replaced the next time they are published.",
+            count,
+        )
+
+    def get_success_text(self, count):
+        return ngettext(
+            "%(count)d translation has restarted syncing",
+            "%(count)d translations have restarted syncing",
             count,
         ) % {"count": count}

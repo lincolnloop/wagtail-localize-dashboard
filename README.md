@@ -136,8 +136,10 @@ The translation management view for a page shows:
 - Details on all translations for the page
   - Translation progress
   - Publish status
+  - Whether each translation is syncing with its source
   - How segments were translated
-- Bulk actions on translations
+- Bulk actions on translations: publish, unpublish, stop syncing, and restart
+  syncing
 - Actions to sync translations and translate into additional locales
 
 ### Management Commands
